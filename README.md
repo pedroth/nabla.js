@@ -1,2 +1,2 @@
 # nabla.js
-Mathematical Utility educational library
+Mathematics and Computer science educational library
