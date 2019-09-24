@@ -1,4 +1,4 @@
-var Matrix = require("../main/Matrix.js");
+var Matrix = require("../main/Matrix");
 
 test("test matrix creation", () => {
   let matrix = new Matrix([1, 2, 3]);
