@@ -2,7 +2,7 @@
   "name": "nabla.js",
   "version": "1.0.0",
   "description": "Educational implementation of mathematics and computer science utility",
-  "main": "index.js",
+  "main": "src/Nabla/nabla.js",
   "scripts": {
     "build": "webpack",
     "test": "jest"
