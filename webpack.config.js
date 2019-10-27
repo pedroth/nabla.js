@@ -6,7 +6,7 @@ module.exports = {
   output: {
     path: path.resolve("./"),
     filename: "dist/index.js",
-    library: "Nabla"
+    library: "nabla"
     // // Expose the default export.
     // libraryExport: "default"
   }

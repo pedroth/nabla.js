@@ -14,4 +14,4 @@ Nabla.Stream = Stream;
 Nabla.ArrayUtils = ArrayUtils;
 Nabla.Sort = Sort;
 
-module.exports.default = Nabla;
+module.exports = Nabla;
