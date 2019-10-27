@@ -28,11 +28,9 @@ ArrayUtils.arrayEquals = function(a1, a2) {
  * @param {*} permutation is an array with length <= array.length that has the new indexes
  */
 ArrayUtils.permute = function(array, permutation) {
-  if (permutation.length > array.length) {
-    throw `permutation array length > array length[${array.length}]`;
-  }
   var copy = array.slice();
-  for (var i = 0; i < permutation.length; i++) {
+  var len = Math.min(array.length, permutation.length);
+  for (var i = 0; i < len; i++) {
     copy[permutation[i]] = array[i];
   }
   return copy;
