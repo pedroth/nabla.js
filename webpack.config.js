@@ -6,6 +6,7 @@ module.exports = {
   output: {
     path: path.resolve("./"),
     filename: "dist/index.js",
-    library: "Nabla"
+    library: "Nabla",
+    libraryTarget: "umd"
   }
 };
