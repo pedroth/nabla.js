@@ -114,9 +114,15 @@ ArrayUtils.map = function(array, mapFunc) {
 ArrayUtils.filter = function(array, filterFunc) {
   const ans = [];
   for (let i = 0; i < array.length; i++) {
-    if (filterFunc(array[i], i)) ans.push(mapFunc(array[i], i));
+    if (filterFunc(array[i], i)) ans.push(array[i]);
   }
   return ans;
+};
+
+ArrayUtils.forEach = function(array, forEachFunc) {
+  for (let i = 0; i < array.length; i++) {
+    forEachFunc(array[i], i);
+  }
 };
 
 module.exports = ArrayUtils;
