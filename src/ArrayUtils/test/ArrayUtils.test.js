@@ -27,12 +27,30 @@ test("test array swap", () => {
 });
 
 test("test find array dim", () => {
-  const a1 = [[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]]];
+  const a1 = [
+    [
+      [1, 2, 3],
+      [4, 5, 6]
+    ],
+    [
+      [7, 8, 9],
+      [10, 11, 12]
+    ]
+  ];
   expect(ArrayUtils.findJsArrayDim(a1)).toStrictEqual([3, 2, 2]);
 });
 
 test("test unpack js array", () => {
-  const a1 = [[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]]];
+  const a1 = [
+    [
+      [1, 2, 3],
+      [4, 5, 6]
+    ],
+    [
+      [7, 8, 9],
+      [10, 11, 12]
+    ]
+  ];
   const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   expect(ArrayUtils.unpackJsArray(a1)).toStrictEqual(expected);
 });
@@ -46,4 +64,24 @@ test("test array binary operation", () => {
   const v = ArrayUtils.range(0, 10, 1);
   const expected = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18];
   expect(ArrayUtils.binaryOp(v, v, (x, y) => x + y)).toStrictEqual(expected);
+});
+
+test("test foreach", () => {
+  const n = 10;
+  const expected = (n * (n - 1)) / 2;
+  let ans = 0;
+  ArrayUtils.forEach(ArrayUtils.range(0, 10, 1), x => (ans += x));
+  expect(expected).toStrictEqual(expected);
+});
+
+test("test filter", () => {
+  const expected = [0, 2, 4, 6, 8];
+  expect(
+    ArrayUtils.filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], x => x % 2 === 0)
+  ).toStrictEqual(expected);
+});
+
+test("test map", () => {
+  const expected = [0, 1, 2, 3, 4];
+  expect(ArrayUtils.map([0, 2, 4, 6, 8], x => x / 2)).toStrictEqual(expected);
 });
