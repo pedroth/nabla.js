@@ -100,4 +100,23 @@ ArrayUtils.binaryOp = function(array1, array2, binaryOp) {
   return smaller;
 };
 
+/**
+ * Used in general collections
+ */
+ArrayUtils.map = function(array, mapFunc) {
+  const ans = [];
+  for (let i = 0; i < array.length; i++) {
+    ans.push(mapFunc(array[i], i));
+  }
+  return ans;
+};
+
+ArrayUtils.filter = function(array, filterFunc) {
+  const ans = [];
+  for (let i = 0; i < array.length; i++) {
+    if (filterFunc(array[i], i)) ans.push(mapFunc(array[i], i));
+  }
+  return ans;
+};
+
 module.exports = ArrayUtils;
