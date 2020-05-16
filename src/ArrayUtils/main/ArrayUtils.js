@@ -125,4 +125,4 @@ ArrayUtils.forEach = function(array, forEachFunc) {
   }
 };
 
-module.exports = ArrayUtils;
+export default ArrayUtils;

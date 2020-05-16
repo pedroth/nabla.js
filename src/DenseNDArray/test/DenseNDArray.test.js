@@ -1,5 +1,4 @@
-var DenseNDArray = require("../main/DenseNDArray.js");
-var ArrayUtils = require("../../ArrayUtils/main/ArrayUtils.js");
+import DenseNDArray from "../main/DenseNDArray.js";
 
 test("test getter", () => {
   const denseNDArray = new DenseNDArray([3, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9]);

@@ -1,5 +1,5 @@
-const ArrayUtils = require("../../ArrayUtils/main/ArrayUtils.js");
-const Stream = require("../main/Stream.js");
+import ArrayUtils from "../../ArrayUtils/main/ArrayUtils.js";
+import Stream from "../main/Stream.js";
 
 function primesSieveRecursive(stream) {
   let p = stream.head();

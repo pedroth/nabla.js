@@ -1,4 +1,4 @@
-var ArrayUtils = require("../main/ArrayUtils");
+import ArrayUtils from "../main/ArrayUtils";
 
 test("test concat array", () => {
   const a1 = [1, 2, "3"];

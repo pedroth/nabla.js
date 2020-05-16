@@ -1,4 +1,4 @@
-const Function = require("../main/Function");
+import Function from "../main/Function";
 
 test("compose test", () => {
   const h = Function.of(x => x * x).compose(Math.sqrt);
