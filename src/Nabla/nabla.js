@@ -1,9 +1,9 @@
-const Canvas = require("../Canvas/main/Canvas.js");
-const Canvas2D = require("../Canvas/main/Canvas2D.js");
-const ImageIO = require("../Canvas/main/ImageIO.js");
-const Stream = require("../Stream/main/Stream.js");
-const ArrayUtils = require("../ArrayUtils/main/ArrayUtils");
-const Sort = require("../Sort/main/Sort");
+import Canvas from "../Canvas/main/Canvas.js";
+import Canvas2D from "../Canvas/main/Canvas2D.js";
+import ImageIO from "../Canvas/main/ImageIO.js";
+import Stream from "../Stream/main/Stream.js";
+import ArrayUtils from "../ArrayUtils/main/ArrayUtils";
+import Sort from "../Sort/main/Sort";
 
 const Nabla = {};
 
@@ -14,4 +14,4 @@ Nabla.Stream = Stream;
 Nabla.ArrayUtils = ArrayUtils;
 Nabla.Sort = Sort;
 
-module.exports = Nabla;
+export default Nabla;

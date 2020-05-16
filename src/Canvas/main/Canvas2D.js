@@ -1,4 +1,4 @@
-var Canvas = require('./Canvas.js');
+import Canvas from './Canvas.js';
 
 //Note that we can switch from heritage to composition, think about that
 
@@ -93,4 +93,4 @@ Canvas2D.prototype.setCamera = function(camera) {
 }
 
 
-module.exports = Canvas2D;
+export default Canvas2D;

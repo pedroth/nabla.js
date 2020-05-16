@@ -1,11 +1,14 @@
-var Matrix = require("../main/Matrix");
+import Matrix from "../main/Matrix";
 
 test("test matrix creation", () => {
   let matrix = new Matrix([1, 2, 3]);
   expect(matrix.shape()).toStrictEqual([3]);
   expect(matrix.get([1])).toBe(2);
 
-  matrix = new Matrix([[1, 0], [0, 1]]);
+  matrix = new Matrix([
+    [1, 0],
+    [0, 1]
+  ]);
   expect(matrix.shape()).toStrictEqual([2, 2]);
   expect(matrix.get("1, 1")).toBe(1);
   expect(matrix.get([0, 0])).toBe(1);

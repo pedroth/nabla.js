@@ -1,7 +1,7 @@
 {
   "name": "nabla.js",
   "version": "1.0.0",
-  "description": "Educational implementation of mathematics and computer science utility",
+  "description": "Reference implementation of mathematics and computer science algorithms & structures",
   "main": "src/Nabla/nabla.js",
   "scripts": {
     "test": "jest",
@@ -17,7 +17,8 @@
     "math",
     "computer science",
     "utility",
-    "educational"
+    "educational",
+    "reference"
   ],
   "author": "Pedroth",
   "license": "MIT",
@@ -26,8 +27,14 @@
   },
   "homepage": "https://github.com/pedroth/nabla.js#readme",
   "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/plugin-transform-runtime": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "babel-jest": "^25.5.1",
+    "babel-loader": "^8.1.0",
     "jest": "^24.9.0",
-    "webpack": "^4.33.0",
-    "webpack-cli": "^3.3.2"
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-node-externals": "^1.7.2"
   }
 }

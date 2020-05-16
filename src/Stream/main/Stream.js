@@ -1,10 +1,10 @@
-var Function = require("../../Function/main/Function.js");
+import Function from "../../Function/main/Function.js";
 /**
  * The Stream constructor
  * @param {*} generator is an object that implements hasNext(), next() and peek() functions and have a initial state
  * @param {*} mapFunction the mapping function
  */
-var Stream = function(
+var Stream = function (
   generator,
   mapFunction = x => x,
   filterPredicate = x => true
@@ -17,21 +17,21 @@ var Stream = function(
 /**
  * Gets the state of the generator.
  */
-Stream.prototype.state = function() {
+Stream.prototype.state = function () {
   return this.gen.state;
 };
 
 /**
  * Returns true if stream has more elements, false otherwise.
  */
-Stream.prototype.hasNext = function() {
+Stream.prototype.hasNext = function () {
   return this.gen.hasNext(this.filteredState());
 };
 
 /**
  * Return next filtered state.
  */
-Stream.prototype.filteredState = function() {
+Stream.prototype.filteredState = function () {
   var state = this.state();
   while (
     this.gen.hasNext(state) &&
@@ -45,7 +45,7 @@ Stream.prototype.filteredState = function() {
 /**
  * Gets first element of the generator, filtered.
  */
-Stream.prototype.head = function() {
+Stream.prototype.head = function () {
   let state = this.filteredState();
   if (this.gen.hasNext(state)) return this.gen.peek(state);
   throw `No head element exception`;
@@ -54,7 +54,7 @@ Stream.prototype.head = function() {
 /**
  * Gets stream without the first element.
  */
-Stream.prototype.tail = function() {
+Stream.prototype.tail = function () {
   return new Stream(
     Stream.generatorOf(
       this.gen.next(this.filteredState()),
@@ -71,12 +71,10 @@ Stream.prototype.tail = function() {
  * Returns stream with mapping function f
  * @param {*} f, mapping function.
  */
-Stream.prototype.map = function(f) {
+Stream.prototype.map = function (f) {
   return new Stream(
     this.gen,
-    Function.of(f)
-      .compose(this.mapFunction)
-      .get(),
+    Function.of(f).compose(this.mapFunction).get(),
     this.filterPredicate
   );
 };
@@ -86,7 +84,7 @@ Stream.prototype.map = function(f) {
  * @param {*} identity, identity of binaryOperation used as initial value.
  * @param {*} binaryOp, binary operation of the reduce.
  */
-Stream.prototype.reduce = function(identity, binaryOp) {
+Stream.prototype.reduce = function (identity, binaryOp) {
   var stream = this;
   while (stream.hasNext()) {
     let value = stream.head();
@@ -99,7 +97,7 @@ Stream.prototype.reduce = function(identity, binaryOp) {
  * ForEach function on stream
  * @param {*} consumer: is a x => void function
  */
-Stream.prototype.forEach = function(consumer) {
+Stream.prototype.forEach = function (consumer) {
   var stream = this;
   while (stream.hasNext()) {
     let value = stream.head();
@@ -114,7 +112,7 @@ Stream.prototype.forEach = function(consumer) {
  *
  *  The collector.reduce is a \lambda (identity, acc) => identity.
  */
-Stream.prototype.collect = function(collector) {
+Stream.prototype.collect = function (collector) {
   return this.reduce(collector.identity, collector.reduce);
 };
 
@@ -122,7 +120,7 @@ Stream.prototype.collect = function(collector) {
  * @param {*} predicate is a \lambda (x) => {true, false}
  * This function choses the elementes where predicate(x) = true
  */
-Stream.prototype.filter = function(predicate) {
+Stream.prototype.filter = function (predicate) {
   return new Stream(
     this.gen,
     this.mapFunction,
@@ -133,7 +131,7 @@ Stream.prototype.filter = function(predicate) {
 /**
  * Take first n elements
  */
-Stream.prototype.take = function(n) {
+Stream.prototype.take = function (n) {
   return new Stream(
     Stream.generatorOf(
       { i: 0, stream: this },
@@ -148,7 +146,7 @@ Stream.prototype.take = function(n) {
   ).collect(Stream.Collectors.toArray());
 };
 
-Stream.prototype.takeWhile = function(predicate) {
+Stream.prototype.takeWhile = function (predicate) {
   return new Stream(
     Stream.generatorOf(
       this,
@@ -161,7 +159,7 @@ Stream.prototype.takeWhile = function(predicate) {
   ).collect(Stream.Collectors.toArray());
 };
 
-Stream.prototype.zip = function(stream) {
+Stream.prototype.zip = function (stream) {
   return new Stream(
     Stream.generatorOf(
       [this, stream],
@@ -172,7 +170,7 @@ Stream.prototype.zip = function(stream) {
   );
 };
 
-Stream.prototype.flatMap = function(toStreamLambda) {
+Stream.prototype.flatMap = function (toStreamLambda) {
   return new Stream(
     Stream.generatorOf(
       { baseStream: this, flatStream: null },
@@ -205,7 +203,7 @@ Stream.prototype.flatMap = function(toStreamLambda) {
   );
 };
 
-Stream.ofHeadTail = function(head, tailSupplier) {
+Stream.ofHeadTail = function (head, tailSupplier) {
   return new Stream(
     Stream.generatorOf(
       { h: head, supplier: tailSupplier },
@@ -222,7 +220,7 @@ Stream.ofHeadTail = function(head, tailSupplier) {
   );
 };
 
-Stream.of = function(iterable) {
+Stream.of = function (iterable) {
   var types = [
     { name: "Array", predicate: x => x.constructor === Array },
     {
@@ -257,7 +255,7 @@ Stream.of = function(iterable) {
   throw `Iterable ${iterable} does not have a stream`;
 };
 
-Stream.range = function(init, end, step = 1) {
+Stream.range = function (init, end, step = 1) {
   return new Stream(
     Stream.generatorOf(
       init,
@@ -268,13 +266,13 @@ Stream.range = function(init, end, step = 1) {
   );
 };
 
-Stream.generatorOf = function(
+Stream.generatorOf = function (
   initialState,
   nextStateFunction,
   getFromStateFunction,
   hasNextStateFunction
 ) {
-  return new (function() {
+  return new (function () {
     this.state = initialState;
     this.next = nextStateFunction;
     this.peek = getFromStateFunction;
@@ -284,7 +282,7 @@ Stream.generatorOf = function(
 
 Stream.Collectors = {
   toArray: () =>
-    new (function() {
+    new (function () {
       this.identity = [];
       this.reduce = (acc, x) => {
         acc.push(x);
@@ -292,4 +290,5 @@ Stream.Collectors = {
       };
     })()
 };
-module.exports = Stream;
+
+export default Stream;

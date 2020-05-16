@@ -1,4 +1,4 @@
-const Sort = require("../main/Sort");
+import Sort from "../main/Sort";
 
 test("Sort test", () => {
   const sorted = [1, 2, 3, 4, 5, 6, 7];
