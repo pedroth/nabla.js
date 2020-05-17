@@ -6,14 +6,4 @@ import ArrayUtils from "../ArrayUtils/main/ArrayUtils";
 import Sort from "../Sort/main/Sort";
 import EditDistance from "../EditDistance/main/EditDistance";
 
-const Nabla = {
-  Canvas,
-  Canvas2D,
-  ImageIO,
-  Stream,
-  ArrayUtils,
-  Sort,
-  EditDistance
-};
-
-export default Nabla;
+export { Canvas, Canvas2D, ImageIO, Stream, ArrayUtils, Sort, EditDistance };
