@@ -2,7 +2,7 @@ import ArrayUtils from "../../ArrayUtils/main/ArrayUtils.js";
 /**
  * N-dimensional array implementation in column major order
  */
-var DenseNDArray = function (dim, array) {
+const DenseNDArray = function (dim, array) {
   this.dim = dim;
   this.powers = [];
   // column major array
@@ -10,7 +10,7 @@ var DenseNDArray = function (dim, array) {
 
   this.powers = computePowers(dim);
   if (array === undefined) {
-    for (var i = 0; i < this.powers[this.powers.length - 1]; i++)
+    for (let i = 0; i < this.powers[this.powers.length - 1]; i++)
       this.denseNDArray[i] = null;
   } else {
     if (array.length != this.powers[this.powers.length - 1])
@@ -36,34 +36,34 @@ DenseNDArray.prototype.get = function (x) {
     return this.denseNDArray[this.getIndex(x)];
   }
   if (x.constructor === String) {
-    var intervals = this.getIntervalFromStr(x);
-    var newDim = this.computeNewDim(intervals);
+    const intervals = this.getIntervalFromStr(x);
+    const newDim = this.computeNewDim(intervals);
 
     // string doesn't have any range
     if (newDim.length == 0) {
-      var coord = [];
-      for (var i = 0; i < intervals.length; i++) {
+      const coord = [];
+      for (let i = 0; i < intervals.length; i++) {
         coord.push(intervals[i][0]);
       }
       return this.get(coord);
     }
 
-    var newDenseNDArray = new DenseNDArray(newDim);
+    const newDenseNDArray = new DenseNDArray(newDim);
 
-    var size = newDenseNDArray.size();
-    var y = [];
-    var dx = [];
+    const size = newDenseNDArray.size();
+    const y = [];
+    const dx = [];
 
-    for (var i = 0; i < intervals.length; i++) {
+    for (let i = 0; i < intervals.length; i++) {
       dx[i] = intervals[i][1] - intervals[i][0] + 1;
     }
 
-    var powers = computePowers(dx);
+    const powers = computePowers(dx);
 
-    for (var i = 0; i < size; i++) {
-      var k = 0;
-      for (var j = 0; j < intervals.length; j++) {
-        var index = Math.floor((i % powers[k + 1]) / powers[k]);
+    for (let i = 0; i < size; i++) {
+      let k = 0;
+      for (let j = 0; j < intervals.length; j++) {
+        const index = Math.floor((i % powers[k + 1]) / powers[k]);
         y[j] = intervals[j][0] + index;
         k++;
       }
@@ -75,31 +75,31 @@ DenseNDArray.prototype.get = function (x) {
 };
 
 DenseNDArray.prototype.set = function (x, value) {
-  if (typeof x == "number" && value.constructor != Array)
+  if (typeof x == "number" && value.constructor !== Array)
     return this.set([x], value);
-  if (x.constructor === Array && value.constructor != Array) {
+  if (x.constructor === Array && value.constructor !== Array) {
     this.checkIfIndexOutOfBounds(x);
     this.checkIfCoordSizeCompatible(x.length);
     this.denseNDArray[this.getIndex(x)] = value;
     return this;
   }
   if (x.constructor === String && value.constructor === DenseNDArray) {
-    var intervals = this.getIntervalFromStr(x);
+    const intervals = this.getIntervalFromStr(x);
 
-    var size = value.size();
-    var y = [];
-    var dx = [];
+    const size = value.size();
+    const y = [];
+    const dx = [];
 
-    for (var i = 0; i < intervals.length; i++) {
+    for (let i = 0; i < intervals.length; i++) {
       dx[i] = intervals[i][1] - intervals[i][0] + 1;
     }
 
-    var powers = computePowers(dx);
+    const powers = computePowers(dx);
 
-    for (var i = 0; i < size; i++) {
-      var k = 0;
-      for (var j = 0; j < intervals.length; j++) {
-        var index = Math.floor((i % powers[k + 1]) / powers[k]);
+    for (let i = 0; i < size; i++) {
+      let k = 0;
+      for (let j = 0; j < intervals.length; j++) {
+        const index = Math.floor((i % powers[k + 1]) / powers[k]);
         y[j] = intervals[j][0] + index;
         k++;
       }
@@ -111,9 +111,9 @@ DenseNDArray.prototype.set = function (x, value) {
 };
 
 DenseNDArray.prototype.map = function (f) {
-  var ans = this.copy();
-  var size = this.size();
-  for (var i = 0; i < size; i++) {
+  const ans = this.copy();
+  const size = this.size();
+  for (let i = 0; i < size; i++) {
     ans.denseNDArray[i] = f(this.denseNDArray[i]);
   }
   return ans;
@@ -123,15 +123,14 @@ DenseNDArray.prototype.map = function (f) {
  * @param{*} f : a function that receive an element and an index as an array
  */
 DenseNDArray.prototype.mapWithIndex = function (f) {
-  var ans = this.copy();
-  var size = this.size();
-  var dim = this.dim;
-  var powers = this.powers;
-  var coord = [];
+  const ans = this.copy();
+  const size = this.size();
+  const dim = this.dim;
+  const powers = this.powers;
+  const coord = [];
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < dim.length; j++) {
-      var z = Math.floor((i % powers[j + 1]) / powers[j]);
-      coord[j] = z;
+      coord[j] = Math.floor((i % powers[j + 1]) / powers[j]);
     }
     ans.denseNDArray[i] = f(this.denseNDArray[i], coord);
   }
@@ -139,8 +138,8 @@ DenseNDArray.prototype.mapWithIndex = function (f) {
 };
 
 DenseNDArray.prototype.reduce = function (identity, binaryOperator) {
-  var size = this.size();
-  for (var i = 0; i < size; i++) {
+  const size = this.size();
+  for (let i = 0; i < size; i++) {
     identity = binaryOperator(identity, this.denseNDArray[i]);
   }
   return identity;
@@ -154,8 +153,8 @@ DenseNDArray.prototype.forEach = function (f) {
  * Transforms the same denseNDArray
  */
 DenseNDArray.prototype.transform = function (f) {
-  var size = this.size();
-  for (var i = 0; i < size; i++) {
+  const size = this.size();
+  for (let i = 0; i < size; i++) {
     this.denseNDArray[i] = f(this.denseNDArray[i]);
   }
   return this;
@@ -165,14 +164,13 @@ DenseNDArray.prototype.transform = function (f) {
  * @param{*} f : a function that receive an element and an index as an array
  */
 DenseNDArray.prototype.transformWithIndex = function (f) {
-  var size = this.size();
-  var dim = this.dim;
-  var powers = this.powers;
-  var coord = [];
+  const size = this.size();
+  const dim = this.dim;
+  const powers = this.powers;
+  const coord = [];
   for (let i = 0; i < size; i++) {
     for (let j = 0; j < dim.length; j++) {
-      var z = Math.floor((i % powers[j + 1]) / powers[j]);
-      coord[j] = z;
+      coord[j] = Math.floor((i % powers[j + 1]) / powers[j]);
     }
     this.denseNDArray[i] = f(this.denseNDArray[i], coord);
   }
@@ -184,10 +182,10 @@ DenseNDArray.prototype.toArray = function () {
 };
 
 DenseNDArray.prototype.toArrayRecursive = function (coord) {
-  var array = [];
-  var size = coord.length;
+  const array = [];
+  const size = coord.length;
   if (size != this.dim.length) {
-    for (var j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
+    for (let j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
       array.push(this.toArrayRecursive(ArrayUtils.concat([j], coord)));
     }
     return array;
@@ -201,11 +199,11 @@ DenseNDArray.prototype.toString = function () {
 };
 
 DenseNDArray.prototype.toStringRecursive = function (coord) {
-  var stringBuilder = [];
-  var size = coord.length;
+  const stringBuilder = [];
+  const size = coord.length;
   if (size != this.dim.length) {
     stringBuilder.push("[");
-    for (var j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
+    for (let j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
       stringBuilder.push(this.toStringRecursive(ArrayUtils.concat([j], coord)));
     }
     stringBuilder.push("]");
@@ -234,50 +232,50 @@ DenseNDArray.prototype.hashCode = function () {
 };
 
 DenseNDArray.prototype.getIndex = function (x) {
-  var index = 0;
-  var size = Math.min(x.length, this.dim.length);
+  let index = 0;
+  const size = Math.min(x.length, this.dim.length);
   // this strange loop is for the case where |x| < |dim|
-  for (var i = 0; i < size; i++) {
+  for (let i = 0; i < size; i++) {
     index += x[x.length - i - 1] * this.powers[this.dim.length - i - 1];
   }
   return index;
 };
 
 DenseNDArray.prototype.computeNewDim = function (intervals) {
-  var dimBuff = [];
-  for (var i = 0; i < intervals.length; i++) {
-    var dx = intervals[i][1] - intervals[i][0];
+  const dimBuff = [];
+  for (let i = 0; i < intervals.length; i++) {
+    const dx = intervals[i][1] - intervals[i][0];
     if (dx !== 0) {
       dimBuff.push(dx + 1);
     }
   }
-  var newDim = [];
-  for (var i = 0; i < dimBuff.length; i++) {
+  const newDim = [];
+  for (let i = 0; i < dimBuff.length; i++) {
     newDim[i] = dimBuff[i];
   }
   return newDim;
 };
 
 DenseNDArray.prototype.getIntervalFromStr = function (x) {
-  var split = x.split(" ").join("").split(",");
+  const split = x.split(" ").join("").split(",");
   this.checkIfCoordSizeCompatible(split.length);
-  var intervals = [];
-  for (var i = 0; i < split.length; i++) {
-    var intervalBounds = split[i].split(":");
-    switch (intervalBounds.length) {
-      case 1:
-        var integer = parseInt(intervalBounds[0]);
+  const intervals = [];
+  for (let i = 0; i < split.length; i++) {
+    const intervalBounds = split[i].split(":");
+    const bounds2actions = {
+      1: () => {
+        const integer = parseInt(intervalBounds[0]);
         intervals[i] = [integer, integer];
-        break;
-      case 2:
-        var xmin = Math.max(
+      },
+      2: () => {
+        const xmin = Math.max(
           0,
           Math.min(
             this.dim[i] - 1,
             "" == intervalBounds[0] ? 0 : parseInt(intervalBounds[0])
           )
         );
-        var xmax = Math.max(
+        const xmax = Math.max(
           0,
           Math.min(
             this.dim[i] - 1,
@@ -286,14 +284,14 @@ DenseNDArray.prototype.getIntervalFromStr = function (x) {
               : parseInt(intervalBounds[1])
           )
         );
-        var myInterval = [xmin, xmax];
+        const myInterval = [xmin, xmax];
         if (xmax - xmin === 0) {
           throw `empty interval xmax : ${xmax} < xmin : ${xmin}`;
         }
         intervals[i] = myInterval;
-        break;
-      default:
-    }
+      }
+    };
+    bounds2actions[intervalBounds.length]();
   }
   return intervals;
 };
@@ -324,33 +322,33 @@ DenseNDArray.prototype.reshape = function (newShape) {
  * @param {*} binaryOperator
  */
 DenseNDArray.prototype.binaryOp = function (denseNDArray, binaryOperator) {
-  var s1 = this.shape();
+  const s1 = this.shape();
 
   // if denseNDArray is a number
-  var dense =
+  const dense =
     typeof denseNDArray == "number"
       ? DenseNDArray.of(denseNDArray)
       : denseNDArray;
-  var s2 = dense.shape();
+  const s2 = dense.shape();
 
-  var small = s1.length < s2.length ? s1 : s2;
-  var large = s1.length < s2.length ? s2 : s1;
+  const small = s1.length < s2.length ? s1 : s2;
+  const large = s1.length < s2.length ? s2 : s1;
 
-  var newShape = [];
+  let newShape = [];
   for (let i = 0; i < small.length; i++) {
     try {
       newShape.push(
         auxBroadCast(small[small.length - i - 1], large[large.length - i - 1])
       );
     } catch (e) {
-      throw `Dimensions ${s1} and ${s2} are not compatible for brodcast`;
+      throw `Dimensions ${s1} and ${s2} are not compatible for broadcast`;
     }
   }
   for (let i = small.length; i < large.length; i++) {
     newShape.push(large[large.length - i - 1]);
   }
   newShape = newShape.reverse();
-  var ans = new DenseNDArray(newShape);
+  const ans = new DenseNDArray(newShape);
   return ans.transformWithIndex((x, index) => {
     let a = this.get(getBroadCastIndex(this, index));
     let b = dense.get(getBroadCastIndex(dense, index));
@@ -358,9 +356,12 @@ DenseNDArray.prototype.binaryOp = function (denseNDArray, binaryOperator) {
   });
 };
 
-/**
- * Static functions
- */
+//========================================================================================
+/*                                                                                      *
+ *                                   Static functions                                   *
+ *                                                                                      */
+//========================================================================================
+
 /**
  * Create DenseArray from old DenseArray or JsArray, it can also reshape
  */
@@ -376,24 +377,27 @@ DenseNDArray.of = function (array, dim) {
   return new DenseNDArray(dim, array);
 };
 
-/**
- * Auxiliar functions
- */
+//========================================================================================
+/*                                                                                      *
+ *                                  Auxiliary functions                                  *
+ *                                                                                      */
+//========================================================================================
+
 function checkIfArrayIsLinear(array) {
   return array.length > 0 && array[0].length === undefined;
 }
 
 function buildDenseFromJsArray(array) {
-  var dim = ArrayUtils.findJsArrayDim(array);
-  var ans = ArrayUtils.unpackJsArray(array);
+  const dim = ArrayUtils.findJsArrayDim(array);
+  const ans = ArrayUtils.unpackJsArray(array);
   return DenseNDArray.of(ans, dim);
 }
 
 function computePowers(dim) {
-  var powers = [];
-  var acc = 1;
+  const powers = [];
+  let acc = 1;
   powers[0] = acc;
-  for (var i = 0; i < dim.length; i++) {
+  for (let i = 0; i < dim.length; i++) {
     acc *= dim[i];
     powers[i + 1] = acc;
   }
@@ -411,8 +415,8 @@ function auxBroadCast(a, b) {
 }
 
 function getBroadCastIndex(dense, coord) {
-  let shape = dense.shape();
-  var ans = [];
+  const shape = dense.shape();
+  const ans = [];
   for (let i = 0; i < shape.length; i++) {
     ans.unshift(
       shape[shape.length - 1 - i] == 1 ? 0 : coord[coord.length - 1 - i]
