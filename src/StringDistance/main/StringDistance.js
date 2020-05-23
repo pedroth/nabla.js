@@ -28,6 +28,9 @@ StringDistance.edit = function (word1, word2) {
   return ed[nplusmplus - 1];
 };
 
+/**
+ * Longest common subsequence distance
+ */
 StringDistance.longestCommonSub = function (word1, word2) {
   // distance matrix
   const ed = [];
