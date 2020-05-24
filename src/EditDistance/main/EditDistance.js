@@ -9,8 +9,8 @@ EditDistance.distanceFactory = (subsCost = 1, delCost = 1, addCost = 1) => (
   const n = word1.length;
   const m = word2.length;
   const ed = array2d(n + 1, m + 1);
-  for (let i = 0; i < n + 1; i++) ed[i][0] = i;
-  for (let j = 0; j < m + 1; j++) ed[0][j] = j;
+  for (let i = 0; i < n + 1; i++) ed[i][0] = i * delCost;
+  for (let j = 0; j < m + 1; j++) ed[0][j] = j * addCost;
   for (let i = 1; i < n + 1; i++) {
     for (let j = 1; j < m + 1; j++) {
       const isCharEqual = word1[i - 1] === word2[j - 1];
