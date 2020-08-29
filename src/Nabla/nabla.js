@@ -5,5 +5,15 @@ import Stream from "../Stream/main/Stream.js";
 import ArrayUtils from "../ArrayUtils/main/ArrayUtils";
 import Sort from "../Sort/main/Sort";
 import EditDistance from "../EditDistance/main/EditDistance";
+import Vector from "../Vector/main/Vector";
 
-export { Canvas, Canvas2D, ImageIO, Stream, ArrayUtils, Sort, EditDistance };
+export {
+  Canvas,
+  Canvas2D,
+  ImageIO,
+  Stream,
+  ArrayUtils,
+  Sort,
+  EditDistance,
+  Vector
+};
