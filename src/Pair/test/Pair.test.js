@@ -11,7 +11,11 @@ test("test creation", () => {
 test("test getter", () => {
   const u = Pair.cons(1, 2);
   expect(u.left()).toBe(1);
+  expect(u.key()).toBe(1);
+  expect(u.first()).toBe(1);
   expect(u.right()).toBe(2);
+  expect(u.val()).toBe(2);
+  expect(u.second()).toBe(2);
 });
 test("test map", () => {
   const u = Pair.cons(1, 2).map(x => 2 * x);

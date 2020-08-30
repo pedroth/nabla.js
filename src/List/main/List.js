@@ -11,7 +11,7 @@ export default class List {
    */
   constructor(head, tail) {
     if (!head) return this;
-    this.#list = new Pair(head, emptyTail(tail) ? new Pair() : tail);
+    this.#list = new Pair(head, emptyTail(tail) ? new List() : tail);
   }
 
   head() {
@@ -43,11 +43,22 @@ export default class List {
   }
 
   toArray() {
-    return [this.head].concat(this.tail.toArray());
+    if (this.isEmpty()) return [];
+    return [this.head()].concat(this.tail().toArray());
+  }
+
+  toString() {
+    if (this.isEmpty()) return "";
+    return `[${this.head()}, ${this.tail().toString()}]`;
   }
 
   static fromArray([head, ...tail]) {
+    if (!head) return new List();
     return new List(head, List.fromArray(tail));
+  }
+
+  static of(...array) {
+    return List.fromArray(array);
   }
 }
 
