@@ -8,3 +8,7 @@ test("test creation", () => {
   expect(l2.toArray()).toStrictEqual([1, 2, 3]);
   expect(l3.toArray()).toStrictEqual([1, 2, 3]);
 });
+test("test to String", () => {
+  const l1 = List.of(1, 2, 3);
+  expect(l1.toString()).toStrictEqual("[1, 2, 3, ]");
+});

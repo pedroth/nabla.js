@@ -6,6 +6,8 @@ import ArrayUtils from "../ArrayUtils/main/ArrayUtils";
 import Sort from "../Sort/main/Sort";
 import EditDistance from "../EditDistance/main/EditDistance";
 import Vector from "../Vector/main/Vector";
+import Pair from "../Pair/main/Pair";
+import List from "../List/main/List";
 
 export {
   Canvas,
@@ -15,5 +17,7 @@ export {
   ArrayUtils,
   Sort,
   EditDistance,
-  Vector
+  Vector,
+  Pair,
+  List
 };
