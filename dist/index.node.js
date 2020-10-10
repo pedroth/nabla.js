@@ -7,7 +7,7 @@
 		exports["Nabla"] = factory();
 	else
 		root["Nabla"] = factory();
-})(window, function() {
+})(global, function() {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
