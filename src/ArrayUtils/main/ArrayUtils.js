@@ -1,23 +1,16 @@
-var ArrayUtils = {};
-
-/**
- * Union of array a1 and a2
- * @param {*} a1
- * @param {*} a2
- */
-ArrayUtils.concat = function(a1, a2) {
-  return a1.concat(a2);
-};
+const ArrayUtils = {};
 
 /**
  *  Test if linear arrays are equal
  * @param {*} a1
  * @param {*} a2
  */
-ArrayUtils.arrayEquals = function(a1, a2) {
+ArrayUtils.arrayEquals = function (a1, a2) {
+  if (!(a1 instanceof Array)) return false;
+  if (!(a2 instanceof Array)) return false;
   if (a1.length != a2.length) return false;
-  for (var i = 0; i < a1.length; i++) {
-    if (a1[i] != a2[i]) return false;
+  for (let i = 0; i < a1.length; i++) {
+    if (a1[i] !== a2[i]) return false;
   }
   return true;
 };
@@ -27,10 +20,10 @@ ArrayUtils.arrayEquals = function(a1, a2) {
  * @param {*} array
  * @param {*} permutation is an array with length <= array.length that has the new indexes
  */
-ArrayUtils.permute = function(array, permutation) {
-  var copy = array.slice();
-  var len = Math.min(array.length, permutation.length);
-  for (var i = 0; i < len; i++) {
+ArrayUtils.permute = function (array, permutation) {
+  const copy = array.slice();
+  const len = Math.min(array.length, permutation.length);
+  for (let i = 0; i < len; i++) {
     copy[permutation[i]] = array[i];
   }
   return copy;
@@ -39,7 +32,7 @@ ArrayUtils.permute = function(array, permutation) {
 /**
  * Fisher-Yates shuffle algorithm
  */
-ArrayUtils.randomPermute = function(array) {
+ArrayUtils.shuffle = function (array) {
   const ans = [...array];
   for (let i = array.length - 1; i > 0; i--) {
     // random number between 0 and i
@@ -55,74 +48,64 @@ ArrayUtils.randomPermute = function(array) {
 /**
  * return swap array indexes
  */
-ArrayUtils.swap = function(array, i, j) {
-  var t = array[i];
-  array[i] = array[j];
-  array[j] = t;
-  return array;
+ArrayUtils.swap = function (array, i, j) {
+  const copy = [...array];
+  const t = copy[i];
+  copy[i] = copy[j];
+  copy[j] = t;
+  return copy;
 };
 
-ArrayUtils.findJsArrayDim = function(array) {
+ArrayUtils.findJsArrayDim = function (array) {
   if (array instanceof Array) {
-    return ArrayUtils.concat(ArrayUtils.findJsArrayDim(array[0]), [
-      array.length
-    ]);
-  } else {
-    return [];
+    return ArrayUtils.findJsArrayDim(array[0]).concat([array.length]);
   }
+  return [];
 };
 
-ArrayUtils.unpackJsArray = function(array) {
-  if (array instanceof Array) {
-    var joinIdentity = [];
-    for (var i = 0; i < array.length; i++) {
-      joinIdentity = ArrayUtils.concat(
-        joinIdentity,
-        ArrayUtils.unpackJsArray(array[i])
-      );
-    }
-    return joinIdentity;
-  } else {
-    return [array];
+ArrayUtils.unpackJsArray = function (array) {
+  if (!(array instanceof Array)) return [array];
+  let joinIdentity = [];
+  for (let i = 0; i < array.length; i++) {
+    joinIdentity = joinIdentity.concat(ArrayUtils.unpackJsArray(array[i]));
   }
+  return joinIdentity;
 };
 
-ArrayUtils.range = function(xmin, xmax, step = 1) {
-  var ans = [];
-  for (var i = xmin; i < xmax; i += step) ans.push(i);
+ArrayUtils.range = (min = 0) => (max, step = 1) => {
+  const ans = [];
+  if (min >= max) return ans;
+  for (let i = min; i < max; i += step) ans.push(i);
   return ans;
 };
 
-ArrayUtils.binaryOp = function(array1, array2, binaryOp) {
-  var smaller = array1.length < array2.length ? array1.slice() : array2.slice();
+ArrayUtils.range0 = ArrayUtils.range();
+
+ArrayUtils.binaryOp = function (array1, array2, binaryOp) {
+  const smaller =
+    array1.length < array2.length ? array1.slice() : array2.slice();
   for (let i = 0; i < smaller.length; i++)
     smaller[i] = binaryOp(array1[i], array2[i]);
   return smaller;
 };
 
 /**
- * Used in general collections
+ *
+ * @param {*} array
+ * @param {*} groupFunction : function x => group class;
+ *
+ * Usage example:
+ *
+ * groupBy([1,2,3,4,5,6,7,8,9], x => x % 3) // {0: [3,6,9], 1:[1,4,7], 2:[2,5,8]}
  */
-ArrayUtils.map = function(array, mapFunc) {
-  const ans = [];
-  for (let i = 0; i < array.length; i++) {
-    ans.push(mapFunc(array[i], i));
-  }
+ArrayUtils.groupBy = (array, groupFunction) => {
+  const ans = {};
+  array.forEach(x => {
+    const key = groupFunction(x);
+    if (!ans[key]) ans[key] = [];
+    ans[key].push(x);
+  });
   return ans;
-};
-
-ArrayUtils.filter = function(array, filterFunc) {
-  const ans = [];
-  for (let i = 0; i < array.length; i++) {
-    if (filterFunc(array[i], i)) ans.push(array[i]);
-  }
-  return ans;
-};
-
-ArrayUtils.forEach = function(array, forEachFunc) {
-  for (let i = 0; i < array.length; i++) {
-    forEachFunc(array[i], i);
-  }
 };
 
 export default ArrayUtils;

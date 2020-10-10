@@ -53,3 +53,7 @@ test("test normalization", () => {
   const u = Vector.of(1, 1);
   expect(u.normalize().length()).toBeCloseTo(1);
 });
+test("test equals", () => {
+  const u = Vector.of(1, 1, 1, 1);
+  expect(u.equals(u)).toBe(true);
+});

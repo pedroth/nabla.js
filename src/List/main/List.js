@@ -1,5 +1,8 @@
 import Pair from "../../Pair/main/Pair";
 
+/**
+ * Immutable Linked List class
+ */
 export default class List {
   #list = new Pair();
   // cache

@@ -186,7 +186,7 @@ DenseNDArray.prototype.toArrayRecursive = function (coord) {
   const size = coord.length;
   if (size != this.dim.length) {
     for (let j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
-      array.push(this.toArrayRecursive(ArrayUtils.concat([j], coord)));
+      array.push(this.toArrayRecursive([j].concat(coord)));
     }
     return array;
   } else {
@@ -204,7 +204,7 @@ DenseNDArray.prototype.toStringRecursive = function (coord) {
   if (size != this.dim.length) {
     stringBuilder.push("[");
     for (let j = 0; j < this.dim[this.dim.length - 1 - size]; j++) {
-      stringBuilder.push(this.toStringRecursive(ArrayUtils.concat([j], coord)));
+      stringBuilder.push(this.toStringRecursive([j].concat(coord)));
     }
     stringBuilder.push("]");
   } else {

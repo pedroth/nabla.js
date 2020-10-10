@@ -29,7 +29,14 @@ test("test map", () => {
       .reduce(0, (x, y) => x + y)
   ).toBe(array.map(x => x * x).reduce((x, y) => x + y, 0));
   expect(
-    Stream.of(Stream.generatorOf(1, s => s + 1, s => s, s => s <= 5))
+    Stream.of(
+      Stream.generatorOf(
+        1,
+        s => s + 1,
+        s => s,
+        s => s <= 5
+      )
+    )
       .map(x => x * x)
       .map(Math.sqrt)
       .reduce([], (x, y) => x.concat(y))
@@ -42,7 +49,7 @@ test("test reduce", () => {
       .map(x => x * x)
       .reduce(0, (x, y) => x + y)
   ).toBe(
-    ArrayUtils.range(1, 6, 1)
+    ArrayUtils.range(1)(6, 1)
       .map(x => x * x)
       .reduce((x, y) => x + y, 0)
   );
@@ -51,7 +58,7 @@ test("test reduce", () => {
       .map(x => x * x)
       .reduce(1, (x, y) => x * y)
   ).toBe(
-    ArrayUtils.range(1, 6, 2)
+    ArrayUtils.range(1)(6, 2)
       .map(x => x * x)
       .reduce((x, y) => x * y, 1)
   );
@@ -60,7 +67,7 @@ test("test reduce", () => {
 test("test collect", () => {
   expect(
     Stream.range(0, 10).collect(Stream.Collectors.toArray())
-  ).toStrictEqual(ArrayUtils.range(0, 10));
+  ).toStrictEqual(ArrayUtils.range0(10));
 });
 
 test("test head", () => {
@@ -70,21 +77,17 @@ test("test head", () => {
 
 test("test tail", () => {
   expect(
-    Stream.range(0, 100)
-      .tail()
-      .collect(Stream.Collectors.toArray())
-  ).toStrictEqual(ArrayUtils.range(1, 100));
+    Stream.range(0, 100).tail().collect(Stream.Collectors.toArray())
+  ).toStrictEqual(ArrayUtils.range(1)(100));
   expect(
-    Stream.range(0, 100)
-      .tail()
-      .collect(Stream.Collectors.toArray())
-  ).toStrictEqual(ArrayUtils.range(1, 100));
+    Stream.range(0, 100).tail().collect(Stream.Collectors.toArray())
+  ).toStrictEqual(ArrayUtils.range(1)(100));
 });
 
 test("test take", () => {
-  expect(Stream.range(0, 100).take(10)).toStrictEqual(ArrayUtils.range(0, 10));
+  expect(Stream.range(0, 100).take(10)).toStrictEqual(ArrayUtils.range0(10));
   expect(Stream.range(0, 100).takeWhile(x => x < 10)).toStrictEqual(
-    ArrayUtils.range(0, 10)
+    ArrayUtils.range0(10)
   );
   expect(
     Stream.range(1)
@@ -100,7 +103,7 @@ test("test filter", () => {
       .filter(x => x % 2 == 0)
       .collect(Stream.Collectors.toArray())
   ).toStrictEqual(
-    ArrayUtils.range(0, 10)
+    ArrayUtils.range0(10)
       .map(x => x * x)
       .filter(x => x % 2 == 0)
   );
@@ -113,7 +116,7 @@ test("test for each", () => {
     .filter(x => x % 2 == 0)
     .forEach(x => stack.push(x));
   expect(stack).toStrictEqual(
-    ArrayUtils.range(0, 10)
+    ArrayUtils.range0(10)
       .map(x => x * x)
       .filter(x => x % 2 == 0)
   );
@@ -121,8 +124,8 @@ test("test for each", () => {
 
 test("test of creation,", () => {
   expect(
-    Stream.of(ArrayUtils.range(0, 10)).collect(Stream.Collectors.toArray())
-  ).toStrictEqual(ArrayUtils.range(0, 10));
+    Stream.of(ArrayUtils.range0(10)).collect(Stream.Collectors.toArray())
+  ).toStrictEqual(ArrayUtils.range0(10));
 
   expect(
     Stream.range(0, 10).collect(Stream.Collectors.toArray())
@@ -138,7 +141,7 @@ test("test of creation,", () => {
         s => s < 10
       )
     ).collect(Stream.Collectors.toArray())
-  ).toStrictEqual(ArrayUtils.range(0, 10).map(x => String.fromCharCode(x)));
+  ).toStrictEqual(ArrayUtils.range0(10).map(x => String.fromCharCode(x)));
 });
 
 test("test prime sieve", () => {
@@ -147,7 +150,14 @@ test("test prime sieve", () => {
 });
 
 test("test twin prime", () => {
-  const twinPrimes = [[3, 5], [5, 7], [11, 13], [17, 19], [29, 31], [41, 43]];
+  const twinPrimes = [
+    [3, 5],
+    [5, 7],
+    [11, 13],
+    [17, 19],
+    [29, 31],
+    [41, 43]
+  ];
   expect(
     primeTwins()
       .map(x => x[0])
@@ -156,7 +166,14 @@ test("test twin prime", () => {
 });
 
 test("test flat map", () => {
-  const twinPrimes = [[3, 5], [5, 7], [11, 13], [17, 19], [29, 31], [41, 43]];
+  const twinPrimes = [
+    [3, 5],
+    [5, 7],
+    [11, 13],
+    [17, 19],
+    [29, 31],
+    [41, 43]
+  ];
   const expectedAns = [3, 5, 5, 7, 11, 13, 17, 19, 29, 31, 41, 43];
   const ans = Stream.of(twinPrimes)
     .flatMap(x => Stream.of(x))
@@ -165,7 +182,14 @@ test("test flat map", () => {
 });
 
 test("test flat map 2", () => {
-  const input = [[[1, 2], [3]], [[4, 5]], [[6, 7], [8, 9, 10]]];
+  const input = [
+    [[1, 2], [3]],
+    [[4, 5]],
+    [
+      [6, 7],
+      [8, 9, 10]
+    ]
+  ];
   const expectedAns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const ans = Stream.of(input)
     .flatMap(Stream.of)

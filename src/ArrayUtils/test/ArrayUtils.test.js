@@ -1,32 +1,25 @@
-import ArrayUtils from "../main/ArrayUtils";
+import Arrays from "../main/ArrayUtils";
 
-test("test concat array", () => {
-  const a1 = [1, 2, "3"];
-  const a2 = ["1", "p", "e"];
-  const result = [1, 2, "3", "1", "p", "e"];
-  expect(ArrayUtils.concat(a1, a2)).toStrictEqual(result);
-});
-
-test("test array equality", () => {
+test("array equality", () => {
   const a1 = [1, { a: 1 }, 3];
   const a2 = [1, { a: 2 }, 3];
-  expect(ArrayUtils.arrayEquals(a1, a2)).toBe(false);
-  expect(ArrayUtils.arrayEquals(a1, a1)).toBe(true);
+  expect(Arrays.arrayEquals(a1, a2)).toBe(false);
+  expect(Arrays.arrayEquals(a1, a1)).toBe(true);
 });
 
-test("test array permute", () => {
+test("array permute", () => {
   const a1 = [0, 1, 2, 3, 4, 5];
   const permuted = [1, 3, 4, 5, 0, 2];
-  expect(ArrayUtils.permute(a1, [4, 0, 5, 1, 2, 3])).toStrictEqual(permuted);
+  expect(Arrays.permute(a1, [4, 0, 5, 1, 2, 3])).toStrictEqual(permuted);
 });
 
-test("test array swap", () => {
+test("array swap", () => {
   const a1 = [0, 1, 2, 3, 4, 5];
-  const swaped = [4, 1, 2, 3, 0, 5];
-  expect(ArrayUtils.swap(a1, 0, 4)).toStrictEqual(swaped);
+  const swapped = [4, 1, 2, 3, 0, 5];
+  expect(Arrays.swap(a1, 0, 4)).toStrictEqual(swapped);
 });
 
-test("test find array dim", () => {
+test("find array dim", () => {
   const a1 = [
     [
       [1, 2, 3],
@@ -37,10 +30,10 @@ test("test find array dim", () => {
       [10, 11, 12]
     ]
   ];
-  expect(ArrayUtils.findJsArrayDim(a1)).toStrictEqual([3, 2, 2]);
+  expect(Arrays.findJsArrayDim(a1)).toStrictEqual([3, 2, 2]);
 });
 
-test("test unpack js array", () => {
+test("unpack js array", () => {
   const a1 = [
     [
       [1, 2, 3],
@@ -52,36 +45,22 @@ test("test unpack js array", () => {
     ]
   ];
   const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  expect(ArrayUtils.unpackJsArray(a1)).toStrictEqual(expected);
+  expect(Arrays.unpackJsArray(a1)).toStrictEqual(expected);
 });
 
-test("test array range", () => {
-  expect(ArrayUtils.range(0, 10, 2)).toStrictEqual([0, 2, 4, 6, 8]);
-  expect(ArrayUtils.range(0, 10)).toStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+test("array range", () => {
+  expect(Arrays.range0(10, 2)).toStrictEqual([0, 2, 4, 6, 8]);
+  expect(Arrays.range0(10)).toStrictEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
-test("test array binary operation", () => {
-  const v = ArrayUtils.range(0, 10, 1);
+test("array binary operation", () => {
+  const v = Arrays.range0(10);
   const expected = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18];
-  expect(ArrayUtils.binaryOp(v, v, (x, y) => x + y)).toStrictEqual(expected);
+  expect(Arrays.binaryOp(v, v, (x, y) => x + y)).toStrictEqual(expected);
 });
 
-test("test foreach", () => {
-  const n = 10;
-  const expected = (n * (n - 1)) / 2;
-  let ans = 0;
-  ArrayUtils.forEach(ArrayUtils.range(0, 10, 1), x => (ans += x));
-  expect(expected).toStrictEqual(expected);
-});
-
-test("test filter", () => {
-  const expected = [0, 2, 4, 6, 8];
-  expect(
-    ArrayUtils.filter([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], x => x % 2 === 0)
-  ).toStrictEqual(expected);
-});
-
-test("test map", () => {
-  const expected = [0, 1, 2, 3, 4];
-  expect(ArrayUtils.map([0, 2, 4, 6, 8], x => x / 2)).toStrictEqual(expected);
+test("group by", () => {
+  const array = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const dict = Arrays.groupBy(array, x => x % 3);
+  expect(dict).toStrictEqual({ 0: [3, 6, 9], 1: [1, 4, 7], 2: [2, 5, 8] });
 });

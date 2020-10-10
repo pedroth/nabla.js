@@ -1,7 +1,7 @@
 //immutable class, not managing exceptions
 export default class Vector {
   constructor(...arrayOfNumbers) {
-    this.vec = arrayOfNumbers.map(z => (z ? z : 0));
+    this.vec = arrayOfNumbers.map(z => (z === null || z === undefined ? 0 : z));
   }
 
   toArray() {
@@ -59,6 +59,11 @@ export default class Vector {
 
   reduce(fold, init) {
     return this.vec.reduce(fold, init);
+  }
+
+  equals(y, precision = 1e-5) {
+    if (!(y instanceof Vector)) return false;
+    return this.sub(y).length() < precision;
   }
 
   static fromArray(array) {
