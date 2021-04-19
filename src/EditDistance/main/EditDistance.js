@@ -33,7 +33,7 @@ EditDistance.printDistanceMatrix = (ed, word1, word2) => {
     r.forEach((v, j) => buffer.push(`${v}`));
     stringBuffer.push(buffer.join(" "));
   });
-  console.log(`w1: ${word1}, w2: ${word2}`, stringBuffer.join("\n"));
+  console.log(`w1: ${word1}, w2: ${word2}\n`, stringBuffer.join("\n"));
 };
 const array2d = (n, m) => Array.from(Array(n), () => new Array(m));
 const min = (...array) =>

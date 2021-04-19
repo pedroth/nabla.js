@@ -15,6 +15,8 @@ test("test map", () => {
 test("test fold", () => {
   const sum = Vector.of(1, 1, 1).reduce((e, x) => e + x, 0);
   expect(sum).toStrictEqual(3);
+  const sum2 = Vector.of(1, 1, 1).fold((e, x) => e + x, 0);
+  expect(sum2).toStrictEqual(3);
 });
 test("test operation", () => {
   const u = Vector.of(1, 1, 1);
@@ -56,4 +58,15 @@ test("test normalization", () => {
 test("test equals", () => {
   const u = Vector.of(1, 1, 1, 1);
   expect(u.equals(u)).toBe(true);
+});
+test("test take", () => {
+  const u = Vector.of(1, 2, 3, 4);
+  expect(u.take(3).toArray()).toStrictEqual([1, 2, 3]);
+});
+test("test e(n)", () => {
+  const v = new Vector(1, 2, 3);
+  const e = Vector.e(3);
+  expect(v.dot(e(1))).toBe(2);
+  expect(v.dot(e(2))).toBe(2);
+  expect(v.dot(e(3))).toBe(2);
 });

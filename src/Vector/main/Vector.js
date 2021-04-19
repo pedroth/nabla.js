@@ -1,15 +1,33 @@
 //immutable class, not managing exceptions
 export default class Vector {
+  #vec;
+  #n;
   constructor(...arrayOfNumbers) {
-    this.vec = arrayOfNumbers.map(z => (z === null || z === undefined ? 0 : z));
+    const finalArray = arrayOfNumbers.map(z =>
+      z === null || z === undefined ? 0 : z
+    );
+    this.#vec = type2constructor.Float64Array(finalArray);
+    this.#n = this.#vec.length;
+  }
+
+  get n() {
+    return this.#n;
+  }
+
+  get(i) {
+    return this.#vec[i - 1];
+  }
+
+  size() {
+    return this.#n;
   }
 
   toArray() {
-    return [...this.vec];
+    return [...this.#vec];
   }
 
   toString() {
-    return "[" + this.vec.join(", ") + "]";
+    return "[" + this.#vec.join(", ") + "]";
   }
 
   add(y) {
@@ -29,11 +47,15 @@ export default class Vector {
   }
 
   dot(y) {
-    return this.vec.reduce((acc, v, i) => acc + v * y.vec[i], 0);
+    return this.#vec.reduce((acc, v, i) => acc + v * y.#vec[i], 0);
   }
 
   length() {
     return Math.sqrt(this.dot(this));
+  }
+
+  squareLength() {
+    return this.dot(this);
   }
 
   normalize() {
@@ -45,7 +67,7 @@ export default class Vector {
   }
 
   map(lambda) {
-    return Vector.fromArray(this.vec.map(lambda));
+    return Vector.fromArray(this.#vec.map(lambda));
   }
 
   /**
@@ -54,16 +76,25 @@ export default class Vector {
    * @param {*} operation: (a,b) => op(a,b)
    */
   op(y, operation) {
-    return Vector.fromArray(this.vec.map((v, i) => operation(v, y.vec[i])));
+    sameSizeOrError(this, y);
+    return Vector.fromArray(this.#vec.map((v, i) => operation(v, y.#vec[i])));
   }
 
   reduce(fold, init) {
-    return this.vec.reduce(fold, init);
+    return this.#vec.reduce(fold, init);
+  }
+
+  fold(foldMap, init) {
+    return this.reduce(foldMap, init);
   }
 
   equals(y, precision = 1e-5) {
     if (!(y instanceof Vector)) return false;
     return this.sub(y).length() < precision;
+  }
+
+  take(n) {
+    return new Vector(...this.#vec.slice(0, n));
   }
 
   static fromArray(array) {
@@ -76,5 +107,17 @@ export default class Vector {
 
   static ZERO = n => new Vector(...new Array(n).fill(0));
   static e = n => i =>
-    new Vector(...new Array(n).fill(0).map((x, j) => (j === i ? 1 : 0)));
+    new Vector(...new Array(n).fill(0).map((x, j) => (j === i - 1 ? 1 : 0)));
+}
+
+const type2constructor = {
+  Float32Array: array => new Float32Array(array),
+  Float64Array: array => new Float64Array(array)
+};
+
+function sameSizeOrError(a, b) {
+  if (a.n === b.n) {
+    return true;
+  }
+  throw new Error("Vector must have same size");
 }
