@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "jest",
+    "coverage": "npx jest --coverage",
     "build": "webpack --mode=production",
     "buildDev": "webpack --mode=development",
     "clean": "rm -r node_modules; rm package-lock.json"
@@ -18,7 +19,15 @@
     "computer science",
     "utility",
     "educational",
-    "reference"
+    "reference",
+    "dynamic array",
+    "linked lists",
+    "monads",
+    "functional",
+    "Vectors",
+    "Matrices",
+    "linear algebra",
+    "streams"
   ],
   "author": "Pedroth",
   "license": "Apache-2.0",

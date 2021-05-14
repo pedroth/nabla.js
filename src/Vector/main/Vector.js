@@ -2,15 +2,15 @@
 //for is faster than reduce, forEach, maps, perf here: https://replit.com/@pedroth/forVsForEach#index.js
 //didn't use private vars because of performance
 export default class Vector {
-  constructor(array) {
-    this._vec = BUILD_VEC(array.length);
-    for (let i = 0; i < array.length; i++) {
-      const z = array[i];
-      const zIsNumber =
-        (z !== null) & (z !== undefined) & (typeof z === "number");
-      this._vec[i] = zIsNumber ? z : 0;
+  constructor(array, isValid = false) {
+    if (isValid) {
+      this._vec = array;
+      this._n = this._vec.length;
+    } else {
+      this._vec = BUILD_VEC(array.length);
+      _sanitize_input(array, this._vec);
+      this._n = this._vec.length;
     }
-    this._n = this._vec.length;
   }
 
   get n() {
@@ -20,17 +20,17 @@ export default class Vector {
   size = () => this._n;
   shape = () => [this._n];
 
+  copy() {
+    return new Vector(COPY_VEC(this._vec), true);
+  }
+
   /**index starts at zero */
   get(i) {
     return this._vec[i];
   }
 
   toArray() {
-    const v = BUILD_VEC(this._n);
-    for (let i = 0; i < v.length; i++) {
-      v[i] = this._vec[i];
-    }
-    return v;
+    return COPY_VEC(this._vec);
   }
 
   toString() {
@@ -83,7 +83,7 @@ export default class Vector {
     for (let i = 0; i < this._n; i++) {
       ans[i] = lambda(this._vec[i], i);
     }
-    return new Vector(ans);
+    return new Vector(ans, true);
   }
 
   /**
@@ -97,7 +97,7 @@ export default class Vector {
     for (let i = 0; i < this._n; i++) {
       ans[i] = operation(this._vec[i], y._vec[i]);
     }
-    return new Vector(ans);
+    return new Vector(ans, true);
   }
 
   reduce(fold, init) {
@@ -128,20 +128,33 @@ export default class Vector {
     return new Vector(values);
   }
 
-  static ZERO = n => new Vector(BUILD_VEC(n));
+  static ZERO = n => new Vector(BUILD_VEC(n), true);
   static e = n => i => {
     const vec = BUILD_VEC(n);
     if (i >= 0 && i < n) {
       vec[i] = 1;
     }
-    return new Vector(vec);
+    return new Vector(vec, true);
   };
 }
 
-const type2constructor = {
-  Float32Array: n => new Float32Array(n),
-  Float64Array: n => new Float64Array(n)
+export const BUILD_VEC = n => new ARRAY_TYPES.Float64Array(n);
+export const COPY_VEC = array => ARRAY_TYPES.Float64Array.from(array);
+export class VectorException extends Error {}
+
+const ARRAY_TYPES = {
+  Float32Array: Float32Array,
+  Float64Array: Float64Array
 };
+//stateful function
+function _sanitize_input(arrayIn, arrayOut) {
+  for (let i = 0; i < arrayIn.length; i++) {
+    const z = arrayIn[i];
+    const zIsNumber = z !== null && z !== undefined && typeof z === "number";
+    arrayOut[i] = zIsNumber ? z : 0;
+  }
+  return arrayOut;
+}
 
 function sameSizeOrError(a, b) {
   if (a.n === b.n) {
@@ -149,6 +162,3 @@ function sameSizeOrError(a, b) {
   }
   throw new VectorException("Vector must have same size");
 }
-
-export const BUILD_VEC = n => type2constructor.Float64Array(n);
-export class VectorException extends Error {}

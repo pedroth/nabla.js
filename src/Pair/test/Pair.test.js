@@ -37,3 +37,8 @@ test("test isEmpty", () => {
   const u = new Pair();
   expect(u.isEmpty()).toStrictEqual(true);
 });
+
+test("test copy", () => {
+  const u = new Pair(1, "2");
+  expect(u.toArray()).toStrictEqual([1, "2"]);
+});

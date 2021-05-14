@@ -83,6 +83,10 @@ test("get i", () => {
   expect(Vector.e(10)(7).get(8)).toBe(0);
 });
 
+test("copy", () => {
+  expect(Vector.of(1, 2, 3).copy().toArray()).toStrictEqual(testArray(1, 2, 3));
+});
+
 test("performance test", () => {
   const n = 1000000;
   const dot = (u, v) => {

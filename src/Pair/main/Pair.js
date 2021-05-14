@@ -25,12 +25,15 @@ export default class Pair {
   cdr = this.right;
 
   map(f) {
-    return Pair.fromArray([this.#left, this.#right].map(f));
+    return new Pair(f(this.#left), f(this.#right));
   }
 
   reduce(fold, identity) {
-    return [this.#left, this.#right].reduce(fold, identity);
+    return fold(fold(identity, this.#left), this.#right);
   }
+
+  fold = this.reduce;
+  foldLeft = this.fold;
 
   op(pair, operation) {
     return Pair.of(
@@ -45,6 +48,10 @@ export default class Pair {
 
   toArray() {
     return [this.#left, this.#right];
+  }
+
+  copy() {
+    return new Pair(this.#left, this.#right);
   }
 
   static of(key, value) {

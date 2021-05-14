@@ -36,6 +36,7 @@ Sort.quicksort = function (array, comparator = (a, b) => a - b) {
         }
       }
       swap(v, j, high);
+      // stack recursion
       stack.push(low);
       stack.push(j - 1);
       stack.push(j + 1);
