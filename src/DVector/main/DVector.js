@@ -1,7 +1,10 @@
-//immutable class, not managing exceptions
-//for is faster than reduce, forEach, maps, perf here: https://replit.com/@pedroth/forVsForEach#index.js
-//didn't use private vars because of performance
-export default class Vector {
+/** Dense Vector data structure
+ *
+ * Immutable class, not managing exceptions
+ * For is faster than reduce, forEach, maps, perf here: https://replit.com/@pedroth/forVsForEach#index.js
+ * Didn't use private vars because of performance
+ */
+export default class DVector {
   constructor(array, isValid = false) {
     if (isValid) {
       this._vec = array;
@@ -21,7 +24,7 @@ export default class Vector {
   shape = () => [this._n];
 
   copy() {
-    return new Vector(COPY_VEC(this._vec), true);
+    return new DVector(COPY_VEC(this._vec), true);
   }
 
   /**index starts at zero */
@@ -83,7 +86,7 @@ export default class Vector {
     for (let i = 0; i < this._n; i++) {
       ans[i] = lambda(this._vec[i], i);
     }
-    return new Vector(ans, true);
+    return new DVector(ans, true);
   }
 
   /**
@@ -97,7 +100,7 @@ export default class Vector {
     for (let i = 0; i < this._n; i++) {
       ans[i] = operation(this._vec[i], y._vec[i]);
     }
-    return new Vector(ans, true);
+    return new DVector(ans, true);
   }
 
   reduce(fold, init) {
@@ -112,29 +115,29 @@ export default class Vector {
   foldLeft = this.fold;
 
   equals(y, precision = 1e-5) {
-    if (!(y instanceof Vector)) return false;
+    if (!(y instanceof DVector)) return false;
     return this.sub(y).length() < precision;
   }
 
   take(n) {
-    return new Vector(this._vec.slice(0, n));
+    return new DVector(this._vec.slice(0, n));
   }
 
   static fromArray(array) {
-    return new Vector(array);
+    return new DVector(array);
   }
 
   static of(...values) {
-    return new Vector(values);
+    return new DVector(values);
   }
 
-  static ZERO = n => new Vector(BUILD_VEC(n), true);
+  static ZERO = n => new DVector(BUILD_VEC(n), true);
   static e = n => i => {
     const vec = BUILD_VEC(n);
     if (i >= 0 && i < n) {
       vec[i] = 1;
     }
-    return new Vector(vec, true);
+    return new DVector(vec, true);
   };
 }
 

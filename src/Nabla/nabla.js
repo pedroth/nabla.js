@@ -5,19 +5,21 @@ import Stream from "../Stream/main/Stream.js";
 import ArrayUtils from "../ArrayUtils/main/ArrayUtils";
 import Sort from "../Sort/main/Sort";
 import EditDistance from "../EditDistance/main/EditDistance";
-import Vector from "../Vector/main/Vector";
+import DVector from "../DVector/main/DVector";
 import Pair from "../Pair/main/Pair";
 import List from "../List/main/List";
+import DenseNDArray from "../DenseNDArray/main/DenseNDArray";
 
 export {
   Canvas,
   Canvas2D,
   ImageIO,
+  DenseNDArray,
   Stream,
   ArrayUtils,
   Sort,
   EditDistance,
-  Vector,
+  DVector,
   Pair,
   List
 };
