@@ -10,7 +10,8 @@ function swap(v, i, j) {
 
 /**
  * array: array with objects
- * comparator: comparator function that compares elements of v. Comparator is a function f(a,b) -> z in R
+ * comparator: comparator function that compares elements of v.
+ * Comparator is a function f(a,b) -> z in R. If
  */
 Sort.quicksort = function (array, comparator = (a, b) => a - b) {
   const n = array.length;
@@ -26,11 +27,11 @@ Sort.quicksort = function (array, comparator = (a, b) => a - b) {
      */
     if (low < high) {
       const pivot = low + Math.floor((high - low) * Math.random());
-      const pvalue = v[pivot];
+      const pivotValue = v[pivot];
       swap(v, pivot, high);
       let j = low;
       for (let i = low; i < high; i++) {
-        if (comparator(v[i], pvalue) <= 0) {
+        if (comparator(v[i], pivotValue) <= 0) {
           swap(v, i, j);
           j++;
         }
