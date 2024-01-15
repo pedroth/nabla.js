@@ -56,18 +56,18 @@ ArrayUtils.swap = function (array, i, j) {
   return copy;
 };
 
-ArrayUtils.findJsArrayDim = function (array) {
+ArrayUtils.findArrayDim = function (array) {
   if (array instanceof Array) {
-    return ArrayUtils.findJsArrayDim(array[0]).concat([array.length]);
+    return ArrayUtils.findArrayDim(array[0]).concat([array.length]);
   }
   return [];
 };
 
-ArrayUtils.unpackJsArray = function (array) {
+ArrayUtils.unpackArray = function (array) {
   if (!(array instanceof Array)) return [array];
   let joinIdentity = [];
   for (let i = 0; i < array.length; i++) {
-    joinIdentity = joinIdentity.concat(ArrayUtils.unpackJsArray(array[i]));
+    joinIdentity = joinIdentity.concat(ArrayUtils.unpackArray(array[i]));
   }
   return joinIdentity;
 };

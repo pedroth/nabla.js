@@ -30,7 +30,7 @@ test("find array dim", () => {
       [10, 11, 12]
     ]
   ];
-  expect(Arrays.findJsArrayDim(a1)).toStrictEqual([3, 2, 2]);
+  expect(Arrays.findArrayDim(a1)).toStrictEqual([3, 2, 2]);
 });
 
 test("unpack js array", () => {
@@ -45,7 +45,7 @@ test("unpack js array", () => {
     ]
   ];
   const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  expect(Arrays.unpackJsArray(a1)).toStrictEqual(expected);
+  expect(Arrays.unpackArray(a1)).toStrictEqual(expected);
 });
 
 test("array range", () => {

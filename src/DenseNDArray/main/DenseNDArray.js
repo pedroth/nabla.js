@@ -371,7 +371,7 @@ DenseNDArray.of = function (array, dim) {
       ? new DenseNDArray(array.dim, array.denseNDArray)
       : new DenseNDArray(dim, array.denseNDArray);
   }
-  if (!checkIfArrayIsLinear(array)) return buildDenseFromJsArray(array);
+  if (!checkIfArrayIsLinear(array)) return buildDenseFromArray(array);
   if (array.length > 0 && dim === undefined)
     return new DenseNDArray([array.length], array);
   return new DenseNDArray(dim, array);
@@ -387,9 +387,9 @@ function checkIfArrayIsLinear(array) {
   return array.length > 0 && array[0].length === undefined;
 }
 
-function buildDenseFromJsArray(array) {
-  const dim = ArrayUtils.findJsArrayDim(array);
-  const ans = ArrayUtils.unpackJsArray(array);
+function buildDenseFromArray(array) {
+  const dim = ArrayUtils.findArrayDim(array);
+  const ans = ArrayUtils.unpackArray(array);
   return DenseNDArray.of(ans, dim);
 }
 
