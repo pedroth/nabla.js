@@ -2,13 +2,14 @@
   "name": "nabla.js",
   "version": "1.0.0",
   "description": "Reference implementation of mathematics and computer science algorithms & structures",
-  "main": "dist/index.js",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "files": [
+    "src/"
+  ],
   "scripts": {
-    "test": "jest",
-    "coverage": "npx jest --coverage",
-    "build": "webpack --mode=production",
-    "buildDev": "webpack --mode=development",
-    "clean": "rm -r node_modules; rm package-lock.json"
+    "pub": "npm version patch; npm publish"
   },
   "repository": {
     "type": "git",
@@ -20,14 +21,10 @@
     "utility",
     "educational",
     "reference",
-    "dynamic array",
-    "linked lists",
-    "monads",
-    "functional",
-    "Vectors",
-    "Matrices",
-    "linear algebra",
-    "streams"
+    "functional programming",
+    "numerical algorithms",
+    "machine learning",
+    "geometry"
   ],
   "author": "Pedroth",
   "license": "Apache-2.0",
@@ -35,16 +32,5 @@
     "url": "https://github.com/pedroth/nabla.js/issues"
   },
   "homepage": "https://github.com/pedroth/nabla.js#readme",
-  "devDependencies": {
-    "@babel/plugin-proposal-class-properties": "^7.10.4",
-    "@babel/plugin-proposal-private-methods": "^7.10.4",
-    "@babel/plugin-transform-runtime": "^7.9.6",
-    "@babel/preset-env": "^7.9.6",
-    "babel-jest": "^25.5.1",
-    "babel-loader": "^8.1.0",
-    "jest": "^24.9.0",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11",
-    "webpack-node-externals": "^1.7.2"
-  }
+  "devDependencies": {}
 }

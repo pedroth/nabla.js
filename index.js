@@ -1,7 +1,7 @@
 const isGithub = window.location.host === "pedroth.github.io";
 const SOURCE = isGithub ? "/tela.js" : ""
 // eslint-disable-next-line no-unused-vars
-const { DOM, Monads } = await import(SOURCE + "/dist/web/index.js")
+const { DOM, Monads } = await import(SOURCE + "/ui/index.js")
 const { some, none, maybe } = Monads;
 //========================================================================================
 /*                                                                                      *
