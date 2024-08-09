@@ -8,6 +8,5 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 #TODO
 
 - playground:
-    - Store cells in localStorage
     - Permalink cells
     - Read examples (?)

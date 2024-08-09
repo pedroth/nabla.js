@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>∇.js playground</title>
     <link rel="stylesheet" href="./index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 </head>
 
 <body>
@@ -20,13 +20,24 @@
     const SOURCE = isGithub ? "/nabla.js" : "";
 
 
-    const { DOM, useState, debounce, svg, codeEval } = await import(SOURCE + "/io/index.js")
+    const { DOM, useState, debounce, svg, codeEval, NablaStorage } = await import(SOURCE + "/io/index.js")
 
     //========================================================================================
     /*                                                                                      *
      *                                         UTILS                                        *
      *                                                                                      */
     //========================================================================================
+
+    function saveToLocalStorage() {
+        NablaStorage.setItem("AppState", AppState.cells.map(x => x.serialize()))
+    }
+
+    function highlightCode(code) {
+        return hljs.highlight(
+            code,
+            { language: "javascript" }
+        ).value;
+    }
 
     // ChatGPT
     function saveCursorPosition(editableDiv) {
@@ -99,24 +110,25 @@
                          min-height: 5rem
                          `)
             .attr("contenteditable", true)
-            .inner(input)
+            .inner(highlightCode(input))
             .event("input",
                 debounce(
-                    (e) => setCellState(() => ({ input: e.target.textContent }))
+                    e => {
+                        setCellState(() => ({ input: e.target.textContent }))
+                        saveToLocalStorage();
+                    }
                 )
             )
             .event("keydown", (e) => {
                 if (e.key === 'Enter' && e.shiftKey) {
                     e.preventDefault();
                     evalCell(cell);
+                    saveToLocalStorage();
                 }
             });
 
         onCellStateChange(({ input }) => {
-            const hlCode = hljs.highlight(
-                input,
-                { language: "javascript" }
-            ).value;
+            const hlCode = highlightCode(input);
             codeDOM.map(raw => {
                 const cursorOffset = saveCursorPosition(raw);
                 codeDOM.inner(hlCode);
@@ -132,8 +144,9 @@
     }
 
     function cellOutput(cell) {
-        const { onCellStateChange } = cell;
-        const outputDOM = DOM.of("pre");
+        const { onCellStateChange, getCellState } = cell;
+        const { output } = getCellState(); // initial state
+        const outputDOM = DOM.of("pre").inner(output);
         onCellStateChange(({ output }) => {
             outputDOM.inner(output);
         })
@@ -231,9 +244,25 @@
             .orElse(() => DOM.of("div"));
     }
 
+    function deserializeCell(json) {
+        const { id, input, output } = json;
+        const c = cell(id);
+        c.setCellState(() => ({ input, output }));
+        return c;
+    }
+
     function cell(id) {
         const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "" })
-        const ans = { id, getCellState, setCellState, onCellStateChange };
+        const ans = {
+            id,
+            getCellState,
+            setCellState,
+            onCellStateChange,
+            serialize: () => {
+                const { id, input, output } = getCellState();
+                return { id, input, output };
+            }
+        };
         return ans;
     }
 
@@ -245,7 +274,10 @@
 
 
     function getInitialCells() {
-        return [cell(0)];
+        const cells = (NablaStorage.getItem("AppState") ?? []).map(x => deserializeCell(x));
+        const defaultCell = cell(0);
+        defaultCell.setCellState(() => ({ input: `maybe("Type some nabla.js code").orElse();` }))
+        return cells.length === 0 ? [defaultCell] : cells;
     }
 
     const AppState = { cells: getInitialCells() }

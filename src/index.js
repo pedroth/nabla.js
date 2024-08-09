@@ -1,1 +1,1 @@
-export * from "./Monads/Monads.js";
+export * from "./Monads/index.js";

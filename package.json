@@ -9,7 +9,8 @@
     "src/"
   ],
   "scripts": {
-    "pub": "npm version patch; npm publish"
+    "pub": "npm version patch; npm publish",
+    "test": "bun test"
   },
   "repository": {
     "type": "git",

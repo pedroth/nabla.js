@@ -1,0 +1,8 @@
+# Maybe monad
+
+A maybe monad can be defined:
+$$
+\text{maybe[A]} := \text{some}(A) \text{ | } ()\\
+\text{some[A]}:= (x:A \rightarrow \text{maybe[B]})
+
+$$
