@@ -13,6 +13,146 @@
         <!-- Elements to be injected here -->
     </div>
 </body>
-<script type="module" src="./index.js"></script>
+<script type="module">
+    const isGithub = window.location.host === "pedroth.github.io";
+    const SOURCE = isGithub ? "/nabla.js" : "";
+
+    const { DOM, useState, debounce } = await import(SOURCE + "/ui/index.js")
+
+
+    //========================================================================================
+    /*                                                                                      *
+     *                                          UI                                          *
+     *                                                                                      */
+    //========================================================================================
+
+    function runCell(getCellState, setCellState) {
+        return () => {
+            const { id, input } = getCellState()
+            const result = eval(input);
+            console.log(">>>", result);
+            setCellState({ output: result.toString() });
+        }
+    }
+
+    function newCellBtn(currentCell, prevOrNext) {
+        if (prevOrNext === 1) return DOM.of("div").addClass("iconBtn fit").inner("+");
+        return DOM.of("div").addClass("iconBtn fit").inner("+");
+    }
+
+    function codeEditor(cell) {
+        const { getCellState, setCellState } = cell;
+        const { isFocus, input } = getCellState();
+        return DOM.of("textarea")
+            .lazy((textarea) => {
+                if (isFocus) textarea.focus();
+            })
+            .inner(input)
+            .event("blur", () => setCellState(() => ({ isFocus: false })))
+            .event("input",
+                debounce((e) => setCellState(() => ({ input: e.target.value, isFocus: true })))
+            )
+    }
+
+    function renderCell(cell) {
+        const { id, getCellState, setCellState, onCellStateChange } = cell;
+        const container = DOM.of("div").addClass("flex grow");
+        function buildCellDOM(id, input, output) {
+            return DOM.of("div")
+                .addClass("flex column grow")
+                .appendChild(
+                    newCellBtn(cell, -1),
+                    DOM.of("pre"),
+                    codeEditor(cell),
+                    DOM.of("div").addClass("flex row").appendChild(
+                        newCellBtn(cell, -1),
+                        DOM.of("button").style("margin-left: auto").inner("run").event("click", runCell(getCellState, setCellState))
+                    )
+                )
+        }
+        onCellStateChange(({ input, output }) => {
+            container.removeChildren();
+            container.appendChild(
+                buildCellDOM(id, input, output)
+            )
+        })
+        const { input, output } = getCellState();
+        container.appendChild(
+            buildCellDOM(id, input, output)
+        )
+        return container;
+    }
+
+    function renderCells() {
+        const cells = getAppState().cells;
+        return cells.map(cell => renderCell(cell));
+    }
+
+    function main() {
+        const container = DOM.of("main")
+            .addClass("flex spaced-items row");
+        onChangeAppState(newState => {
+            container.removeChildren();
+            container.appendChild(
+                ...renderCells()
+            )
+        })
+        return container
+            .appendChild(
+                ...renderCells()
+            )
+    }
+
+    function footer() {
+        return DOM.of("footer")
+            .appendChild(
+                DOM.of("hr"),
+                DOM.of("p")
+                    .addClass("center")
+                    .inner(`© ${new Date().getFullYear()} Pedroth`)
+            )
+    }
+
+    function header() {
+        return DOM.of("header")
+            .appendChild(
+                DOM.of("h1").inner("nabla.js"),
+                DOM.of("hr")
+            )
+    }
+
+    function renderUI() {
+        return DOM.ofId("root").map(root =>
+            root.appendChild(header())
+                .appendChild(main())
+                .appendChild(footer())
+                .addClass("loaded")
+        ).orElse(() => DOM.of("div"));
+    }
+
+    function cell(id) {
+        const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "", isFocus: false })
+        const ans = { id, getCellState, setCellState, onCellStateChange };
+        return ans;
+    }
+
+    //========================================================================================
+    /*                                                                                      *
+     *                                         MAIN                                         *
+     *                                                                                      */
+    //========================================================================================
+
+
+    function getInitialCells() {
+        return [cell(0)];
+    }
+
+    const [
+        getAppState,
+        setAppState,
+        onChangeAppState
+    ] = useState({ cells: getInitialCells() })
+    renderUI();
+</script>
 
 </html>

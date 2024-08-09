@@ -33,7 +33,7 @@ body {
     margin-left: auto;
     margin-right: auto;
     height: 100%;
-    width: 100%;
+    max-width: 1080px;
     min-width: 333px;
 }
 
@@ -42,6 +42,10 @@ body {
 }
 
 /* Utils */
+
+.fit {
+    max-width: fit-content;
+}
 
 .y-overflow {
     overflow-y: auto;
@@ -85,4 +89,13 @@ body {
 
 .smooth-border {
     border-radius: 0.25rem;
+}
+
+.iconBtn {
+    cursor:pointer;
+    transition: opacity var(--fast-transition) ease-in-out;
+}
+
+.iconBtn:hover {
+    scale: 1.5;
 }
