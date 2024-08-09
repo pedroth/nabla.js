@@ -1,5 +1,5 @@
 export async function svg(url) {
-    const data = await fetch(SOURCE + url);
+    const data = await fetch(url);
     return await data.text();
 }
 

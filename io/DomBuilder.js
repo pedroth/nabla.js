@@ -80,7 +80,6 @@ class DomBuilder {
     }
 
     build() {
-        setTimeout(() => this.lazyActions.forEach(lambda => lambda(this.element)), 1000);
         return this.element;
     }
 

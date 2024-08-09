@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>nabla.js playground</title>
+    <title>∇.js playground</title>
     <link rel="stylesheet" href="./index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
 </head>
 
 <body>
@@ -14,10 +15,62 @@
     </div>
 </body>
 <script type="module">
+    import hljs from "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/es/highlight.min.js"
     const isGithub = window.location.host === "pedroth.github.io";
     const SOURCE = isGithub ? "/nabla.js" : "";
 
-    const { DOM, useState, debounce } = await import(SOURCE + "/ui/index.js")
+
+    const { DOM, useState, debounce, svg, codeEval } = await import(SOURCE + "/io/index.js")
+
+    //========================================================================================
+    /*                                                                                      *
+     *                                         UTILS                                        *
+     *                                                                                      */
+    //========================================================================================
+
+    // ChatGPT
+    function saveCursorPosition(editableDiv) {
+        let cursorOffset = 0;
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(editableDiv);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            cursorOffset = preCaretRange.toString().length; // Save the character offset
+        }
+        return cursorOffset;
+    }
+
+    // ChatGPT with some changes
+    function restoreCursorPosition(cursorOffset, editableDiv) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        let currentOffset = 0;
+
+        function traverseNodes(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const nodeLength = node.textContent.length;
+                if (currentOffset + nodeLength >= cursorOffset) {
+                    range.setStart(node, cursorOffset - currentOffset);
+                    range.setEnd(node, cursorOffset - currentOffset);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    return true;
+                } else {
+                    currentOffset += nodeLength;
+                }
+            } else {
+                for (let i = 0; i < node.childNodes.length; i++) {
+                    if (traverseNodes(node.childNodes[i])) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        traverseNodes(editableDiv);
+    }
 
 
     //========================================================================================
@@ -26,80 +79,121 @@
      *                                                                                      */
     //========================================================================================
 
-    function runCell(getCellState, setCellState) {
-        return () => {
-            const { id, input } = getCellState()
-            const result = eval(input);
-            console.log(">>>", result);
-            setCellState({ output: result.toString() });
-        }
-    }
-
-    function newCellBtn(currentCell, prevOrNext) {
-        if (prevOrNext === 1) return DOM.of("div").addClass("iconBtn fit").inner("+");
-        return DOM.of("div").addClass("iconBtn fit").inner("+");
-    }
-
-    function codeEditor(cell) {
+    function evalCell(cell) {
         const { getCellState, setCellState } = cell;
-        const { isFocus, input } = getCellState();
-        return DOM.of("textarea")
-            .lazy((textarea) => {
-                if (isFocus) textarea.focus();
-            })
+        const { id, input } = getCellState()
+        const result = codeEval(input);
+        setCellState(() => ({ output: result.toString() }));
+    }
+
+    function cellInput(cell) {
+        const { getCellState, setCellState, onCellStateChange } = cell;
+        const { input } = getCellState();
+        const codeDOM = DOM.of("code")
+            .addClass("grow")
+            .style(`
+                         width: auto;
+                         height: auto; 
+                         border:solid; 
+                         border-radius: 5px;
+                         min-height: 5rem
+                         `)
+            .attr("contenteditable", true)
             .inner(input)
-            .event("blur", () => setCellState(() => ({ isFocus: false })))
             .event("input",
-                debounce((e) => setCellState(() => ({ input: e.target.value, isFocus: true })))
+                debounce(
+                    (e) => setCellState(() => ({ input: e.target.textContent }))
+                )
             )
+            .event("keydown", (e) => {
+                if (e.key === 'Enter' && e.shiftKey) {
+                    e.preventDefault();
+                    evalCell(cell);
+                }
+            });
+
+        onCellStateChange(({ input }) => {
+            const hlCode = hljs.highlight(
+                input,
+                { language: "javascript" }
+            ).value;
+            codeDOM.map(raw => {
+                const cursorOffset = saveCursorPosition(raw);
+                codeDOM.inner(hlCode);
+                restoreCursorPosition(cursorOffset, raw);
+            })
+        })
+        const inputDOM = DOM.of("pre")
+            .addClass("flex")
+            .appendChild(
+                codeDOM
+            )
+        return inputDOM;
+    }
+
+    function cellOutput(cell) {
+        const { onCellStateChange } = cell;
+        const outputDOM = DOM.of("pre");
+        onCellStateChange(({ output }) => {
+            outputDOM.inner(output);
+        })
+        return outputDOM;
+    }
+
+    function runBtn(cell) {
+        const { getCellState, setCellState } = cell;
+        return DOM.of("button")
+            .attr("title", "run cell (shift+enter)")
+            .addClass("iconBtn")
+            .style(`margin-left: auto;`)
+            .inner(svg(`${SOURCE}/assets/play.svg`))
+            .event("click", () => evalCell(cell));
     }
 
     function renderCell(cell) {
-        const { id, getCellState, setCellState, onCellStateChange } = cell;
-        const container = DOM.of("div").addClass("flex grow");
-        function buildCellDOM(id, input, output) {
-            return DOM.of("div")
-                .addClass("flex column grow")
-                .appendChild(
-                    newCellBtn(cell, -1),
-                    DOM.of("pre"),
-                    codeEditor(cell),
-                    DOM.of("div").addClass("flex row").appendChild(
-                        newCellBtn(cell, -1),
-                        DOM.of("button").style("margin-left: auto").inner("run").event("click", runCell(getCellState, setCellState))
-                    )
-                )
-        }
-        onCellStateChange(({ input, output }) => {
-            container.removeChildren();
-            container.appendChild(
-                buildCellDOM(id, input, output)
-            )
-        })
-        const { input, output } = getCellState();
-        container.appendChild(
-            buildCellDOM(id, input, output)
-        )
-        return container;
+        return DOM.of("div")
+            .addClass("flex column grow")
+            .appendChild(
+                cellOutput(cell),
+                cellInput(cell),
+                runBtn(cell)
+            );
     }
 
     function renderCells() {
-        const cells = getAppState().cells;
+        const cells = AppState.cells;
         return cells.map(cell => renderCell(cell));
     }
 
-    function main() {
-        const container = DOM.of("main")
-            .addClass("flex spaced-items row");
-        onChangeAppState(newState => {
-            container.removeChildren();
-            container.appendChild(
-                ...renderCells()
-            )
+    function addCellBtn(cellsContainer) {
+        const addCellAction = () => {
+            const { cells } = AppState;
+            const newCell = cell(cells.length);
+            cells.push(newCell);
+            cellsContainer.appendChild(renderCell(newCell));
+        }
+        window.addEventListener("keydown", (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                addCellAction();
+            }
         })
+        return DOM.of("button")
+            .attr("title", "add new cell (ctrl+enter)")
+            .addClass("iconBtn")
+            .event("click", () => addCellAction())
+            .inner(svg(`${SOURCE}/assets/plus.svg`))
+    }
+
+    function main() {
+        const container = DOM.of("main");
+        const cellsContainer = DOM.of("div")
+            .addClass("flex spaced-items column")
+            .appendChild(...renderCells());
         return container
             .appendChild(
-                ...renderCells()
+                cellsContainer,
+                addCellBtn(cellsContainer)
             )
     }
 
@@ -116,22 +210,29 @@
     function header() {
         return DOM.of("header")
             .appendChild(
-                DOM.of("h1").inner("nabla.js"),
+                DOM.of("h1").appendChild(
+                    DOM.of("a")
+                        .attr("href", "https://github.com/pedroth/nabla.js")
+                        .attr("target", "_blank")
+                        .inner("∇ nabla.js")
+                ),
                 DOM.of("hr")
             )
     }
 
     function renderUI() {
-        return DOM.ofId("root").map(root =>
-            root.appendChild(header())
-                .appendChild(main())
-                .appendChild(footer())
-                .addClass("loaded")
-        ).orElse(() => DOM.of("div"));
+        return DOM.ofId("root")
+            .map(root =>
+                root.appendChild(header())
+                    .appendChild(main())
+                    .appendChild(footer())
+                    .addClass("loaded")
+            )
+            .orElse(() => DOM.of("div"));
     }
 
     function cell(id) {
-        const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "", isFocus: false })
+        const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "" })
         const ans = { id, getCellState, setCellState, onCellStateChange };
         return ans;
     }
@@ -147,11 +248,7 @@
         return [cell(0)];
     }
 
-    const [
-        getAppState,
-        setAppState,
-        onChangeAppState
-    ] = useState({ cells: getInitialCells() })
+    const AppState = { cells: getInitialCells() }
     renderUI();
 </script>
 

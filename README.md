@@ -3,3 +3,11 @@
 A Mathematics and Computer Science educational library.
 
 The purpose is to make a bug-free, concise, no dependencies, clear implementation of mathematical/computer science concepts.
+
+
+#TODO
+
+- playground:
+    - Store cells in localStorage
+    - Permalink cells
+    - Read examples (?)

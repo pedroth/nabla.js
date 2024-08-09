@@ -25,6 +25,16 @@ body {
     font-family: Arial, Helvetica, sans-serif;
 }
 
+a {
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+a:hover {
+    color: var(--secondary-color);
+    cursor: pointer;
+}
+
 /* IDS */
 
 #root {
@@ -92,7 +102,11 @@ body {
 }
 
 .iconBtn {
-    cursor:pointer;
+    background-color: transparent;
+    cursor: pointer;
+    border: none;
+    color: inherit;
+    width: 2rem;
     transition: opacity var(--fast-transition) ease-in-out;
 }
 
