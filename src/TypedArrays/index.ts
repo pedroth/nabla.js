@@ -1,4 +1,4 @@
-class DynamicArray<T> {
+export class DynamicArray<T> {
     private data: T[];
     private _size: number;
     private _capacity: number;
