@@ -48,6 +48,9 @@ export class DynamicArray<T> {
       }
       const element = this.data[this._size - 1];
       this._size--;
+      if (this._size === this._capacity / 2) {
+        this.downsize();
+      }
       return element;
     }
   
@@ -89,6 +92,14 @@ export class DynamicArray<T> {
      */
     private resize(): void {
       this._capacity *= 2;
+      const newData = new Array<T>(this._capacity);
+      for (let i = 0; i < this._size; i++) {
+        newData[i] = this.data[i];
+      }
+      this.data = newData;
+    }
+    private downsize(): void {
+      this._capacity /= 2;
       const newData = new Array<T>(this._capacity);
       for (let i = 0; i < this._size; i++) {
         newData[i] = this.data[i];
