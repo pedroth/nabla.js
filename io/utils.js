@@ -1,6 +1,10 @@
-export async function svg(url) {
+export async function svg(url, style = "") {
     const data = await fetch(url);
-    return await data.text();
+    let svgText = await data.text();
+    if (style) {
+        svgText = svgText.replace('<svg', `<svg style="${style}"`);
+    }
+    return svgText;
 }
 
 export function debounce(lambda, debounceTimeInMillis = 500) {

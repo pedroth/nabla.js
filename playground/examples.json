@@ -1,0 +1,14 @@
+[
+    {
+        "title": "Maybe monad",
+        "path": "/playground/tests/maybe_monad.json"
+    },
+    {
+        "title": "Lazy list",
+        "path": "/playground/tests/lazy_list.json"
+    },
+    {
+        "title": "Array, linked list, stack and queue",
+        "path": "/playground/tests/array_linked_list_stack_queue.json"
+    }
+]
