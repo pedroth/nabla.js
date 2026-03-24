@@ -90,11 +90,25 @@
      *                                                                                      */
     //========================================================================================
 
+    function getCellIndex(cell) {
+        return AppState.cells.indexOf(cell) + 1;
+    }
+
+    function refreshCellNumbers() {
+        AppState.cells.forEach((c, i) => {
+            const el = DOM.ofId(c.id).map(e => {
+                const numEl = e.element.querySelector('.cell-number');
+                if (numEl) numEl.textContent = `[${i + 1}]`;
+            })
+        });
+    }
+
     function delCell(cell) {
         const { getCellState, setCellState } = cell;
         const { id, input } = getCellState();
         AppState.cellsContainer.element.removeChild(document.getElementById(id));
-        AppState.cells = AppState.cells.filter(p => p.id !== id)
+        AppState.cells = AppState.cells.filter(p => p.id !== id);
+        refreshCellNumbers();
     }
 
     function evalCell(cell) {
@@ -109,14 +123,8 @@
         const { input } = getCellState();
         const codeDOM = DOM.of("code")
             .addClass("grow")
-            .style(`
-                         width: auto;
-                         height: auto; 
-                         border:solid; 
-                         border-radius: 5px;
-                         min-height: 5rem
-                         `)
             .attr("contenteditable", true)
+            .attr("spellcheck", false)
             .inner(highlightCode(input))
             .event("input",
                 debounce(
@@ -132,6 +140,10 @@
                     evalCell(cell);
                     saveToLocalStorage();
                 }
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    document.execCommand('insertText', false, '  ');
+                }
             });
 
         onCellStateChange(({ input }) => {
@@ -143,7 +155,7 @@
             })
         })
         const inputDOM = DOM.of("pre")
-            .addClass("flex")
+            .addClass("cell-input")
             .appendChild(
                 codeDOM
             )
@@ -153,7 +165,7 @@
     function cellOutput(cell) {
         const { onCellStateChange, getCellState } = cell;
         const { output } = getCellState(); // initial state
-        const outputDOM = DOM.of("pre").style("overflow-x: auto").inner(output);
+        const outputDOM = DOM.of("pre").addClass("cell-output").inner(output);
         onCellStateChange(({ output }) => {
             outputDOM.inner(output);
         })
@@ -170,28 +182,35 @@
     }
 
     function runBtn(cell) {
-        const { getCellState, setCellState } = cell;
         return DOM.of("button")
             .attr("title", "run cell (shift+enter)")
             .addClass("iconBtn")
-            .style(`margin-left: auto;`)
+            .style(`color:var(--tertiary-color)`)
             .inner(svg(`${SOURCE}/assets/play.svg`))
             .event("click", () => { evalCell(cell); saveToLocalStorage() });
     }
 
     function renderCell(cell) {
+        const idx = getCellIndex(cell);
         const ans = DOM.of("div")
             .attr("id", cell.id)
-            .addClass("flex column grow")
+            .addClass("cell")
             .appendChild(
-                cellOutput(cell),
-                cellInput(cell),
                 DOM.of("div")
-                    .style("display: flex")
+                    .addClass("cell-header")
                     .appendChild(
-                        delBtn(cell),
-                        runBtn(cell)
-                    )
+                        DOM.of("span")
+                            .addClass("cell-number")
+                            .inner(`[${idx}]`),
+                        DOM.of("div")
+                            .addClass("cell-toolbar")
+                            .appendChild(
+                                runBtn(cell),
+                                delBtn(cell)
+                            )
+                    ),
+                cellInput(cell),
+                cellOutput(cell)
             );
 
         return ans;
@@ -218,22 +237,25 @@
         })
         return DOM.of("button")
             .attr("title", "add new cell (ctrl+enter)")
-            .addClass("iconBtn")
+            .addClass("add-cell-btn")
             .event("click", () => { addCellAction(); saveToLocalStorage(); })
-            .inner(svg(`${SOURCE}/assets/plus.svg`))
+            .appendChild(
+                DOM.of("span").inner(svg(`${SOURCE}/assets/plus.svg`)),
+                DOM.of("span").inner(" Add cell")
+            )
     }
 
     function main() {
         const container = DOM.of("main");
         const cellsContainer = DOM.of("div")
-            .addClass("flex spaced-items column")
+            .addClass("cells-container")
             .appendChild(...renderCells());
         AppState.cellsContainer = cellsContainer;
         return container
             .appendChild(
                 cellsContainer,
                 DOM.of("div")
-                    .style("padding-top: 1rem")
+                    .style("padding-top: 0.75rem")
                     .appendChild(
                         addCellBtn(cellsContainer)
                     )
@@ -264,13 +286,18 @@
     function header() {
         return DOM.of("header")
             .appendChild(
-                DOM.of("h1")
+                DOM.of("div")
+                    .addClass("playground-header")
                     .appendChild(
-                        DOM.of("a")
-                            .attr("href", "https://github.com/pedroth/nabla.js")
-                            .attr("target", "_blank")
-                            .inner("∇ nabla.js"),
-                        DOM.of("span")
+                        DOM.of("h1")
+                            .appendChild(
+                                DOM.of("a")
+                                    .attr("href", "https://github.com/pedroth/nabla.js")
+                                    .attr("target", "_blank")
+                                    .inner("∇ nabla.js")
+                            ),
+                        DOM.of("button")
+                            .addClass("share-btn")
                             .attr("title", "Share permalink")
                             .event("click", () => {
                                 const link = getPermaLink();
@@ -278,8 +305,10 @@
                                     alert("Permalink copied to clipboard!");
                                 });
                             })
-                            .inner(svg(`${SOURCE}/assets/share.svg`, "width: 1.5rem; margin-left: 0.5rem;"))
-                            .style("color: var(--secondary-color); cursor: pointer;")
+                            .appendChild(
+                                DOM.of("span").inner(svg(`${SOURCE}/assets/share.svg`, "width: 1rem; vertical-align: middle;")),
+                                DOM.of("span").inner(" Share")
+                            )
                     ),
                 DOM.of("hr")
             )
