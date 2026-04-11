@@ -23,14 +23,24 @@ export class List {
         return this.tail.get(k - 1);
     }
 
-    add(x) {
+    set(k, x) {
+        if (this.isEmpty()) return this;
+        if (k <= 0) {
+            this.head = x;
+            return this;
+        }
+        this.tail.set(k - 1, x);
+        return this;
+    }
+
+    push(x) {
         // !! Mutation !!
         if (this.isEmpty()) {
             this.head = x;
             this.tail = new List();
             return this;
         }
-        this.tail.add(x);
+        this.tail.push(x);
         return this;
     }
 
@@ -75,8 +85,8 @@ export class List {
     }
 
     prod(list) {
-        if(this.isEmpty()) return this;
-        if(list.isEmpty()) return list;
+        if (this.isEmpty()) return this;
+        if (list.isEmpty()) return list;
         return this.map(x => {
             return list.map(y => {
                 if (x instanceof Tuple && y instanceof Tuple) {
@@ -106,7 +116,7 @@ export class List {
 
     static of(...arr) {
         let ans = new List();
-        arr.forEach(x => ans = ans.add(x));
+        arr.forEach(x => ans = ans.push(x));
         return ans;
     }
 

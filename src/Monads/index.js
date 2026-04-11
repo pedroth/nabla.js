@@ -63,7 +63,15 @@ export class Maybe {
         if (x) {
             return Some.of(x);
         }
-        return new None()
+        return new None();
+    }
+
+    static none() {
+        return new None();
+    }
+
+    static some(x) {
+        return Some.of(x);
     }
 }
 

@@ -2,8 +2,11 @@
 import * as nabla from "../src/index.js";
 
 export function codeEval(code) {
+    const declarations = Object.entries(nabla)
+        .map(([name]) => `var ${name} = nabla["${name}"];`)
+        .join("\n");
     code = `
-    ${Object.values(nabla).map(v => v.toString()).join("\n")}
+    ${declarations}
     ${code}
     `;
     let evaluation;

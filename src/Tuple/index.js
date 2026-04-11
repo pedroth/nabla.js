@@ -1,9 +1,16 @@
+import { Maybe } from "../Monads/index.js";
 import { Pair } from "../Pair/index.js";
 
 export class Tuple {
     constructor(head, tail) {
         this.head = head;
         this.tail = tail;
+    }
+
+    get(index) {
+        if (this.isEmpty()) return Maybe.none();
+        if (index === 0) return Maybe.of(this.head);
+        return this.tail.get(index - 1);
     }
 
     isEmpty() {

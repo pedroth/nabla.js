@@ -34,3 +34,96 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
     - PCA
     - SVM
     - Manifold learning algorithms
+
+
+# Data structures
+
+- Array(Dynamic contiguous array):
+    - `size`
+    - `get`
+    - `set`
+    - `push`
+    - `pop`
+    - `zip`
+    - `prod`
+    - `union`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`
+    - `sort`
+- List(Linked list):
+    - `size`
+    - `get`
+    - `set`,
+    - `push`
+    - `pop`
+    - `zip`
+    - `prod`
+    - `union`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`
+    - `sort`
+- Queue:
+    - `size`
+    - `enqueue`
+    - `dequeue`
+    - `peek`
+    - `isEmpty`
+    - `clear`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`
+- Stack:
+    - `size`
+    - `push`
+    - `pop`
+    - `peek`
+    - `isEmpty`
+    - `clear`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`
+- Map(Hash table):
+    - `size`
+    - `set`
+    - `get`
+    - `has`
+    - `delete`
+    - `clear`
+    - `keys`
+    - `values`
+    - `entries`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`
+- Set:
+    - `size`
+    - `add`
+    - `delete`
+    - `has`
+    - `clear`
+    - `union`
+    - `inter`
+    - `prod`
+    - `equals`
+    - `map`
+    - `flatMap`
+    - `filter`
+    - `fold`
+    - `reduce`

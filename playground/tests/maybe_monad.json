@@ -2,7 +2,7 @@
     {"input": "Maybe.of(\"Type some nabla.js code\").orElse();"},
     {"input": "Maybe.of(null).orElse(() =>\"Type some nabla.js code\");"},
     {"input": "Maybe.of(undefined).orElse(() =>\"Type some nabla.js code\");"},
-    {"input": "Maybe.of(42).orElse(() =>\"Type some nabla.js code\");"},
+    {"input": "Maybe.of(1).map(x => x + 1).map(x => x * x).orElse(() =>\"Type some nabla.js code\");"},
     {"input": "Maybe.of({}).orElse(() =>\"Type some nabla.js code\");"},
     {"input": "Maybe.of([]).orElse(() =>\"Type some nabla.js code\");"}
 ]
