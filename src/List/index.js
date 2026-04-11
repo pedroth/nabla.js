@@ -1,7 +1,7 @@
 import { Tuple } from "../Tuple/index.js";
 
 /**
- * L<x> -> [] | [x, L<x>]
+ * L(a) -> () | (a, L(a))
  */
 export class List {
     constructor(head, tail) {

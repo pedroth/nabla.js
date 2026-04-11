@@ -1,4 +1,4 @@
-import { Maybe } from "../Monads/index.js";
+import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
 
 export class Tuple {
