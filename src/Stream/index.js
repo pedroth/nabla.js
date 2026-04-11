@@ -1,13 +1,12 @@
+import { Pair } from "../Pair/index.js";
+
 export class Stream {
-    /**
-     * 
-     * @param {any} head 
-     * @param {() => Stream} tail 
-     */
+    // head : a
+    // tail : () => Stream(a) 
     constructor(head, tail) {
-        this.isEmpty = head == null && tail == null;
-        this.head = head;
-        this.tail = tail;
+        this._isEmpty = head == null && tail == null;
+        this._head = head;
+        this._tail = tail;
     }
 
     isEmpty() { return this._isEmpty; }
@@ -37,10 +36,12 @@ export class Stream {
     }
 
     filter(predicate = () => true) {
-        if(predicate(this._head)) {
-            return new Stream(this._head, () => this._tail().filter(predicate));
+        let current = this;
+        while (!current.isEmpty() && !predicate(current._head)) {
+            current = current._tail();
         }
-        return this._tail().filter(predicate);
+        if (current.isEmpty()) return new Stream();
+        return new Stream(current._head, () => current._tail().filter(predicate));
     }
 
     fold(initialValue = 0, reducer = (e, x) => e + x) {
@@ -55,7 +56,23 @@ export class Stream {
 
     toArray() {
         return this.fold([], (acc, x) => { acc.push(x); return acc; });
-    }   
+    }
+
+    toString(radix=10) {
+        if(this.isEmpty()) return "";
+        const string = [];
+        let current = this;
+        while (!current.isEmpty()) {
+            string.push(current.head().toString(radix));
+            current = current.tail();
+        }
+        return `[${string.join(", ")}]`;
+    }
+    
+    zip(otherStream) {
+        if (this.isEmpty() || otherStream.isEmpty()) return new Stream();
+        return new Stream(Pair.of(this.head(), otherStream.head()), () => this.tail().zip(otherStream.tail()));
+    }
 
     static of(...array) {
         return Stream.fromArray(array);

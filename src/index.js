@@ -1,4 +1,6 @@
-export * from "./Monads/index.js";
+export * from "./Maybe/index.js";
+export * from "./Queue/index.js";
+export * from "./Try/index.js";
 export * from "./Set/index.js";
 export * from "./Stream/index.js";
 export * from "./List/index.js";

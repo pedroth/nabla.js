@@ -1,4 +1,4 @@
-import { Maybe } from "../src/Monads/index.js";
+import { Maybe } from "../src/Maybe/index.js";
 
 const SVG_URL = "http://www.w3.org/2000/svg";
 const SVG_TAGS = [
