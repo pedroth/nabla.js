@@ -1,0 +1,12 @@
+[
+    {"input": "Either.left(42).orLeft();"},
+    {"input": "Either.right(42).orRight();"},
+    {"input": "Left.of(1).map(x => x + 1).orLeft();"},
+    {"input": "Right.of(1).map(x => x + 1).orRight();"},
+    {"input": "Left.of(10).mapLeft(x => x * 2).orLeft();"},
+    {"input": "Right.of(10).mapRight(x => x * 2).orRight();"},
+    {"input": "Either.left(\"error\").isLeft();"},
+    {"input": "Either.right(\"success\").isRight();"},
+    {"input": "Left.of(1).toString();"},
+    {"input": "Right.of(1).toString();"}
+]

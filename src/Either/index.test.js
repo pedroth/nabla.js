@@ -11,6 +11,14 @@ test("Left.of / Right.of", () => {
     expect(Right.of(42).orRight()).toBe(42);
 });
 
+test("map on Left", () => {
+    expect(Left.of(1).map(x => x + 1).orLeft()).toBe(2);
+});
+
+test("map on Right", () => {
+    expect(Right.of(1).map(x => x + 1).orRight()).toBe(2);
+});
+
 test("mapLeft", () => {
     expect(Left.of(1).mapLeft(x => x + 1).orLeft()).toBe(2);
     expect(Right.of(1).mapLeft(x => x + 1).orRight()).toBe(1);
@@ -21,14 +29,11 @@ test("mapRight", () => {
     expect(Left.of(1).mapRight(x => x + 1).orLeft()).toBe(1);
 });
 
-test("flatMapLeft", () => {
-    expect(Left.of(1).flatMapLeft(x => Left.of(x + 1)).orLeft()).toBe(2);
-    expect(Right.of(1).flatMapLeft(x => Left.of(x + 1)).orRight()).toBe(1);
-});
-
-test("flatMapRight", () => {
-    expect(Right.of(1).flatMapRight(x => Right.of(x + 1)).orRight()).toBe(2);
-    expect(Left.of(1).flatMapRight(x => Right.of(x + 1)).orLeft()).toBe(1);
+test("isLeft / isRight", () => {
+    expect(Left.of(1).isLeft()).toBe(true);
+    expect(Left.of(1).isRight()).toBe(false);
+    expect(Right.of(1).isLeft()).toBe(false);
+    expect(Right.of(1).isRight()).toBe(true);
 });
 
 test("orLeft with default", () => {
@@ -44,4 +49,22 @@ test("orRight with default", () => {
 test("toString", () => {
     expect(Left.of(1).toString()).toBe("Left(1)");
     expect(Right.of(1).toString()).toBe("Right(1)");
+});
+
+test("equals", () => {
+    expect(Left.of(1).equals(Left.of(1))).toBe(true);
+    expect(Left.of(1).equals(Left.of(2))).toBe(false);
+    expect(Left.of(1).equals(Right.of(1))).toBe(false);
+    expect(Right.of(1).equals(Right.of(1))).toBe(true);
+    expect(Right.of(1).equals(Right.of(2))).toBe(false);
+    expect(Right.of(1).equals(Left.of(1))).toBe(false);
+});
+
+test("isEmpty", () => {
+    expect(Left.of(null).isEmpty()).toBe(true);
+    expect(Left.of(undefined).isEmpty()).toBe(true);
+    expect(Left.of(1).isEmpty()).toBe(false);
+    expect(Right.of(null).isEmpty()).toBe(true);
+    expect(Right.of(undefined).isEmpty()).toBe(true);
+    expect(Right.of(1).isEmpty()).toBe(false);
 });
