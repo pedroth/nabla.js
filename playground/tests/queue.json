@@ -1,0 +1,8 @@
+[
+    {"input": "(() => { const q = new Queue(); q.enqueue(1); q.enqueue(2); q.enqueue(3); return q.peek().orElse(); })();"},
+    {"input": "(() => { const q = new Queue(); q.enqueue(\"a\"); q.enqueue(\"b\"); q.enqueue(\"c\"); return q.dequeue().orElse(); })();"},
+    {"input": "(() => { const q = new Queue(); q.enqueue(1); q.enqueue(2); q.enqueue(3); q.dequeue(); return q.peek().orElse(); })();"},
+    {"input": "(() => { const q = new Queue(); q.enqueue(1); q.enqueue(2); q.enqueue(3); return q.size(); })();"},
+    {"input": "(() => { const q = new Queue(); return q.isEmpty(); })();"},
+    {"input": "(() => { const q = new Queue(); return q.dequeue().orElse(() => \"queue is empty\"); })();"}
+]

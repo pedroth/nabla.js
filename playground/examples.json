@@ -4,11 +4,35 @@
         "path": "/playground/tests/maybe_monad.json"
     },
     {
-        "title": "Lazy list",
-        "path": "/playground/tests/lazy_list.json"
+        "title": "Either monad",
+        "path": "/playground/tests/either_monad.json"
     },
     {
-        "title": "Array, linked list, stack and queue",
-        "path": "/playground/tests/array_linked_list_stack_queue.json"
+        "title": "Try monad",
+        "path": "/playground/tests/try_monad.json"
+    },
+    {
+        "title": "Pair data structure",
+        "path": "/playground/tests/pair.json"
+    },
+    {
+        "title": "Tuple data structure",
+        "path": "/playground/tests/tuple.json"
+    },
+    {
+        "title": "Set data structure",
+        "path": "/playground/tests/set.json"
+    },
+    {
+        "title": "Stream data structure",
+        "path": "/playground/tests/stream.json"
+    },
+    {
+        "title": "Array data structure",
+        "path": "/playground/tests/array.json"
+    },
+    {
+        "title": "Queue data structure",
+        "path": "/playground/tests/queue.json"
     }
 ]

@@ -1,0 +1,9 @@
+[
+    {"input": "Stream.of(1, 2, 3, 4, 5).toString();"},
+    {"input": "Stream.range(1, 10).map(x => x * x).toString();"},
+    {"input": "Stream.range(1, 20).filter(x => x % 2 === 0).toString();"},
+    {"input": "Stream.range(1).take(10).toString();"},
+    {"input": "Stream.range(1, 6).fold(0, (acc, x) => acc + x);"},
+    {"input": "Stream.primes().take(10).toString();"},
+    {"input": "Stream.of(1, 2, 3).zip(Stream.of(\"a\", \"b\", \"c\")).toString();"}
+]

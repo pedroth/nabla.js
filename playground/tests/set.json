@@ -1,0 +1,10 @@
+[
+    {"input": "Set.of(1, 2, 3).toString();"},
+    {"input": "Set.of(1, 2, 2, 3, 3).toString();"},
+    {"input": "Set.of(1, 2, 3).union(Set.of(3, 4, 5)).toString();"},
+    {"input": "Set.of(1, 2, 3, 4).intersection(Set.of(2, 4, 6)).toString();"},
+    {"input": "Set.of(1, 2, 3).map(x => x * x).toString();"},
+    {"input": "Set.of(1, 2, 3).filter(x => x > 1).toString();"},
+    {"input": "Set.of(1, 2, 3).contains(2);"},
+    {"input": "Set.of(1, 2, 3).fold(0, (acc, x) => acc + x);"}
+]

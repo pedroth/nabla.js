@@ -1,0 +1,8 @@
+[
+    {"input": "Array.of(1, 2, 3).toString();"},
+    {"input": "Array.of(1, 2, 3, 4, 5).map(x => x * 2).toString();"},
+    {"input": "Array.of(1, 2, 3, 4, 5).filter(x => x > 3).toString();"},
+    {"input": "Array.of(1, 2, 3).fold(0, (acc, x) => acc + x);"},
+    {"input": "Array.of(1, 2, 3).push(4).push(5).toString();"},
+    {"input": "Array.of(1, 2, 3).zip(Array.of(\"a\", \"b\", \"c\")).toString();"}
+]

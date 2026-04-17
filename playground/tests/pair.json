@@ -1,0 +1,8 @@
+[
+    {"input": "Pair.of(1, 2).toString();"},
+    {"input": "Pair.of(\"hello\", \"world\").left();"},
+    {"input": "Pair.of(\"hello\", \"world\").right();"},
+    {"input": "Pair.of(1, 2).map(x => x * 10).toString();"},
+    {"input": "Pair.of(3, 7).fold(0, (acc, x) => acc + x);"},
+    {"input": "Pair.of(1, 2).zip(Pair.of(3, 4)).toString();"}
+]

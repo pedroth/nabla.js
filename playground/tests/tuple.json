@@ -1,0 +1,9 @@
+[
+    {"input": "Tuple.of(1, 2, 3).toString();"},
+    {"input": "Tuple.of(1, 2, 3).get(1).orElse();"},
+    {"input": "Tuple.of(1, 2, 3).map(x => x * x).toString();"},
+    {"input": "Tuple.of(1, 2, 3, 4).filter(x => x > 2).toString();"},
+    {"input": "Tuple.of(1, 2, 3).fold(0, (acc, x) => acc + x);"},
+    {"input": "Tuple.of(1, 2, 3).add(4).toString();"},
+    {"input": "Tuple.of(1, 2).zip(Tuple.of(\"a\", \"b\")).toString();"}
+]

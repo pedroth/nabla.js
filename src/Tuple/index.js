@@ -12,6 +12,23 @@ export class Tuple {
         if (index === 0) return Maybe.of(this.head);
         return this.tail.get(index - 1);
     }
+    
+    add(x) {
+        if (this.isEmpty()) return new Tuple(x, new Tuple());
+        return new Tuple(this.head, this.tail.add(x));
+    }
+
+    union(tuple) {
+        if (this.isEmpty()) return tuple;
+        let ans = this;
+        tuple.forEach(x => ans = ans.add(x));
+        return ans;
+    }
+
+    size() {
+        if (this.isEmpty()) return 0;
+        return 1 + this.tail.size();
+    }
 
     isEmpty() {
         return this.head == null && this.tail == null;
@@ -25,22 +42,9 @@ export class Tuple {
         return equalsOrSame(this.head, tuple.head) && this.tail.equals(tuple.tail);
     }
 
-    size() {
-        if (this.isEmpty()) return 0;
-        return 1 + this.tail.size();
-    }
+    
 
-    add(x) {
-        if (this.isEmpty()) return new Tuple(x, new Tuple());
-        return new Tuple(this.head, this.tail.add(x));
-    }
-
-    union(tuple) {
-        if (this.isEmpty()) return tuple;
-        let ans = this;
-        tuple.forEach(x => ans = ans.add(x));
-        return ans;
-    }
+    
 
     forEach(lambda) {
         this.map(lambda);

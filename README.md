@@ -5,38 +5,79 @@ A Mathematics and Computer Science educational library.
 The purpose is to make a bug-free, concise, no dependencies, clear implementation of mathematical/computer science concepts.
 
 # nabla.js programs
-
-- Dynamic contiguous array
-- Hash table
-- Linked list
+- Pairs (products)
+- Either (co-products)
+- Tuples (n-ary products)
+- Maybe (option type)
+- Try (exception handling)
+- Lists (linked lists)
+- Sets (unordered collections of unique elements)
 - Stack
 - Queue
-- Set
-- Monads
-    - Maybe
-    - Try monad
 - Priority queue
-- Self-balancing binary tree
-- Graph
-- Simplicial complexes / Half-edge data structure
-- Linear algebra
-- ODE solvers
-- Geometric algebra
-- Tensors (up | down)
-- Differential programming / automatic differentiation
-- Symbolic computation
-- Parser of parsers
+- Streams (lazy lists)
+- Arrays (dynamic contiguous arrays)
+- Hash maps
+- Treaps
+- Skip lists
+- Graphs
+- Half-edge data structure
+- Simplicial complexes
+- Vectors
+- Matrices
+- Tensors
+- Multivectors (Geometric algebra)
+- Numerical Linear algebra
+    - Eigenvalue decomposition
+    - Singular value decomposition
+- Ordinary differential equations solvers
+- Optimization algorithms
+- Symbolic mathematics
+- Automatic differentiation
 - Machine learning algorithms
     - Linear regression
     - Logistic regression
-    - Deep neural networks
+    - Support vector machines
     - K-means clustering
-    - PCA
-    - SVM
+    - Principal component analysis
+    - Deep neural networks
     - Manifold learning algorithms
+    - Neural geometric artifacts
+- Reverse rendering of 3D scenes
+    - Gaussian splatting 
+    - Triangle splatting
+- Parser of parsers
 
 
 # Data structures
+
+- Pair:
+    - `map`
+    - `fold`
+    - `left`
+    - `right`
+    - `equals`
+    - `isEmpty`
+
+- Either:
+    - `map`
+    - `mapLeft`
+    - `mapRight`
+    - `flatMap`
+    - `isLeft`
+    - `isRight`
+    - `orLeft`
+    - `orRight`
+    - `equals`
+    - `isEmpty`
+
+- Tuple:
+    - `map`
+    - `get`
+    - `size`
+    - `flatMap`
+    - `equals`
+    - `isEmpty`
 
 - Array(Dynamic contiguous array):
     - `size`

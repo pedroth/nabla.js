@@ -1,26 +1,36 @@
+export class Either {
+    static left(x) {
+        return Left.of(x);
+    }
+
+    static right(x) {
+        return Right.of(x);
+    }
+}
+
 export class Left {
     constructor(x) {
         this.value = x;
     }
 
-    mapLeft(f) {
+    map(f) {
         return new Left(f(this.value));
     }
 
-    flatMapLeft(f) {
-        return f(this.value);
+    mapLeft(f) {
+        return new Left(f(this.value));
     }
-
-    flatMapRight() {
-        return this;
-    }
-
+    
     mapRight() {
         return this;
     }
 
-    toString() {
-        return `Left(${this.value})`;
+    isLeft() {
+        return true;
+    }
+    
+    isRight() {
+        return false;
     }
 
     orLeft() {
@@ -29,6 +39,20 @@ export class Left {
 
     orRight(defaultLazy) {
         return defaultLazy();
+    }
+
+    toString() {
+        return `Left(${this.value})`;
+    }
+
+    equals(other) {
+        if (!(other instanceof Left)) return false;
+        const equalsOrSame = (a, b) => a === b || (typeof a?.equals === 'function' && a.equals(b));
+        return equalsOrSame(this.value, other.value);
+    }
+
+    isEmpty() {
+        return this.value == null;
     }
 
     static of(x) {
@@ -41,6 +65,10 @@ export class Right {
         this.value = x;
     }
 
+    map(f) {
+        return new Right(f(this.value));
+    }
+
     mapLeft() {
         return this;
     }
@@ -49,13 +77,13 @@ export class Right {
         return new Right(f(this.value));
     }
 
-    flatMapLeft() {
-        return this;
+    isLeft() {
+        return false;
     }
-
-    flatMapRight(f) {
-        return f(this.value);
-    }
+    
+    isRight() {
+        return true;
+    }   
 
     orLeft(defaultLazy) {
         return defaultLazy();
@@ -69,17 +97,19 @@ export class Right {
         return `Right(${this.value})`;
     }
 
+    equals(other) {
+        if (!(other instanceof Right)) return false;
+        const equalsOrSame = (a, b) => a === b || (typeof a?.equals === 'function' && a.equals(b));
+        return equalsOrSame(this.value, other.value);
+    }
+
+    isEmpty() {
+        return this.value == null;
+    }
+
     static of(x) {
         return new Right(x);
     }
 }
 
-export class Either {
-    static left(x) {
-        return Left.of(x);
-    }
 
-    static right(x) {
-        return Right.of(x);
-    }
-}

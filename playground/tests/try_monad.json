@@ -1,0 +1,8 @@
+[
+    {"input": "Try.success(42).map(x => x + 1).orCatch();"},
+    {"input": "Try.fail(\"something went wrong\").orCatch(e => \"Error: \" + e);"},
+    {"input": "Try.success(10).flatMap(x => Try.success(x * 2)).orCatch();"},
+    {"input": "Try.fail(\"oops\").map(x => x + 1).orCatch(e => \"Caught: \" + e);"},
+    {"input": "Try.success(5).map(x => x * x).isSuccess();"},
+    {"input": "Try.fail(\"error\").failMap(e => Try.success(\"recovered\")).orCatch();"}
+]

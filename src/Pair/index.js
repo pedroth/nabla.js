@@ -12,6 +12,22 @@ export class Pair {
         return this.y;
     }
 
+    mapLeft(f) {
+        return new Pair(f(this.x), this.y);
+    }
+
+    mapRight(f) {
+        return new Pair(this.x, f(this.y));
+    }
+
+    map(f) {
+        return new Pair(f(this.x), f(this.y));
+    }
+
+    fold(f) {
+        return f(this.x, this.y);
+    }
+
     isEmpty() {
         return this.x == null && this.y == null;
     }
@@ -20,18 +36,6 @@ export class Pair {
         if (!(pair instanceof Pair)) return false;
         const equalsOrSame = (a, b) => a === b || (typeof a?.equals === 'function' && a.equals(b));
         return equalsOrSame(this.x, pair.left()) && equalsOrSame(this.y, pair.right());
-    }
-
-    map(f) {
-        return new Pair(f(this.x), f(this.y));
-    }
-
-    fold(acc, f) {
-        return f(f(acc, this.x), this.y);
-    }
-
-    zip(pair){
-        return Pair.of(Pair.of(this.x, pair.x), Pair.of(this.y, pair.y));
     }
 
     toArray() {
