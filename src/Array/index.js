@@ -1,7 +1,13 @@
+import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
+import { Tuple } from "../Tuple/index.js";
 
 const NATIVE_ARRAY = globalThis.Array;
 const INITIAL_CAPACITY = 7;
+
+/**
+ *  Continuous array implementation with dynamic resizing.
+ */
 export class Array {
     constructor(capacity = INITIAL_CAPACITY) {
         this.length = 0;
@@ -9,16 +15,23 @@ export class Array {
         this.elements = new NATIVE_ARRAY(capacity);
     }
 
+    isEmpty() {
+        return this.length === 0;
+    }
+
     size() {
         return this.length;
     }
-    
+
     get(index) {
-        return this.elements[index];
+        if (this.isEmpty()) return Maybe.none();
+        if (index <= 0) return Maybe.some(this.elements[0]);
+        return Maybe.some(this.elements[index]);
     }
 
     set(index, value) {
-        if(index < 0 || index >= this.length) return this;
+        if (this.isEmpty()) return this;
+        if (index <= 0) return this;
         this.elements[index] = value;
         return this;
     }
@@ -32,7 +45,9 @@ export class Array {
         this.capacity = newCapacity;
     }
 
+    // Array => elem => Array
     push(elem) {
+        // !! Mutation !!
         if (this.length >= this.capacity) {
             this._resize(this.capacity * 2);
         }
@@ -41,15 +56,18 @@ export class Array {
         return this;
     }
 
+    // Array => () => Maybe(elem)
     pop() {
-        if (this.length === 0) return;
+        // !! Mutation !!
+        if (this.isEmpty()) return Maybe.none();
         this.length--;
         if (this.length <= this.capacity / 4) {
             this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));
         }
-        return this.elements[this.length];
+        return Maybe.some(this.elements[this.length]);
     }
 
+    // Array => (elem => elem) => Array
     map(lambda) {
         const newArray = new Array(this.capacity);
         for (let i = 0; i < this.length; i++) {
@@ -69,33 +87,75 @@ export class Array {
         return newArray;
     }
 
-    fold(initial, lambda) {
+    flatMap(lambda = x => x) {
+        let newArray = new Array(this.capacity);
+        for (let i = 0; i < this.length; i++) {
+            const mapped = lambda(this.elements[i]);
+            newArray = newArray.union(mapped);
+        }
+        return newArray;
+    }
+
+    fold(initial, folder) {
         let accumulator = initial;
         for (let i = 0; i < this.length; i++) {
-            accumulator = lambda(accumulator, this.elements[i]);
+            accumulator = folder(accumulator, this.elements[i]);
         }
         return accumulator;
     }
 
-    reduce(lambda, initial) {
-        let accumulator = initial;
+    union(otherArray) {
+        const newArray = new Array(this.length + otherArray.length);
         for (let i = 0; i < this.length; i++) {
-            accumulator = lambda(accumulator, this.elements[i]);
+            newArray.elements[i] = this.elements[i];
         }
-        return accumulator;
+        for (let i = 0; i < otherArray.length; i++) {
+            newArray.elements[this.length + i] = otherArray.get(i).orElse(undefined);
+        }
+        newArray.length = this.length + otherArray.length;
+        return newArray;
     }
 
     zip(otherArray) {
         const newArray = new Array(Math.min(this.length, otherArray.length));
         for (let i = 0; i < newArray.length; i++) {
-            newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i));
+            newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i).orElse(undefined));
         }
         newArray.length = newArray.capacity;
         return newArray;
     }
-    
+
+
+    prod(otherArray) {
+        if (this.isEmpty() || otherArray.isEmpty()) return new Array();
+        return this.map(x => {
+            return otherArray.map(y => {
+                if (x instanceof Tuple && y instanceof Tuple) {
+                    return x.union(y)
+                }
+                if (x instanceof Tuple && !(y instanceof Tuple)) {
+                    return x.add(y)
+                }
+                return Tuple.of(x, y)
+
+            });
+        }).flatMap();
+    }
+
     toArray() {
         return this.elements.slice(0, this.length);
+    }
+
+    equals(otherArray) {
+        if (this.length !== otherArray.length) return false;
+        for (let i = 0; i < this.length; i++) {
+            const a = this.elements[i];
+            const b = otherArray.get(i).orElse(undefined);
+            if (a !== b && !(typeof a?.equals === 'function' && a.equals(b))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     toString() {
@@ -118,6 +178,15 @@ export class Array {
             array.elements[i] = nativeArray[i];
         }
         array.length = nativeArray.length;
+        return array;
+    }
+
+    static range(init = 0, end = 0) {
+        const array = new Array(end - init);
+        for (let i = 0; i < end - init; i++) {
+            array.elements[i] = init + i;
+        }
+        array.length = end - init;
         return array;
     }
 }

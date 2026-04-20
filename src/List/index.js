@@ -19,30 +19,30 @@ export class List {
         return this.isEmpty() ? 0 : 1 + this.tail.size()
     }
 
-    get(k) {
+    get(index) {
         if (this.isEmpty()) return Maybe.none();
-        if (k <= 0) return Maybe.of(this.head);
-        return this.tail.get(k - 1);
+        if (index <= 0) return Maybe.of(this.head);
+        return this.tail.get(index - 1);
     }
 
-    set(k, x) {
+    set(index, value) {
         if (this.isEmpty()) return this;
-        if (k <= 0) {
-            this.head = x;
+        if (index <= 0) {
+            this.head = value;
             return this;
         }
-        this.tail.set(k - 1, x);
+        this.tail.set(index - 1, value);
         return this;
     }
 
-    push(x) {
+    push(value) {
         // !! Mutation !!
         if (this.isEmpty()) {
-            this.head = x;
+            this.head = value;
             this.tail = new List();
             return this;
         }
-        this.tail.push(x);
+        this.tail.push(value);
         return this;
     }
 
@@ -58,9 +58,9 @@ export class List {
         return this.tail.pop();
     }
 
-    map(f) {
+    map(lambda) {
         if (this.isEmpty()) return this;
-        return new List(f(this.head), this.tail.map(f))
+        return new List(lambda(this.head), this.tail.map(lambda))
     }
     
     filter(predicate) {
@@ -71,14 +71,14 @@ export class List {
     }
 
     // flatMap: List(a) => (a => List(b)) => List(b)
-    flatMap(f = x => x) {
+    flatMap(lambda = x => x) {
         if (this.isEmpty()) return this;
-        return f(this.head).union(this.tail.flatMap(f));
+        return lambda(this.head).union(this.tail.flatMap(lambda));
     }
 
-    fold(initial, f) {
+    fold(initial, folder) {
         if (this.isEmpty()) return initial;
-        return this.tail.fold(f(initial, this.head), f)
+        return this.tail.fold(folder(initial, this.head), folder)
     }
 
     union(list) {
@@ -115,23 +115,24 @@ export class List {
 
     equals(list) {
         if (this.isEmpty() && list.isEmpty()) return true;
-        return (this.head === list.head || this.head.equals(list.head)) && this.tail.equals(list.tail);
+        const firstEquals = this.head === list.head || (typeof this.head?.equals === 'function' && this.head.equals(list.head));    
+        return firstEquals && this.tail.equals(list.tail);
     }
 
     toString() {
         return `[${this.toArray()}]`
     }
 
-    static of(...arr) {
+    static of(...elements) {
         let ans = new List();
-        arr.forEach(x => ans = ans.push(x));
+        elements.forEach(x => ans = ans.push(x));
         return ans;
     }
 
-    static fromArray(arr) {
+    static fromArray(nativeArray) {
         const ans = new List();
-        for (let i = 0; i < arr.length; i++) {
-            ans.add(arr[i]);
+        for (let i = 0; i < nativeArray.length; i++) {
+            ans.add(nativeArray[i]);
         }
         return ans;
     }

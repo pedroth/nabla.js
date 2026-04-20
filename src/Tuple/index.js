@@ -24,9 +24,9 @@ export class Tuple {
         return this.tail.get(index - 1);
     }
 
-    add(x) {
-        if (this.isEmpty()) return new Tuple(x, new Tuple());
-        return new Tuple(this.head, this.tail.add(x));
+    add(value) {
+        if (this.isEmpty()) return new Tuple(value, new Tuple());
+        return new Tuple(this.head, this.tail.add(value));
     }
 
     map(lambda) {
@@ -41,14 +41,10 @@ export class Tuple {
         return this.tail.filter(predicate);
     }
 
-    fold(initialValue, reducer) {
+    // fold: Tuple(a) => initialValue => (initialValue => a => initialValue) => finalValue
+    fold(initialValue, folder) {
         if (this.isEmpty()) return initialValue;
-        return this.tail.fold(reducer(initialValue, this.head), reducer);
-    }
-
-    forEach(lambda) {
-        this.map(lambda);
-        return this;
+        return this.tail.fold(folder(initialValue, this.head), folder);
     }
 
     equals(tuple) {
