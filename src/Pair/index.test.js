@@ -2,45 +2,37 @@ import { expect, test } from "bun:test";
 import { Pair } from './index.js';
 
 test('Pair creation', () => {
-  const pair = new Pair(2, 3);
-  expect(pair.toArray()).toEqual([2, 3]);
+  const pair = Pair.of(2, 3);
   expect(pair.left()).toBe(2);
   expect(pair.right()).toBe(3);
 });
 
-test('Pair.of', () => {
-  const pair = Pair.of(10, 20);
-  expect(pair.left()).toBe(10);
-  expect(pair.right()).toBe(20);
-});
-
-test('Pair map', () => {
-  const pair = new Pair(2, 3);
-  const result = pair.map(x => x * x);
+test('map', () => {
+  const result = Pair.of(2, 3).map(x => x * x);
   expect(result.equals(Pair.of(4, 9))).toBe(true);
 });
 
-test('Pair mapLeft', () => {
+test('mapLeft', () => {
   const result = Pair.of(2, 3).mapLeft(x => x * 10);
   expect(result.equals(Pair.of(20, 3))).toBe(true);
 });
 
-test('Pair mapRight', () => {
+test('mapRight', () => {
   const result = Pair.of(2, 3).mapRight(x => x * 10);
   expect(result.equals(Pair.of(2, 30))).toBe(true);
 });
 
-test('Pair fold', () => {
-  const pair = new Pair(2, 3);
-  const result = pair.fold((a, b) => a + b);
-  expect(result).toBe(5);
+test('fold', () => {
+  expect(Pair.of(2, 3).fold(0, (a, b) => a + b)).toBe(5);
+  expect(Pair.of(undefined, undefined).fold(0, (a, b) => a + b)).toBe(0);
 });
 
 test('isEmpty', () => {
-  expect(new Pair().isEmpty()).toBe(true);
-  expect(new Pair(1, null).isEmpty()).toBe(false);
-  expect(new Pair(undefined, 2).isEmpty()).toBe(false);
-  expect(new Pair(1, 2).isEmpty()).toBe(false);
+  expect(Pair.of(undefined, undefined).isEmpty()).toBe(true);
+  expect(Pair.of(null, null).isEmpty()).toBe(true);
+  expect(Pair.of(1, null).isEmpty()).toBe(false);
+  expect(Pair.of(undefined, 2).isEmpty()).toBe(false);
+  expect(Pair.of(1, 2).isEmpty()).toBe(false);
 });
 
 test('equals', () => {

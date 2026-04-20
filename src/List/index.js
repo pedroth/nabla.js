@@ -1,7 +1,9 @@
 import { Tuple } from "../Tuple/index.js";
+import { Maybe } from "../Maybe/index.js";
+import { Pair } from "../Pair/index.js";
 
 /**
- * L(a) -> () | (a, L(a))
+ * L(a):= () | (a, L(a))
  */
 export class List {
     constructor(head, tail) {
@@ -18,8 +20,8 @@ export class List {
     }
 
     get(k) {
-        if (this.isEmpty()) return;
-        if (k <= 0) return this.head;
+        if (this.isEmpty()) return Maybe.none();
+        if (k <= 0) return Maybe.of(this.head);
         return this.tail.get(k - 1);
     }
 
@@ -46,12 +48,12 @@ export class List {
 
     pop() {
         // !! Mutation !!
-        if (this.isEmpty()) return;
+        if (this.isEmpty()) return Maybe.none();
         if (this.tail.isEmpty()) {
             const ans = this.head;
             this.head = undefined;
             this.tail = undefined;
-            return ans;
+            return Maybe.of(ans);
         }
         return this.tail.pop();
     }
@@ -60,7 +62,15 @@ export class List {
         if (this.isEmpty()) return this;
         return new List(f(this.head), this.tail.map(f))
     }
+    
+    filter(predicate) {
+        if (this.isEmpty()) return this;
+        return predicate(this.head) ?
+            new List(this.head, this.tail.filter(predicate)) :
+            this.tail.filter(predicate);
+    }
 
+    // flatMap: List(a) => (a => List(b)) => List(b)
     flatMap(f = x => x) {
         if (this.isEmpty()) return this;
         return f(this.head).union(this.tail.flatMap(f));
@@ -71,17 +81,15 @@ export class List {
         return this.tail.fold(f(initial, this.head), f)
     }
 
-    filter(predicate) {
-        if (this.isEmpty()) return this;
-        return predicate(this.head) ?
-            new List(this.head, this.tail.filter(predicate)) :
-            this.tail.filter(predicate);
+    union(list) {
+        if(list.isEmpty()) return this;
+        if(this.isEmpty()) return list;
+        return new List(this.head, this.tail.union(list)); 
     }
 
-    union(list) {
-        return this.isEmpty() ?
-            list :
-            new List(this.head, this.tail.union(list));
+    zip(list) {
+        if (this.isEmpty() || list.isEmpty()) return new List();
+        return new List(Pair.of(this.head, list.head), this.tail.zip(list.tail));
     }
 
     prod(list) {
@@ -90,7 +98,7 @@ export class List {
         return this.map(x => {
             return list.map(y => {
                 if (x instanceof Tuple && y instanceof Tuple) {
-                    return x.join(y)
+                    return x.union(y)
                 }
                 if (x instanceof Tuple && !(y instanceof Tuple)) {
                     return x.add(y)

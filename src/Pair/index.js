@@ -24,7 +24,8 @@ export class Pair {
         return new Pair(f(this.x), f(this.y));
     }
 
-    fold(f) {
+    fold(defaultValue, f) {
+        if (this.isEmpty()) return defaultValue;
         return f(this.x, this.y);
     }
 

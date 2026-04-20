@@ -1,34 +1,38 @@
 [
     {
-        "title": "Maybe monad",
-        "path": "/playground/tests/maybe_monad.json"
+        "title": "Pair (product)",
+        "path": "/playground/tests/pair.json"
     },
     {
-        "title": "Either monad",
-        "path": "/playground/tests/either_monad.json"
+        "title": "Either (co-product)",
+        "path": "/playground/tests/either.json"
+    },
+    {
+        "title": "Maybe monad",
+        "path": "/playground/tests/maybe_monad.json"
     },
     {
         "title": "Try monad",
         "path": "/playground/tests/try_monad.json"
     },
     {
-        "title": "Pair data structure",
-        "path": "/playground/tests/pair.json"
-    },
-    {
-        "title": "Tuple data structure",
+        "title": "Tuples",
         "path": "/playground/tests/tuple.json"
     },
     {
-        "title": "Set data structure",
+        "title": "List",
+        "path": "/playground/tests/list.json"
+    },
+    {
+        "title": "Sets",
         "path": "/playground/tests/set.json"
     },
     {
-        "title": "Stream data structure",
+        "title": "Stream (lazy lists)",
         "path": "/playground/tests/stream.json"
     },
     {
-        "title": "Array data structure",
+        "title": "Array (continuous lists)",
         "path": "/playground/tests/array.json"
     },
     {

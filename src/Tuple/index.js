@@ -1,28 +1,16 @@
 import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
 
+// Tuple := (head, tail) | empty
+// immutable, recursive, linked list-like structure, no remove, just add
 export class Tuple {
     constructor(head, tail) {
         this.head = head;
         this.tail = tail;
     }
 
-    get(index) {
-        if (this.isEmpty()) return Maybe.none();
-        if (index === 0) return Maybe.of(this.head);
-        return this.tail.get(index - 1);
-    }
-    
-    add(x) {
-        if (this.isEmpty()) return new Tuple(x, new Tuple());
-        return new Tuple(this.head, this.tail.add(x));
-    }
-
-    union(tuple) {
-        if (this.isEmpty()) return tuple;
-        let ans = this;
-        tuple.forEach(x => ans = ans.add(x));
-        return ans;
+    isEmpty() {
+        return this.head == null && this.tail == null;
     }
 
     size() {
@@ -30,8 +18,37 @@ export class Tuple {
         return 1 + this.tail.size();
     }
 
-    isEmpty() {
-        return this.head == null && this.tail == null;
+    get(index) {
+        if (this.isEmpty()) return Maybe.none();
+        if (index <= 0) return Maybe.of(this.head);
+        return this.tail.get(index - 1);
+    }
+
+    add(x) {
+        if (this.isEmpty()) return new Tuple(x, new Tuple());
+        return new Tuple(this.head, this.tail.add(x));
+    }
+
+    map(lambda) {
+        if (this.isEmpty()) return this;
+        return new Tuple(lambda(this.head), this.tail.map(lambda));
+    }
+
+    filter(predicate) {
+        if (this.isEmpty()) return this;
+        if (predicate(this.head))
+            return new Tuple(this.head, this.tail.filter(predicate));
+        return this.tail.filter(predicate);
+    }
+
+    fold(initialValue, reducer) {
+        if (this.isEmpty()) return initialValue;
+        return this.tail.fold(reducer(initialValue, this.head), reducer);
+    }
+
+    forEach(lambda) {
+        this.map(lambda);
+        return this;
     }
 
     equals(tuple) {
@@ -42,30 +59,10 @@ export class Tuple {
         return equalsOrSame(this.head, tuple.head) && this.tail.equals(tuple.tail);
     }
 
-    
-
-    
-
-    forEach(lambda) {
-        this.map(lambda);
-        return this;
-    }
-
-    map(lambda) {
-        if (this.isEmpty()) return this;
-        return new Tuple(lambda(this.head), this.tail.map(lambda));
-    }
-
-    fold(initialValue, reducer) {
-        if (this.isEmpty()) return initialValue;
-        return this.tail.fold(reducer(initialValue, this.head), reducer);
-    }
-
-    filter(predicate) {
-        if (this.isEmpty()) return this;
-        if (predicate(this.head))
-            return new Tuple(this.head, this.tail.filter(predicate));
-        return this.tail.filter(predicate);
+    union(tuple) {
+        if (this.isEmpty()) return tuple;
+        if (tuple.isEmpty()) return this;
+        return new Tuple(this.head, this.tail.union(tuple));
     }
 
     zip(tuple) {

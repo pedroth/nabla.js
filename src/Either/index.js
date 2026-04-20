@@ -8,7 +8,7 @@ export class Either {
     }
 }
 
-export class Left {
+class Left {
     constructor(x) {
         this.value = x;
     }
@@ -60,7 +60,7 @@ export class Left {
     }
 }
 
-export class Right {
+class Right {
     constructor(x) {
         this.value = x;
     }
