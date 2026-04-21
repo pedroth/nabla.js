@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { Array } from './index.js';
 import { Tuple } from "../Tuple/index.js";
+import { Pair } from "../Pair/index.js";
 
 test("Array.of", () => {
     expect(Array.of(1, 2, 3).toArray()).toEqual([1, 2, 3]);
@@ -81,6 +82,14 @@ test("del", () => {
     expect(c.toArray()).toEqual([1, 2, 3, 4]);
 });
 
+test("sort", () => {
+    const a = Array.of(3, 1, 4, 2);
+    expect(a.sort().toArray()).toEqual([1, 2, 3, 4]);
+
+    const b = Array.of(3, 1, 4, 2);
+    expect(b.sort((x, y) => y - x).toArray()).toEqual([4, 3, 2, 1]);
+});
+
 test("map", () => {
     expect(Array.of(1, 2, 3).map(x => x * x).toArray()).toEqual([1, 4, 9]);
     expect(Array.of().map(x => x * x).isEmpty()).toBe(true);
@@ -116,6 +125,12 @@ test("union", () => {
 test("zip", () => {
     const zipped = Array.of("a", "b", "c").zip(Array.of(1, 2, 3));
     expect(zipped.size()).toBe(3);
+    expect(zipped.toArray()).toEqual([
+        Pair.of("a", 1),
+        Pair.of("b", 2),
+        Pair.of("c", 3)
+    ]);
+
 });
 
 test("prod", () => {

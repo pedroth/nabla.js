@@ -73,7 +73,7 @@ export class List {
         if (this.isEmpty()) return this;
         return new List(lambda(this.head), this.tail.map(lambda))
     }
-    
+
     filter(predicate) {
         if (this.isEmpty()) return this;
         return predicate(this.head) ?
@@ -93,9 +93,9 @@ export class List {
     }
 
     union(list) {
-        if(list.isEmpty()) return this;
-        if(this.isEmpty()) return list;
-        return new List(this.head, this.tail.union(list)); 
+        if (list.isEmpty()) return this;
+        if (this.isEmpty()) return list;
+        return new List(this.head, this.tail.union(list));
     }
 
     zip(list) {
@@ -126,12 +126,20 @@ export class List {
 
     equals(list) {
         if (this.isEmpty() && list.isEmpty()) return true;
-        const firstEquals = this.head === list.head || (typeof this.head?.equals === 'function' && this.head.equals(list.head));    
+        const firstEquals = this.head === list.head || (typeof this.head?.equals === 'function' && this.head.equals(list.head));
         return firstEquals && this.tail.equals(list.tail);
     }
 
     toString() {
         return `[${this.toArray()}]`
+    }
+
+    sort(comparator = (a, b) => a - b) {
+        if (this.isEmpty()) return this;
+        const pivot = this.head;
+        const lessThanPivot = this.tail.filter(x => comparator(x, pivot) < 0).sort(comparator);
+        const greaterThanPivot = this.tail.filter(x => comparator(x, pivot) >= 0).sort(comparator);
+        return lessThanPivot.union(new List(pivot, greaterThanPivot));
     }
 
     static of(...elements) {

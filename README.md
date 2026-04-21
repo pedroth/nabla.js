@@ -5,36 +5,35 @@ A Mathematics and Computer Science educational library.
 The purpose is to make a bug-free, concise, no dependencies, clear implementation of mathematical/computer science concepts.
 
 # nabla.js programs
-- Pairs (products)
-- Either (co-products)
-- Tuples (n-ary products)
-- Maybe (option type)
-- Try (exception handling)
-- Lists (linked lists)
-- Sets (unordered collections of unique elements)
-- Stack
-- Queue
-- Priority queue
-- Streams (lazy lists)
-- Arrays (dynamic contiguous arrays)
-- Hash maps
-- Treaps
-- Skip lists
-- Graphs
-- Half-edge data structure
-- Simplicial complexes
-- Vectors
-- Matrices
-- Tensors
-- Multivectors (Geometric algebra)
-- Numerical Linear algebra
+- [x] Pairs (products)
+- [x] Either (co-products)
+- [x] Tuples (n-ary products)
+- [x] Maybe (option type)
+- [x] Try (exception handling)
+- [x] Lists (linked lists)
+- [x] Sets (unordered collections of unique elements)
+- [x] Queue
+- [ ] Priority queue
+- [x] Streams (lazy lists)
+- [x] Arrays (dynamic contiguous arrays)
+- [ ] Hash maps
+- [ ] Treaps
+- [ ] Skip lists
+- [ ] Graphs
+- [ ] Half-edge data structure
+- [ ] Simplicial complexes
+- [ ] Vectors
+- [ ] Matrices
+- [ ] Tensors
+- [ ] Multivectors (Geometric algebra)
+- [ ] Numerical Linear algebra
     - Eigenvalue decomposition
     - Singular value decomposition
-- Ordinary differential equations solvers
-- Optimization algorithms
-- Symbolic mathematics
-- Automatic differentiation
-- Machine learning algorithms
+- [ ] Ordinary differential equations solvers
+- [ ] Optimization algorithms
+- [ ] Symbolic mathematics
+- [ ] Automatic differentiation
+- [ ] Machine learning algorithms
     - Linear regression
     - Logistic regression
     - Support vector machines
@@ -43,10 +42,10 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
     - Deep neural networks
     - Manifold learning algorithms
     - Neural geometric artifacts
-- Reverse rendering of 3D scenes
+- [ ] Reverse rendering of 3D scenes
     - Gaussian splatting 
     - Triangle splatting
-- Parser of parsers
+- [ ] Parser of parsers
 
 
 # Data structures

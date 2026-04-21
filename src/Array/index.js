@@ -175,6 +175,47 @@ export class Array {
         return `[${this.toArray().join(", ")}]`
     }
 
+    swap(i, j) {
+        const temp = this.elements[i];
+        this.elements[i] = this.elements[j];
+        this.elements[j] = temp;
+    }
+
+    sort(comparator = (a, b) => a - b) {
+        // !! Mutation !!
+        const n = this.elements.length;
+        const v = this.elements;
+        const stack = [];
+        stack.push(0);
+        stack.push(n - 1);
+        while (stack.length > 0) {
+            const high = stack.pop();
+            const low = stack.pop();
+            /*
+             * partition
+             */
+            if (low < high) {
+                const pivot = low + Math.floor((high - low) * Math.random());
+                const pivotValue = v[pivot];
+                this.swap(pivot, high);
+                let j = low;
+                for (let i = low; i < high; i++) {
+                    if (comparator(v[i], pivotValue) <= 0) {
+                        this.swap(i, j);
+                        j++;
+                    }
+                }
+                this.swap(j, high);
+                // stack recursion
+                stack.push(low);
+                stack.push(j - 1);
+                stack.push(j + 1);
+                stack.push(high);
+            }
+        }
+        return this;
+    }
+
 
     static of(...elements) {
         const array = new Array(elements.length);

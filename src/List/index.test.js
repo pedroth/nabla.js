@@ -62,6 +62,12 @@ test("del", () => {
     expect(l.toArray()).toEqual([2, 4]);
 });
 
+test("sort", () => {
+    expect(List.of(3, 1, 4, 2).sort().toArray()).toEqual([1, 2, 3, 4]);
+    expect(List.of(3, 1, 4, 2).sort((x, y) => y - x).toArray()).toEqual([4, 3, 2, 1]);
+    expect(List.of().sort().isEmpty()).toBe(true);
+});
+
 test("map", () => {
     expect(List.of(1, 2, 3).map(x => x * x).toArray()).toEqual([1, 4, 9]);
     expect(List.of().map(x => x * x).isEmpty()).toBe(true);
