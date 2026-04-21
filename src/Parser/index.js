@@ -1,4 +1,4 @@
-import { Fail, Success } from "../Monads/index.js";
+import { Try } from "../Try/index.js";
 
 class Parser {
     constructor(rules) {
@@ -55,7 +55,7 @@ function or(left, right) {
         left,
         right,
         parse: (inputTree, parser) => {
-            return Success.of()
+            return Try.success()
                 .flatMap(() => {
                     return left.parse(inputTree, parser);
                 })
@@ -73,11 +73,11 @@ function dot(left, right) {
         right,
         parse: (inputTree, parser) => {
             const inType = inputTree.type;
-            if (inType !== "dot") return Fail.of("Not a dot input");
+            if (inType !== "dot") return Try.failure("Not a dot input");
             const leftMaybe = left.parse(inputTree.left, parser);
-            if (!leftMaybe.isSuccess()) return Fail.of("Fail to parse left");
+            if (!leftMaybe.isSuccess()) return Try.failure("Fail to parse left");
             const rightMaybe = right.parse(inputTree.right, parser);
-            if (!rightMaybe.isSuccess()) return Fail.of("Fail to parse right");
+            if (!rightMaybe.isSuccess()) return Try.failure("Fail to parse right");
             return leftMaybe.flatMap(l => rightMaybe.map(r => dot(l, r)));
         }
     };
@@ -102,9 +102,9 @@ function token(s) {
         id: s,
         parse: (inputTree, parser) => {
             const inType = inputTree.type;
-            if (inType !== "token") return Fail.of("Not a token input");
-            if (inputTree.id === s) return Success.of(token(s));
-            return Fail.of("fail to parse token");
+            if (inType !== "token") return Try.failure("Not a token input");
+            if (inputTree.id === s) return Try.success(token(s));
+            return Try.failure("fail to parse token");
         }
     };
 }

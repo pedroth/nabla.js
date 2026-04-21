@@ -92,6 +92,12 @@ export class List {
         return this.tail.fold(folder(initial, this.head), folder)
     }
 
+    some(predicate) {
+        if (this.isEmpty()) return false;
+        if (predicate(this.head)) return true;
+        return this.tail.some(predicate);
+    }
+
     union(list) {
         if (list.isEmpty()) return this;
         if (this.isEmpty()) return list;
@@ -151,14 +157,14 @@ export class List {
     static fromArray(nativeArray) {
         const ans = new List();
         for (let i = 0; i < nativeArray.length; i++) {
-            ans.add(nativeArray[i]);
+            ans.push(nativeArray[i]);
         }
         return ans;
     }
 
     static range(init = 0, end = 0) {
         if (init + 1 > end) return new List();
-        return new List().add(init).union(List.range(init + 1, end));
+        return new List().push(init).union(List.range(init + 1, end));
     }
 }
 

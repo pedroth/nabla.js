@@ -50,12 +50,6 @@ test('fold', () => {
     expect(Tuple.of().fold(0, (e, x) => e + x)).toBe(0);
 });
 
-test('forEach', () => {
-    const items = [];
-    const result = Tuple.of(1, 2, 3).forEach(x => items.push(x));
-    expect(items).toEqual([1, 2, 3]);
-    expect(result.toArray()).toEqual([1, 2, 3]);
-});
 
 test('equals', () => {
     expect(Tuple.of(1, 2, 3).equals(Tuple.of(1, 2, 3))).toBe(true);

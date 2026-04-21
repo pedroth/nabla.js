@@ -117,6 +117,15 @@ export class Array {
         return accumulator;
     }
 
+    some(predicate) {
+        for (let i = 0; i < this.length; i++) {
+            if (predicate(this.elements[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     union(otherArray) {
         const newArray = new Array(this.length + otherArray.length);
         for (let i = 0; i < this.length; i++) {
@@ -131,13 +140,12 @@ export class Array {
 
     zip(otherArray) {
         const newArray = new Array(Math.min(this.length, otherArray.length));
-        for (let i = 0; i < newArray.length; i++) {
+        for (let i = 0; i < newArray.capacity; i++) {
             newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i).orElse(undefined));
         }
         newArray.length = newArray.capacity;
         return newArray;
     }
-
 
     prod(otherArray) {
         if (this.isEmpty() || otherArray.isEmpty()) return new Array();
