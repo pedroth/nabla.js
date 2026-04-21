@@ -69,7 +69,10 @@ export class Array {
 
     del(index) {
         if (this.isEmpty()) return this;
-        this.elements[index] = undefined;
+        if (index < 0 || index >= this.length) return this;
+        for (let i = index; i < this.length - 1; i++) {
+            this.elements[i] = this.elements[i + 1];
+        }
         this.length--;
         if (this.length <= this.capacity / 4) {
             this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));

@@ -68,12 +68,17 @@ test("del", () => {
     const a = Array.of(1, 2, 3, 4);
     a.del(0);
     expect(a.size()).toBe(3);
-    expect(a.toArray()).toEqual([undefined, 2, 3]);
+    expect(a.toArray()).toEqual([2, 3, 4]);
 
     const b = Array.of(1, 2, 3, 4);
-    b.del(3);
+    b.del(1);
     expect(b.size()).toBe(3);
-    expect(b.toArray()).toEqual([1, 2, 3]);
+    expect(b.toArray()).toEqual([1, 3, 4]);
+
+    const c = Array.of(1, 2, 3, 4);
+    c.del(10);
+    expect(c.size()).toBe(4);
+    expect(c.toArray()).toEqual([1, 2, 3, 4]);
 });
 
 test("map", () => {
