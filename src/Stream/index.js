@@ -23,18 +23,6 @@ export class Stream {
         return new Stream(lambda(this._head), () => this._tail().map(lambda))
     }
 
-    flatMap(lambda) {
-        if(this.isEmpty()) return this;
-        const flatted = lambda(this._head);
-        if(flatted.isEmpty()) return this._tail().flatMap(lambda);
-        return new Stream(flatted._head, () => flatted._tail().concat(this._tail().flatMap(lambda)))
-    }
-
-    concat(stream) {
-        if(this.isEmpty()) return stream;
-        return new Stream(this._head, () => this._tail().concat(stream));
-    }
-
     filter(predicate = () => true) {
         let current = this;
         while (!current.isEmpty() && !predicate(current._head)) {
@@ -44,9 +32,21 @@ export class Stream {
         return new Stream(current._head, () => current._tail().filter(predicate));
     }
 
-    fold(initialValue = 0, reducer = (e, x) => e + x) {
+    flatMap(lambda) {
+        if(this.isEmpty()) return this;
+        const flatted = lambda(this._head);
+        if(flatted.isEmpty()) return this._tail().flatMap(lambda);
+        return new Stream(flatted._head, () => flatted._tail().union(this._tail().flatMap(lambda)))
+    }
+    
+    fold(initialValue = 0, folder = (e, x) => e + x) {
         if (this.isEmpty()) return initialValue;
-        return this.tail().fold(reducer(initialValue, this.head()), reducer);
+        return this.tail().fold(folder(initialValue, this.head()), folder);
+    }
+
+    union(stream) {
+        if(this.isEmpty()) return stream;
+        return new Stream(this._head, () => this._tail().union(stream));
     }
 
     take(n) {
@@ -54,8 +54,20 @@ export class Stream {
         return new Stream(this._head, () => this._tail().take(n - 1));
     }
 
+    zip(otherStream) {
+        if (this.isEmpty() || otherStream.isEmpty()) return new Stream();
+        return new Stream(Pair.of(this._head, otherStream._head), () => this._tail().zip(otherStream._tail()));
+    }
+
     toArray() {
         return this.fold([], (acc, x) => { acc.push(x); return acc; });
+    }
+
+    equals(otherStream) {
+        if (this.isEmpty() && otherStream.isEmpty()) return true;
+        if (this.isEmpty() || otherStream.isEmpty()) return false;
+        if (this._head !== otherStream._head) return false;
+        return this._tail().equals(otherStream._tail());
     }
 
     toString(radix=10) {
@@ -67,11 +79,6 @@ export class Stream {
             current = current.tail();
         }
         return `[${string.join(", ")}]`;
-    }
-    
-    zip(otherStream) {
-        if (this.isEmpty() || otherStream.isEmpty()) return new Stream();
-        return new Stream(Pair.of(this.head(), otherStream.head()), () => this.tail().zip(otherStream.tail()));
     }
 
     static of(...array) {
@@ -95,5 +102,4 @@ export class Stream {
         }
         return primesRecursive(Stream.range(2));
     }
-
 }

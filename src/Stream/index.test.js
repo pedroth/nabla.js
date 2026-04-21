@@ -57,11 +57,11 @@ test("toArray", () => {
     expect(new Stream().toArray()).toEqual([]);
 });
 
-test("concat", () => {
+test("union", () => {
     const a = Stream.of(1, 2);
     const b = Stream.of(3, 4);
-    expect(a.concat(b).toArray()).toEqual([1, 2, 3, 4]);
-    expect(new Stream().concat(b).toArray()).toEqual([3, 4]);
+    expect(a.union(b).toArray()).toEqual([1, 2, 3, 4]);
+    expect(new Stream().union(b).toArray()).toEqual([3, 4]);
 });
 
 test("flatMap", () => {
@@ -71,6 +71,21 @@ test("flatMap", () => {
             .toArray()
     ).toEqual([1, 10, 2, 20, 3, 30]);
     expect(new Stream().flatMap(x => Stream.of(x)).isEmpty()).toBe(true);
+});
+
+test("zip", () => {
+    expect(
+        Stream.of("a", "b", "c")
+            .zip(Stream.of(1, 2))
+            .map(pair => pair.left() + pair.right())
+            .toArray()
+    ).toEqual(["a1", "b2"]);
+});
+
+test("equals", () => {
+    expect(Stream.of(1, 2, 3).equals(Stream.of(1, 2, 3))).toBe(true);
+    expect(Stream.of(1, 2, 3).equals(Stream.of(1, 2))).toBe(false);
+    expect(Stream.of(1, 2, 3).equals(Stream.of(1, 2, 4))).toBe(false);
 });
 
 test("primes", () => {
