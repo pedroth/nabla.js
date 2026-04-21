@@ -67,6 +67,16 @@ export class Array {
         return Maybe.some(this.elements[this.length]);
     }
 
+    del(index) {
+        if (this.isEmpty()) return this;
+        this.elements[index] = undefined;
+        this.length--;
+        if (this.length <= this.capacity / 4) {
+            this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));
+        }
+        return this;
+    }
+
     // Array => (elem => elem) => Array
     map(lambda) {
         const newArray = new Array(this.capacity);

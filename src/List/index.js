@@ -58,6 +58,17 @@ export class List {
         return this.tail.pop();
     }
 
+    del(index) {
+        if (this.isEmpty()) return this;
+        if (index <= 0) {
+            this.head = this.tail.head;
+            this.tail = this.tail.tail;
+            return this;
+        }
+        this.tail.del(index - 1);
+        return this;
+    }
+
     map(lambda) {
         if (this.isEmpty()) return this;
         return new List(lambda(this.head), this.tail.map(lambda))

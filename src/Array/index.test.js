@@ -64,6 +64,18 @@ test("pop", () => {
     expect(Array.of().pop().isSome()).toBe(false);
 });
 
+test("del", () => {
+    const a = Array.of(1, 2, 3, 4);
+    a.del(0);
+    expect(a.size()).toBe(3);
+    expect(a.toArray()).toEqual([undefined, 2, 3]);
+
+    const b = Array.of(1, 2, 3, 4);
+    b.del(3);
+    expect(b.size()).toBe(3);
+    expect(b.toArray()).toEqual([1, 2, 3]);
+});
+
 test("map", () => {
     expect(Array.of(1, 2, 3).map(x => x * x).toArray()).toEqual([1, 4, 9]);
     expect(Array.of().map(x => x * x).isEmpty()).toBe(true);

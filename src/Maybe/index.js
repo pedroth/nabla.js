@@ -1,4 +1,21 @@
-export class Some {
+export class Maybe {
+    static of(x) {
+        if (x) {
+            return Some.of(x);
+        }
+        return new None();
+    }
+
+    static none() {
+        return new None();
+    }
+
+    static some(x) {
+        return Some.of(x);
+    }
+}
+
+class Some {
     constructor(x) {
         this.value = x;
     }
@@ -31,7 +48,7 @@ export class Some {
     }
 }
 
-export class None {
+class None {
     map() {
         return this;
     }
@@ -58,19 +75,3 @@ export class None {
     }
 }
 
-export class Maybe {
-    static of(x) {
-        if (x) {
-            return Some.of(x);
-        }
-        return new None();
-    }
-
-    static none() {
-        return new None();
-    }
-
-    static some(x) {
-        return Some.of(x);
-    }
-}
