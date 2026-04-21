@@ -8,3 +8,6 @@ export * from "./Queue/index.js";
 export * from "./Set/index.js";
 export * from "./Stream/index.js";
 export * from "./Array/index.js";
+export * from "./HashMap/index.js";
+export * from "./PQueue/index.js";
+// export * from "./Parser/index.js";
