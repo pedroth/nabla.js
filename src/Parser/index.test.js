@@ -62,6 +62,76 @@ test("Parse S => bS | a", () => {
     expect(result).toEqual(expectedResult);
 });
 
+test("Parse S => (S)S| epsilon ", () => {
+    const parser = Parser.builder()
+        .addRule(
+            rule(
+                symbol("S"),
+                or(
+                    dot(
+                        token("("),
+                        symbol("S"),
+                        token(")"),
+                        symbol("S")
+                    ),
+                    epsilon()
+                )
+            )
+        )
+        .build();
+    const expectedResult = {
+        type: "rule",
+        symbol: "S",
+        value: {
+            type: "dot",
+            elements: [
+                { type: "token", token: "(" },
+                {
+                    type: "rule",
+                    symbol: "S",
+                    value: {
+                        type: "dot",
+                        elements: [
+                            { type: "token", token: "(" },
+                            { type: "rule", symbol: "S", value: { type: "epsilon" } },
+                            { type: "token", token: ")" },
+                            {
+                                type: "rule",
+                                symbol: "S",
+                                value: {
+                                    type: "dot",
+                                    elements: [
+                                        { type: "token", token: "(" },
+                                        { type: "rule", symbol: "S", value: { type: "epsilon" } },
+                                        { type: "token", token: ")" },
+                                        { type: "rule", symbol: "S", value: { type: "epsilon" } }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                },
+                { type: "token", token: ")" },
+                {
+                    type: "rule",
+                    symbol: "S",
+                    value: {
+                        type: "dot",
+                        elements: [
+                            { type: "token", token: "(" },
+                            { type: "rule", symbol: "S", value: { type: "epsilon" } },
+                            { type: "token", token: ")" },
+                            { type: "rule", symbol: "S", value: { type: "epsilon" } }
+                        ]
+                    }
+                }
+            ]
+        }
+    };
+    const result = parser.parse(tokenize("(()())()"));
+    expect(result).toEqual(expectedResult);
+});
+
 
 test("Calculator test", () => {
     // S -> N (+ | -) S | N (+ | -) F | F (+ | -) S | F
