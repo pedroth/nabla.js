@@ -1,20 +1,37 @@
 import { Try } from "../Try/index.js";
+import { Pair } from "../Pair/index.js";
 
-class Parser {
+/**
+ * Top down parser combinator library for non-left recursive context free grammars.
+ */
+export class Parser {
+    // parser is a collection of rules
+    // a rule := (symbol, ruleExpression)
+    // ruleExpression := or | dot | token | symbol | epsilon
+    // symbol(a: string)
+    // token(a: string)
+    // epsilon
+    // dot(rulesExpr: list<ruleExpression>)
+    // or(rulesExpr: list<ruleExpression>)
     constructor(rules) {
         const [startRule, ...otherRules] = rules;
         if (!startRule) throw Error("No start rule")
         this.startSymbol = startRule.symbol.id;
         this.symbol2rule = {};
-        this.symbol2rule[this.startSymbol] = startRule.rule;
+        this.symbol2rule[this.startSymbol] = startRule.ruleExpr;
         otherRules.forEach((aRule) => {
-            this.symbol2rule[aRule.symbol.id] = aRule.rule;
+            this.symbol2rule[aRule.symbol.id] = aRule.ruleExpr;
         })
     }
 
-    parse(inputTree) {
-        return this.symbol2rule[this.startSymbol]
-            .parse(inputTree, this).map(x => symbol(this.startSymbol, x)).orCatch((e) => new Error(e))
+    parse(tokens) {
+        const startRule = this.symbol2rule[this.startSymbol];
+        if (!startRule) return Try.fail("No start rule found for symbol " + this.startSymbol);
+        return startRule.parse(this, tokens)
+            .map((res) => {
+                return { type: "rule", symbol: this.startSymbol, value: res.left() };
+            })
+            .orCatch((e) => new Error(e));
     }
 
     static builder() {
@@ -37,163 +54,104 @@ class ParserBuilder {
     }
 }
 
-function rule(symbol, rule) {
+export function rule(symbol, ruleExpr) {
     if ("symbol" !== symbol.type) throw Error("left arg not a symbol");
     return {
         type: "rule",
         symbol,
-        rule,
-        parse: (inputTree, parser) => {
-            return rule.parse(inputTree, parser);
-        }
-    };
-}
-
-function or(left, right) {
-    return {
-        type: "or",
-        left,
-        right,
-        parse: (inputTree, parser) => {
-            return Try.success()
-                .flatMap(() => {
-                    return left.parse(inputTree, parser);
+        ruleExpr,
+        // parse: (parser: Parser, tokens: list<token>) => Success(Pair(ruleObj, nextTokens: list<token>)) | Failure()
+        parse: (parser, tokens) => {
+            const result = ruleExpr.parse(parser, tokens);
+            return result
+                .map((res) => {
+                    return Pair.of({ type: "rule", symbol: symbol.id, value: res.left() }, res.right());
                 })
-                .failMap(() => {
-                    return right.parse(inputTree, parser);
-                })
+                .orCatch(() => "failed to parse rule " + symbol.id);
         }
     };
 }
 
-function dot(left, right) {
+export function or(...rulesExpr) {
+    const ans = {};
+    ans.type = "or";
+    ans.rulesExpr = rulesExpr;
+    ans.parse = (parser, tokens) => {
+        let ans = Try.fail("no rule matched");
+        for (let i = 0; i < rulesExpr.length; i++) {
+            ans = ans.orCatch(() => rulesExpr[i].parse(parser, tokens));
+            if (ans.isSuccess()) break;
+        }
+        return ans;
+    };
+    return ans;
+}
+
+export function dot(...rulesExpr) {
+    const ans = {};
+    ans.type = "dot";
+    ans.rulesExpr = rulesExpr;
+    ans.parse = (parser, tokens) => {
+        const results = [];
+        let tokenStream = tokens;
+        for (let i = 0; i < rulesExpr.length; i++) {
+            const result = rulesExpr[i].parse(parser, tokenStream);
+            if (result.isFailure()) {
+                return Try.fail("failed to parse dot rule at index " + i);
+            }
+            tokenStream = result.orCatch(x => x).right();
+            results.push(result.orCatch(x => x).left());
+        }
+        return Try.success(Pair.of({ type: "dot", elements: results }, tokenStream));
+    };
+    return ans;
+}
+
+export function symbol(s) {
+    const ans = {};
+    ans.type = "symbol";
+    ans.id = s;
+    ans.parse = (parser, tokens) => {
+        const ruleFromSymbol = parser.symbol2rule[s];
+        if (!ruleFromSymbol) return Try.fail("no rule for symbol " + s);
+        return ruleFromSymbol.parse(parser, tokens).map((x) => {
+            const parsedValue = x.left();
+            const value = parsedValue.type === "token"
+                ? { type: "rule", symbol: s, value: parsedValue }
+                : parsedValue;
+            return Pair.of({ type: "rule", symbol: s, value }, x.right());
+        });
+    }
+    return ans;
+}
+
+export function token(s) {
+    const ans = {}
+    ans.type = "token";
+    ans.id = s;
+    ans.equals = (otherToken) => otherToken.type === "token" && otherToken.id === s;
+    ans.parse = (parser, tokens) => {
+        const [token, ...restTokens] = tokens;
+        if (token && ans.equals(token)) {
+            return Try.success(Pair.of({ type: "token", token: s }, restTokens));
+        } else {
+            return Try.fail("expected token " + s + " but got " + token);
+        }
+    }
+    return ans;
+}
+
+
+export function epsilon() {
     return {
-        type: "dot",
-        left,
-        right,
-        parse: (inputTree, parser) => {
-            const inType = inputTree.type;
-            if (inType !== "dot") return Try.failure("Not a dot input");
-            const leftMaybe = left.parse(inputTree.left, parser);
-            if (!leftMaybe.isSuccess()) return Try.failure("Fail to parse left");
-            const rightMaybe = right.parse(inputTree.right, parser);
-            if (!rightMaybe.isSuccess()) return Try.failure("Fail to parse right");
-            return leftMaybe.flatMap(l => rightMaybe.map(r => dot(l, r)));
+        type: "epsilon",
+        parse: (parser, tokens) => {
+            return Try.success(Pair.of({ type: "epsilon" }, tokens));
         }
     };
 }
 
-function symbol(s, value) {
-    return {
-        type: "symbol",
-        id: s,
-        value,
-        parse: (inputTree, parser) => {
-            return parser.symbol2rule[s]
-                .parse(inputTree, parser)
-                .map(x => symbol(s, x))
-        }
-    };
+export function tokenize(inputString) {
+    return inputString.split("").map((s) => token(s));
 }
 
-function token(s) {
-    return {
-        type: "token",
-        id: s,
-        parse: (inputTree, parser) => {
-            const inType = inputTree.type;
-            if (inType !== "token") return Try.failure("Not a token input");
-            if (inputTree.id === s) return Try.success(token(s));
-            return Try.failure("fail to parse token");
-        }
-    };
-}
-
-function tokenize(s) {
-    if (!s || s.length === 0) return;
-    if (s.length === 1) return token(s[0]);
-    const [head, ...tail] = s;
-    return dot(token(head), tokenize(tail));
-}
-
-function stringify(tree) {
-    if (tree.type === "token") return tree.id;
-    if (tree.type === "dot") return `${stringify(tree.left)}${stringify(tree.right)}`;
-    if (tree.type === "or") return `${stringify(tree.left)}|${stringify(tree.right)}`;
-    if (tree.type === "symbol") return `${stringify(tree.value)}`;
-}
-
-// const parser = Parser
-//     .builder()
-//     .addRule(
-//         rule(
-//             symbol("S"),
-//             or(
-//                 dot(
-//                     symbol("S"),
-//                     token("a")
-//                 ),
-//                 token("b")
-//             )
-//         )
-//     )
-//     .build();
-
-// console.log("AST: ",
-//     parser.parse(
-//         // dot(
-//         //     token("b"),
-//         //     dot(
-//         //         token("a"),
-//         //         token("a")
-//         //     )
-//         // )
-//         dot(
-//             dot(dot(token("b"), token("a")), token("a")),
-//             token("a")
-//         )
-//     )
-// );
-const parser = Parser
-    .builder()
-    .addRule(
-        rule(
-            symbol("S"),
-            or(
-                dot(token("("), dot(symbol("S"), token(")"))),
-                or(
-                    dot(symbol("S"), symbol("S")),
-                    token("1")
-                )
-            )
-        )
-    )
-    .build();
-
-const expected = dot(
-    token("("),
-    dot(
-        dot(
-            dot(
-                token("("),
-                dot(
-                    token("1"),
-                    token(")")
-                )
-            )
-            ,
-            dot(
-                token("("),
-                dot(
-                    token("1"),
-                    token(")")
-                )
-            )
-        ),
-        token(")")
-    )
-);
-const actual = tokenize("((1)(1))");
-console.log("AST: \n",
-    stringify(parser.parse(expected))
-);

@@ -27,6 +27,8 @@ export class Fail {
 
     isSuccess() { return false }
 
+    isFailure() { return true }
+
     orCatch(lazyError) {
         return lazyError(this.value);
     }
@@ -54,6 +56,8 @@ export class Success {
     }
 
     isSuccess() { return true }
+
+    isFailure() { return false }
 
     orCatch() { return this.value }
 
