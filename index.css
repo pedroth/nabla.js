@@ -145,7 +145,7 @@ a:hover {
 }
 
 .cell-number {
-    font-size: 0.75rem;
+    font-size: 1.2rem;
     font-weight: 600;
     color: var(--primary-color);
     font-family: monospace;
@@ -156,7 +156,7 @@ a:hover {
     display: flex;
     align-items: center;
     margin-left: auto;
-    gap: 0.25rem;
+    gap: 0.4rem;
 }
 
 .cell-input {
@@ -169,7 +169,7 @@ a:hover {
     padding: 0.75rem 1rem;
     margin: 0;
     outline: none;
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     line-height: 1.5;
     min-height: 3rem;
     border: none;
@@ -180,15 +180,22 @@ a:hover {
 }
 
 .cell-output {
-    padding: 0.5rem 1rem;
+    padding: 0.7rem 1rem;
     margin: 0;
     background-color: rgba(0, 0, 0, 0.25);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 0.9rem;
+    font-size: 1.1rem;
+    line-height: 1.5;
     color: var(--tertiary-color);
     overflow-x: auto;
     min-height: 1.5rem;
     font-family: monospace;
+}
+
+.cell-output .katex,
+.cell-output math,
+.cell-output svg {
+    font-size: 1.35em;
 }
 
 .cell-output:empty {
@@ -196,9 +203,15 @@ a:hover {
 }
 
 .cell-toolbar .iconBtn {
-    width: 1.5rem;
+    width: 2rem;
+    height: 2rem;
     opacity: 0.5;
     transition: opacity var(--faster-transition) ease-in-out;
+}
+
+.cell-toolbar .iconBtn svg {
+    width: 1.15rem;
+    height: 1.15rem;
 }
 
 .cell:hover .cell-toolbar .iconBtn {
@@ -221,7 +234,7 @@ a:hover {
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.8rem;
     border: 2px dashed rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     background: transparent;
@@ -230,7 +243,12 @@ a:hover {
     opacity: 0.5;
     transition: opacity var(--fast-transition) ease-in-out,
                 border-color var(--fast-transition) ease-in-out;
-    font-size: 1rem;
+    font-size: 1.15rem;
+}
+
+.add-cell-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
 }
 
 .add-cell-btn:hover {
@@ -252,13 +270,18 @@ a:hover {
     border-radius: 6px;
     color: var(--secondary-color);
     cursor: pointer;
-    padding: 0.3rem 0.6rem;
+    padding: 0.5rem 0.85rem;
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: 0.85rem;
+    gap: 0.45rem;
+    font-size: 1rem;
     transition: border-color var(--fast-transition) ease-in-out,
                 background-color var(--fast-transition) ease-in-out;
+}
+
+.share-btn svg {
+    width: 1.1rem;
+    height: 1.1rem;
 }
 
 .share-btn:hover {

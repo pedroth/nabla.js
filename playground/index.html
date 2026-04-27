@@ -111,11 +111,14 @@
         refreshCellNumbers();
     }
 
-    function evalCell(cell) {
+    async function evalCell(cell) {
         const { getCellState, setCellState } = cell;
-        const { id, input } = getCellState()
-        const result = codeEval(input);
-        setCellState(() => ({ output: result.toString() }));
+        const code = AppState.cells
+            .slice(0, getCellIndex(cell))
+            .map(c => c.getCellState().input)
+            .join("\n");
+        const result = await codeEval(code);
+        setCellState(() => ({ output: result }));
     }
 
     function cellInput(cell) {

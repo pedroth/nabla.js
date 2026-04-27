@@ -1,6 +1,6 @@
-import { List } from "../List";
-import { Maybe } from "../Maybe";
-import { Pair } from "../Pair";
+import { List } from "../List/index.js";
+import { Maybe } from "../Maybe/index.js";
+import { Pair } from "../Pair/index.js";
 
 const hash_str = (s) => {
     let hash = 0;

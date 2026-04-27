@@ -38,5 +38,9 @@
     {
         "title": "Queue data structure",
         "path": "/playground/tests/queue.json"
+    },
+    {
+        "title": "Symbolic expressions",
+        "path": "/playground/tests/symbolic.json"
     }
 ]

@@ -56,9 +56,9 @@ class DomBuilder {
      */
     inner(value) {
         if (isPromise(value)) {
-            value.then(v => this.element.innerHTML = v);
+            value.then(v => setInnerValue(this.element, v));
         } else {
-            this.element.innerHTML = value;
+            setInnerValue(this.element, value);
         }
         return this;
     }
@@ -129,6 +129,18 @@ function isElement(o) {
 
 function isPromise(o) {
     return o instanceof Promise;
+}
+
+function isNodeLike(o) {
+    return o && typeof o === "object" && typeof o.nodeType === "number";
+}
+
+function setInnerValue(element, value) {
+    if (isNodeLike(value)) {
+        element.replaceChildren(value);
+        return;
+    }
+    element.innerHTML = value ?? "";
 }
 
 export default DomBuilder;

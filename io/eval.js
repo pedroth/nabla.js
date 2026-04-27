@@ -1,7 +1,8 @@
 
 import * as nabla from "../src/index.js";
+ import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js";
 
-export function codeEval(code) {
+export async function codeEval(code) {
     const declarations = Object.entries(nabla)
         .map(([name]) => `var ${name} = nabla["${name}"];`)
         .join("\n");
@@ -15,10 +16,16 @@ export function codeEval(code) {
     } catch (e) {
         evaluation = e.message;
     }
-    evaluation = evaluation == null ?
-        "undefined" :
-        evaluation?.toString == null ?
-            evaluation :
-            evaluation.toString()
-    return JSON.stringify(evaluation, null, 2);
+    if(typeof evaluation === "object" && typeof evaluation?.toVisual === "function") {
+        evaluation = evaluation.toVisual();
+        if(evaluation.type === "latex") {
+            evaluation = await render(parse(`$${evaluation.value}$\n`));
+        } 
+    }
+    else if(typeof evaluation === "object" && typeof evaluation?.toString === "function") {
+        evaluation = evaluation.toString();
+    } else {
+        evaluation = String(evaluation);
+    }
+    return evaluation;
 }

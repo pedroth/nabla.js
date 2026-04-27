@@ -1,0 +1,9 @@
+[
+	{"input": "new Variable(\"x\");"},
+	{"input": "new Variable(\"x\").add(new Variable(\"y\"));"},
+	{"input": "new Variable(\"x\").sub(new Variable(\"y\"));"},
+	{"input": "new Variable(\"x\").mul(new Variable(\"y\"));"},
+	{"input": "new Variable(\"x\").div(new Variable(\"y\"));"},
+	{"input": "new Variable(\"x\").add(new Variable(\"y\")).mul(new Variable(\"x\").sub(new Variable(\"y\")));"},
+	{"input": "new Variable(\"x\").scale(3).div(new Variable(\"y\").add(new Variable(\"x\")));"}
+]
