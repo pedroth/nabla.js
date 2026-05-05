@@ -15,6 +15,8 @@ export class Array {
         this.elements = new NATIVE_ARRAY(capacity);
     }
 
+    // ========== Core State Operations ==========
+
     isEmpty() {
         return this.length === 0;
     }
@@ -22,6 +24,8 @@ export class Array {
     size() {
         return this.length;
     }
+
+    // ========== Access Operations ==========
 
     get(index) {
         if (this.isEmpty()) return Maybe.none();
@@ -36,14 +40,7 @@ export class Array {
         return this;
     }
 
-    _resize(newCapacity) {
-        const newElements = new NATIVE_ARRAY(newCapacity);
-        for (let i = 0; i < this.length; i++) {
-            newElements[i] = this.elements[i];
-        }
-        this.elements = newElements;
-        this.capacity = newCapacity;
-    }
+    // ========== Stack Operations ==========
 
     // Array => elem => Array
     push(elem) {
@@ -61,24 +58,14 @@ export class Array {
         // !! Mutation !!
         if (this.isEmpty()) return Maybe.none();
         this.length--;
+        const value = this.elements[this.length];
         if (this.length <= this.capacity / 4) {
             this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));
         }
-        return Maybe.some(this.elements[this.length]);
+        return Maybe.some(value);
     }
 
-    del(index) {
-        if (this.isEmpty()) return this;
-        if (index < 0 || index >= this.length) return this;
-        for (let i = index; i < this.length - 1; i++) {
-            this.elements[i] = this.elements[i + 1];
-        }
-        this.length--;
-        if (this.length <= this.capacity / 4) {
-            this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));
-        }
-        return this;
-    }
+    // ========== Functional/Monadic Operations ==========
 
     // Array => (elem => elem) => Array
     map(lambda) {
@@ -88,6 +75,12 @@ export class Array {
         }
         newArray.length = this.length;
         return newArray;
+    }
+
+    forEach(lambda) {
+        for (let i = 0; i < this.length; i++) {
+            lambda(this.elements[i], i);
+        }
     }
 
     filter(predicate) {
@@ -126,13 +119,15 @@ export class Array {
         return false;
     }
 
+    // ========== Array Combination Operations ==========
+
     union(otherArray) {
         const newArray = new Array(this.length + otherArray.length);
         for (let i = 0; i < this.length; i++) {
             newArray.elements[i] = this.elements[i];
         }
         for (let i = 0; i < otherArray.length; i++) {
-            newArray.elements[this.length + i] = otherArray.get(i).orElse(undefined);
+            newArray.elements[this.length + i] = otherArray.get(i).orElse();
         }
         newArray.length = this.length + otherArray.length;
         return newArray;
@@ -141,7 +136,7 @@ export class Array {
     zip(otherArray) {
         const newArray = new Array(Math.min(this.length, otherArray.length));
         for (let i = 0; i < newArray.capacity; i++) {
-            newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i).orElse(undefined));
+            newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i).orElse());
         }
         newArray.length = newArray.capacity;
         return newArray;
@@ -163,31 +158,7 @@ export class Array {
         }).flatMap();
     }
 
-    toArray() {
-        return this.elements.slice(0, this.length);
-    }
-
-    equals(otherArray) {
-        if (this.length !== otherArray.length) return false;
-        for (let i = 0; i < this.length; i++) {
-            const a = this.elements[i];
-            const b = otherArray.get(i).orElse(undefined);
-            if (a !== b && !(typeof a?.equals === 'function' && a.equals(b))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    toString() {
-        return `[${this.toArray().join(", ")}]`
-    }
-
-    swap(i, j) {
-        const temp = this.elements[i];
-        this.elements[i] = this.elements[j];
-        this.elements[j] = temp;
-    }
+    // ========== Sorting & Transformation ==========
 
     sort(comparator = (a, b) => a - b) {
         // !! Mutation !!
@@ -224,6 +195,82 @@ export class Array {
         return this;
     }
 
+    reverse() {
+        const newArray = new Array(this.capacity);
+        for (let i = 0; i < this.length; i++) {
+            newArray.elements[i] = this.elements[this.length - 1 - i];
+        }
+        newArray.length = this.length;
+        return newArray;
+    }
+
+    swap(i, j) {
+        const temp = this.elements[i];
+        this.elements[i] = this.elements[j];
+        this.elements[j] = temp;
+    }
+
+    // ========== Element Removal ==========
+
+    del(index) {
+        if (this.isEmpty()) return this;
+        if (index < 0 || index >= this.length) return this;
+        for (let i = index; i < this.length - 1; i++) {
+            this.elements[i] = this.elements[i + 1];
+        }
+        this.length--;
+        if (this.length <= this.capacity / 4) {
+            this._resize(Math.max(INITIAL_CAPACITY, Math.floor(this.capacity / 2)));
+        }
+        return this;
+    }
+
+    // ========== Iteration ==========
+
+    iterator() {
+        let index = 0;
+        return {
+            next: () => {
+                if (index >= this.length) return Maybe.none();
+                return Maybe.of(this.elements[index++]);
+            }
+        };
+    }
+
+    // ========== Conversion & Comparison ==========
+
+    toArray() {
+        return this.elements.slice(0, this.length);
+    }
+
+    equals(otherArray) {
+        if (this.length !== otherArray.length) return false;
+        for (let i = 0; i < this.length; i++) {
+            const a = this.elements[i];
+            const b = otherArray.get(i).orElse(undefined);
+            if (a !== b && !(typeof a?.equals === 'function' && a.equals(b))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    toString() {
+        return `[${this.toArray().join(", ")}]`
+    }
+
+    // ========== Internal/Private Methods ==========
+
+    _resize(newCapacity) {
+        const newElements = new NATIVE_ARRAY(newCapacity);
+        for (let i = 0; i < this.length; i++) {
+            newElements[i] = this.elements[i];
+        }
+        this.elements = newElements;
+        this.capacity = newCapacity;
+    }
+
+    // ========== Static Factory Methods ==========
 
     static of(...elements) {
         const array = new Array(elements.length);

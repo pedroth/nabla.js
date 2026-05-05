@@ -1,3 +1,4 @@
+import { Array } from "../Array/index.js";
 import { List } from "../List/index.js";
 import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
@@ -72,9 +73,7 @@ export class HashMap {
         this.length = 0;
     }
 
-    hash(key) {
-        return this.hashFun(key) % this.map.capacity;
-    }
+    // ========== Core State Operations ==========
 
     isEmpty() {
         return this.map.isEmpty();
@@ -84,17 +83,41 @@ export class HashMap {
         return this.length;
     }
 
+    // ========== Hash Utility ==========
+
+    hash(key) {
+        return this.hashFun(key) % this.map.capacity;
+    }
+
+    // ========== Read Operations ==========
+
     get(key) {
         const hash = this.hash(key);
         let maybeList = this.map.get(hash)
         maybeList = maybeList.filter(list => list.some(pair => pair.left() === key)) // filter maybe by verifying the key exists in the list
         maybeList = maybeList.map(list => list.filter(pair => pair.left() === key)) // retrieve the list and filter it to get the pair with the matching key
-        const maybeValue = maybeList.map(list => list.head.right()); 
+        const maybeValue = maybeList.map(list => list.head.right());
         return maybeValue;
     }
 
+    has(key) {
+        const hash = this.hash(key);
+        return this.map.get(hash).map(list => list.some(pair => pair.left() === key)).orElse(() => false);
+    }
+
+    getEntries() {
+        const entries = new Array();
+        for (let i = 0; i < this.map.capacity; i++) {
+            const maybeList = this.map.get(i);
+            maybeList.forEach(list => list.fold(null, (_, pair) => entries.push(pair)));
+        }
+        return entries;
+    }
+
+    // ========== Write Operations ==========
+
     put(key, value) {
-        if(!this.has(key)) {
+        if (!this.has(key)) {
             this.length++;
         }
         const hash = this.hash(key);
@@ -105,20 +128,17 @@ export class HashMap {
     }
 
     del(key) {
-        if(this.has(key)) {
+        if (this.has(key)) {
             this.length--;
         } else {
             return this;
         }
         const hash = this.hash(key);
-        let list = this.map.get(hash).orElse(() => new List());
-        list = list.filter(pair => pair.left() !== key);
-        this.map.set(hash, list);
+        this.map.get(hash)
+        .forEach(list => {
+            let filteredList = list.filter(pair => pair.left() !== key);
+            this.map.set(hash, filteredList);
+        });
         return this;
-    }
-
-    has(key) {
-        const hash = this.hash(key);
-        return this.map.get(hash).map(list => list.some(pair => pair.left() === key)).orElse(() => false);
     }
 }

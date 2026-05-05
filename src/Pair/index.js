@@ -4,12 +4,26 @@ export class Pair {
         this.y = y;
     }
 
+    // ========== State Check Operations ==========
+
+    isEmpty() {
+        return this.x == null && this.y == null;
+    }
+
+    // ========== Access Operations ==========
+
     left() {
         return this.x;
     }
 
     right() {
         return this.y;
+    }
+
+    // ========== Mapping Operations ==========
+
+    map(f) {
+        return new Pair(f(this.x), f(this.y));
     }
 
     mapLeft(f) {
@@ -20,18 +34,12 @@ export class Pair {
         return new Pair(this.x, f(this.y));
     }
 
-    map(f) {
-        return new Pair(f(this.x), f(this.y));
-    }
-
     fold(defaultValue, f) {
         if (this.isEmpty()) return defaultValue;
         return f(this.x, this.y);
     }
 
-    isEmpty() {
-        return this.x == null && this.y == null;
-    }
+    // ========== Conversion & Comparison ==========
 
     equals(pair) {
         if (!(pair instanceof Pair)) return false;
@@ -46,6 +54,8 @@ export class Pair {
     toString() {
         return `(${this.x}, ${this.y})`;
     }
+
+    // ========== Static Factory ==========
 
     static of(x, y) {
         return new Pair(x, y);

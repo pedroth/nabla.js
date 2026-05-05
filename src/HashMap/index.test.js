@@ -59,3 +59,18 @@ test("handles collisions", () => {
     expect(map.get("key2").orElse(() => null)).toBe("value2");
     expect(map.get("key3").orElse(() => null)).toBe("value3");
 });
+
+test("getEntries returns all key-value pairs", () => {
+    const map = new HashMap();
+    map.put("a", 1);
+    map.put("b", 2);
+    map.put("c", 3);
+    const entries = map.getEntries();
+    const plain = entries.toArray().map(p => [p.left(), p.right()]).sort((a, b) => a[0].localeCompare(b[0]));
+    expect(plain).toEqual([["a", 1], ["b", 2], ["c", 3]]);
+});
+
+test("getEntries is empty for empty map", () => {
+    const map = new HashMap();
+    expect(map.getEntries().isEmpty()).toBe(true);
+});

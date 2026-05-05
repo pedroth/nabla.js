@@ -8,13 +8,17 @@ export class Queue {
         this.queue = new List();
     }
 
-    size() {
-        return this.queue.size();
-    }
+    // ========== Core State Operations ==========
 
     isEmpty() {
         return this.queue.isEmpty();
     }
+
+    size() {
+        return this.queue.size();
+    }
+
+    // ========== Queue Operations ==========
 
     enqueue(x) {
         if (this.head == null) {
@@ -44,6 +48,6 @@ export class Queue {
 
     peek() {
         if (this.isEmpty()) return Maybe.none();
-        return Maybe.some(this.head);   
+        return Maybe.some(this.head);
     }
 }

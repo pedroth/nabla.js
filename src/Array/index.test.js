@@ -149,6 +149,33 @@ test("equals", () => {
     expect(Array.of(1).equals(Array.of(1, 2))).toBe(false);
 });
 
+test("forEach", () => {
+    const result = [];
+    Array.of(1, 2, 3).forEach((x, i) => result.push([i, x]));
+    expect(result).toEqual([[0, 1], [1, 2], [2, 3]]);
+    Array.of().forEach(() => { throw new Error("should not be called"); });
+});
+
+test("some", () => {
+    expect(Array.of(1, 2, 3).some(x => x > 2)).toBe(true);
+    expect(Array.of(1, 2, 3).some(x => x > 10)).toBe(false);
+    expect(Array.of().some(() => true)).toBe(false);
+});
+
+test("reverse", () => {
+    expect(Array.of(1, 2, 3).reverse().toArray()).toEqual([3, 2, 1]);
+    expect(Array.of(1).reverse().toArray()).toEqual([1]);
+    expect(Array.of().reverse().isEmpty()).toBe(true);
+});
+
+test("iterator", () => {
+    const it = Array.of(10, 20, 30).iterator();
+    expect(it.next().orElse()).toBe(10);
+    expect(it.next().orElse()).toBe(20);
+    expect(it.next().orElse()).toBe(30);
+    expect(it.next().isSome()).toBe(false);
+});
+
 test("toString", () => {
     expect(Array.of(1, 2, 3).toString()).toBe("[1, 2, 3]");
     expect(Array.of().toString()).toBe("[]");

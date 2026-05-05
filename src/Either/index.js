@@ -13,6 +13,22 @@ class Left {
         this.value = x;
     }
 
+    // ========== State Check Operations ==========
+
+    isLeft() {
+        return true;
+    }
+
+    isRight() {
+        return false;
+    }
+
+    isEmpty() {
+        return this.value == null;
+    }
+
+    // ========== Mapping Operations ==========
+
     map(f) {
         return new Left(f(this.value));
     }
@@ -20,18 +36,12 @@ class Left {
     mapLeft(f) {
         return new Left(f(this.value));
     }
-    
+
     mapRight() {
         return this;
     }
 
-    isLeft() {
-        return true;
-    }
-    
-    isRight() {
-        return false;
-    }
+    // ========== Value Extraction ==========
 
     orLeft() {
         return this.value;
@@ -41,9 +51,7 @@ class Left {
         return defaultLazy();
     }
 
-    toString() {
-        return `Left(${this.value})`;
-    }
+    // ========== Comparison & Conversion ==========
 
     equals(other) {
         if (!(other instanceof Left)) return false;
@@ -51,9 +59,11 @@ class Left {
         return equalsOrSame(this.value, other.value);
     }
 
-    isEmpty() {
-        return this.value == null;
+    toString() {
+        return `Left(${this.value})`;
     }
+
+    // ========== Static Factory ==========
 
     static of(x) {
         return new Left(x);
@@ -64,6 +74,22 @@ class Right {
     constructor(x) {
         this.value = x;
     }
+
+    // ========== State Check Operations ==========
+
+    isLeft() {
+        return false;
+    }
+
+    isRight() {
+        return true;
+    }
+
+    isEmpty() {
+        return this.value == null;
+    }
+
+    // ========== Mapping Operations ==========
 
     map(f) {
         return new Right(f(this.value));
@@ -77,13 +103,7 @@ class Right {
         return new Right(f(this.value));
     }
 
-    isLeft() {
-        return false;
-    }
-    
-    isRight() {
-        return true;
-    }   
+    // ========== Value Extraction ==========
 
     orLeft(defaultLazy) {
         return defaultLazy();
@@ -93,9 +113,7 @@ class Right {
         return this.value;
     }
 
-    toString() {
-        return `Right(${this.value})`;
-    }
+    // ========== Comparison & Conversion ==========
 
     equals(other) {
         if (!(other instanceof Right)) return false;
@@ -103,9 +121,11 @@ class Right {
         return equalsOrSame(this.value, other.value);
     }
 
-    isEmpty() {
-        return this.value == null;
+    toString() {
+        return `Right(${this.value})`;
     }
+
+    // ========== Static Factory ==========
 
     static of(x) {
         return new Right(x);

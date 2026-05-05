@@ -7,9 +7,13 @@ export class PQueue {
         this.comparator = comparator;
     }
 
+    // ========== Core State Operations ==========
+
     size() {
         return this.data.length;
     }
+
+    // ========== Queue Operations ==========
 
     peek() {
         return this.data[0];
@@ -31,20 +35,20 @@ export class PQueue {
         return this;
     }
 
-    /**
-     * Extracts min or max
-     */
+    // Extracts min or max
     pop() {
         if (!this.data.length) return;
         const v = this.data[0];
         if (this.data.length <= 1) {
             return this.data.pop();
         }
-        this.data[0] = this.data[this.data.length-1]; // move last element to root
+        this.data[0] = this.data[this.data.length - 1]; // move last element to root
         this.data.pop(); // remove last element
         this.data = heapifyBuilder(this.data, this.comparator)(0);
         return v;
     }
+
+    // ========== Static Factory ==========
 
     static ofArray(array, comparator) {
         const queue = new PQueue(comparator);
@@ -55,6 +59,7 @@ export class PQueue {
     }
 }
 
+// ========== Internal Helpers ==========
 
 function heapifyBuilder(data, comparator) {
     return rootIndex => {

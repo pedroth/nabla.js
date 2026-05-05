@@ -20,6 +20,18 @@ class Some {
         this.value = x;
     }
 
+    // ========== State Check Operations ==========
+
+    isSome() {
+        return true;
+    }
+
+    isNone() {
+        return false;
+    }
+
+    // ========== Mapping Operations ==========
+
     map(f) {
         return Maybe.of(f(this.value));
     }
@@ -28,20 +40,21 @@ class Some {
         return f(this.value) ? this : new None()
     }
 
-    orElse() {
-        return this.value;
+    flatMap(f) {
+        return f(this.value);
     }
 
     forEach(f) {
         f(this.value)
     }
 
-    flatMap(f) {
-        return f(this.value);
+    // ========== Value Extraction ==========
+
+    orElse(f = () => { }) {
+        return this.value;
     }
-    isSome() {
-        return true;
-    }
+
+    // ========== Static Factory ==========
 
     static of(x) {
         return new Some(x);
@@ -49,6 +62,18 @@ class Some {
 }
 
 class None {
+    // ========== State Check Operations ==========
+
+    isSome() {
+        return false;
+    }
+
+    isNone() {
+        return true;
+    }
+
+    // ========== Mapping Operations ==========
+
     map() {
         return this;
     }
@@ -57,18 +82,19 @@ class None {
         return this;
     }
 
-    orElse(f = () => { }) {
-        return f();
+    flatMap() {
+        return this;
     }
 
     forEach() { }
 
-    flatMap() {
-        return this;
+    // ========== Value Extraction ==========
+
+    orElse(f = () => { }) {
+        return f();
     }
-    isSome() {
-        return false;
-    }
+
+    // ========== Static Factory ==========
 
     static of() {
         return new None();

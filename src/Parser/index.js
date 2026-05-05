@@ -34,10 +34,14 @@ export class Parser {
             .orCatch((e) => new Error(e));
     }
 
+    // ========== Static Factory ==========
+
     static builder() {
         return new ParserBuilder();
     }
 }
+
+// ========== Builder ==========
 
 class ParserBuilder {
     constructor() {
@@ -53,6 +57,8 @@ class ParserBuilder {
         return new Parser(this._rules);
     }
 }
+
+// ========== Rule Combinators ==========
 
 export function rule(symbol, ruleExpr) {
     if ("symbol" !== symbol.type) throw Error("left arg not a symbol");
@@ -107,6 +113,8 @@ export function dot(...rulesExpr) {
     return ans;
 }
 
+// ========== Primitives ==========
+
 export function symbol(s) {
     const ans = {};
     ans.type = "symbol";
@@ -141,7 +149,6 @@ export function token(s) {
     return ans;
 }
 
-
 export function epsilon() {
     return {
         type: "epsilon",
@@ -150,6 +157,8 @@ export function epsilon() {
         }
     };
 }
+
+// ========== Utilities ==========
 
 export function tokenize(inputString) {
     return inputString.split("").map((s) => token(s));

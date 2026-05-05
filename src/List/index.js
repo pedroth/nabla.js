@@ -11,6 +11,8 @@ export class List {
         this.tail = tail;
     }
 
+    // ========== Core State Operations ==========
+
     isEmpty() {
         return this.head == null && this.tail == null;
     }
@@ -18,6 +20,8 @@ export class List {
     size() {
         return this.isEmpty() ? 0 : 1 + this.tail.size()
     }
+
+    // ========== Access Operations ==========
 
     get(index) {
         if (this.isEmpty()) return Maybe.none();
@@ -34,6 +38,8 @@ export class List {
         this.tail.set(index - 1, value);
         return this;
     }
+
+    // ========== Stack Operations ==========
 
     push(value) {
         // !! Mutation !!
@@ -58,20 +64,17 @@ export class List {
         return this.tail.pop();
     }
 
-    del(index) {
-        if (this.isEmpty()) return this;
-        if (index <= 0) {
-            this.head = this.tail.head;
-            this.tail = this.tail.tail;
-            return this;
-        }
-        this.tail.del(index - 1);
-        return this;
-    }
+    // ========== Functional/Monadic Operations ==========
 
     map(lambda) {
         if (this.isEmpty()) return this;
         return new List(lambda(this.head), this.tail.map(lambda))
+    }
+
+    forEach(lambda) {
+        if (this.isEmpty()) return;
+        lambda(this.head);
+        this.tail.forEach(lambda);
     }
 
     filter(predicate) {
@@ -97,6 +100,8 @@ export class List {
         if (predicate(this.head)) return true;
         return this.tail.some(predicate);
     }
+
+    // ========== List Combination Operations ==========
 
     union(list) {
         if (list.isEmpty()) return this;
@@ -125,6 +130,50 @@ export class List {
         }).flatMap()
     }
 
+    // ========== Sorting & Transformation ==========
+
+    sort(comparator = (a, b) => a - b) {
+        if (this.isEmpty()) return this;
+        const pivot = this.head;
+        const lessThanPivot = this.tail.filter(x => comparator(x, pivot) < 0).sort(comparator);
+        const greaterThanPivot = this.tail.filter(x => comparator(x, pivot) >= 0).sort(comparator);
+        return lessThanPivot.union(new List(pivot, greaterThanPivot));
+    }
+
+    reverse() {
+        if (this.isEmpty()) return this;
+        return this.tail.reverse().union(List.of(this.head));
+    }
+
+    // ========== Element Removal ==========
+
+    del(index) {
+        if (this.isEmpty()) return this;
+        if (index <= 0) {
+            this.head = this.tail.head;
+            this.tail = this.tail.tail;
+            return this;
+        }
+        this.tail.del(index - 1);
+        return this;
+    }
+
+    // ========== Iteration ==========
+
+    iterator() {
+        let current = this;
+        return {
+            next() {
+                if (current.isEmpty()) return Maybe.none();
+                const ans = current.head;
+                current = current.tail;
+                return Maybe.of(ans);
+            }
+        };
+    }
+
+    // ========== Conversion & Comparison ==========
+
     toArray() {
         if (this.isEmpty()) return []
         return this.tail.isEmpty() ? [this.head] : [this.head, ...this.tail.toArray()];
@@ -140,13 +189,7 @@ export class List {
         return `[${this.toArray()}]`
     }
 
-    sort(comparator = (a, b) => a - b) {
-        if (this.isEmpty()) return this;
-        const pivot = this.head;
-        const lessThanPivot = this.tail.filter(x => comparator(x, pivot) < 0).sort(comparator);
-        const greaterThanPivot = this.tail.filter(x => comparator(x, pivot) >= 0).sort(comparator);
-        return lessThanPivot.union(new List(pivot, greaterThanPivot));
-    }
+    // ========== Static Factory Methods ==========
 
     static of(...elements) {
         let ans = new List();

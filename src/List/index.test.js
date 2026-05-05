@@ -132,3 +132,40 @@ test("toString", () => {
     expect(List.of(1, 2, 3).toString()).toBe("[1,2,3]");
     expect(List.of().toString()).toBe("[]");
 });
+
+test("forEach", () => {
+    const result = [];
+    List.of(1, 2, 3).forEach(x => result.push(x));
+    expect(result).toEqual([1, 2, 3]);
+    List.of().forEach(() => { throw new Error("should not be called"); });
+});
+
+test("some", () => {
+    expect(List.of(1, 2, 3).some(x => x > 2)).toBe(true);
+    expect(List.of(1, 2, 3).some(x => x > 10)).toBe(false);
+    expect(List.of().some(() => true)).toBe(false);
+});
+
+test("reverse", () => {
+    expect(List.of(1, 2, 3).reverse().toArray()).toEqual([3, 2, 1]);
+    expect(List.of(1).reverse().toArray()).toEqual([1]);
+    expect(List.of().reverse().isEmpty()).toBe(true);
+});
+
+test("iterator", () => {
+    const it = List.of(10, 20, 30).iterator();
+    expect(it.next().orElse(() => null)).toBe(10);
+    expect(it.next().orElse(() => null)).toBe(20);
+    expect(it.next().orElse(() => null)).toBe(30);
+    expect(it.next().isSome()).toBe(false);
+});
+
+test("List.fromArray", () => {
+    expect(List.fromArray([1, 2, 3]).toArray()).toEqual([1, 2, 3]);
+    expect(List.fromArray([]).isEmpty()).toBe(true);
+});
+
+test("List.range", () => {
+    expect(List.range(0, 5).toArray()).toEqual([0, 1, 2, 3, 4]);
+    expect(List.range(3, 3).isEmpty()).toBe(true);
+});
