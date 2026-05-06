@@ -133,6 +133,7 @@ export class Array {
         return newArray;
     }
 
+    // Array => (Array) => Array
     zip(otherArray) {
         const newArray = new Array(Math.min(this.length, otherArray.length));
         for (let i = 0; i < newArray.capacity; i++) {

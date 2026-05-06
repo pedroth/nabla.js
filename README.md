@@ -12,11 +12,14 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [x] Try (exception handling)
 - [x] Lists (linked lists)
 - [x] Sets (unordered collections of unique elements)
+- [x] Stack
 - [x] Queue
-- [ ] Priority queue
+- [x] Priority queue
 - [x] Streams (lazy lists)
 - [x] Arrays (dynamic contiguous arrays)
-- [ ] Hash maps
+- [x] Hash maps
+- [x] Parser combinators (recursive descent parsers)
+- [x] Symbolic mathematics
 - [ ] Treaps
 - [ ] Skip lists
 - [ ] Graphs
@@ -25,13 +28,13 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [ ] Vectors
 - [ ] Matrices
 - [ ] Tensors
+- [ ] NDimensional arrays
 - [ ] Multivectors (Geometric algebra)
 - [ ] Numerical Linear algebra
     - Eigenvalue decomposition
     - Singular value decomposition
 - [ ] Ordinary differential equations solvers
 - [ ] Optimization algorithms
-- [ ] Symbolic mathematics
 - [ ] Automatic differentiation
 - [ ] Machine learning algorithms
     - Linear regression
@@ -45,125 +48,14 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [ ] Reverse rendering of 3D scenes
     - Gaussian splatting 
     - Triangle splatting
-- [ ] Parser of parsers
+- [ ] Geometry
+    - n-dim-Sphere
+    - n-dim-Triangle
+    - n-dim-Line
+    - n-dim-Axis-aligned bounding box
+    - n-dim-Ball
+- [ ] BVH trees
+- [ ] Foam voronoi diagrams
+- [ ] Edit distance
 
 
-# Data structures
-
-- Pair:
-    - `map`
-    - `fold`
-    - `left`
-    - `right`
-    - `equals`
-    - `isEmpty`
-
-- Either:
-    - `map`
-    - `mapLeft`
-    - `mapRight`
-    - `flatMap`
-    - `isLeft`
-    - `isRight`
-    - `orLeft`
-    - `orRight`
-    - `equals`
-    - `isEmpty`
-
-- Tuple:
-    - `map`
-    - `get`
-    - `size`
-    - `flatMap`
-    - `equals`
-    - `isEmpty`
-
-- Array(Dynamic contiguous array):
-    - `size`
-    - `get`
-    - `set`
-    - `push`
-    - `pop`
-    - `zip`
-    - `prod`
-    - `union`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`
-    - `sort`
-- List(Linked list):
-    - `size`
-    - `get`
-    - `set`,
-    - `push`
-    - `pop`
-    - `zip`
-    - `prod`
-    - `union`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`
-    - `sort`
-- Queue:
-    - `size`
-    - `enqueue`
-    - `dequeue`
-    - `peek`
-    - `isEmpty`
-    - `clear`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`
-- Stack:
-    - `size`
-    - `push`
-    - `pop`
-    - `peek`
-    - `isEmpty`
-    - `clear`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`
-- Map(Hash table):
-    - `size`
-    - `set`
-    - `get`
-    - `has`
-    - `delete`
-    - `clear`
-    - `keys`
-    - `values`
-    - `entries`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`
-- Set:
-    - `size`
-    - `add`
-    - `delete`
-    - `has`
-    - `clear`
-    - `union`
-    - `inter`
-    - `prod`
-    - `equals`
-    - `map`
-    - `flatMap`
-    - `filter`
-    - `fold`
-    - `reduce`

@@ -12,3 +12,4 @@ export * from "./HashMap/index.js";
 export * from "./PQueue/index.js";
 export * from "./Symbolic/index.js";
 export * from "./Parser/index.js";
+export * from "./EditDistance/index.js";
