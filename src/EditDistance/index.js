@@ -1,4 +1,4 @@
-import { HashMap } from "../HashMap";
+import { HashMap } from "../HashMap/index.js";
 
 const array2d = (n, m) => Array.from(Array(n), () => new Array(m));
 const min = (...array) => array.reduce((e, v) => Math.min(e, v), Number.MAX_VALUE);
@@ -50,22 +50,22 @@ export function alignWords(word1, word2) {
     let w1 = "";
     let w2 = "";
     while (i > 0 || j > 0) {
-        if (i > 0 && ed[i][j] === ed[i - 1][j] + 1) {
-            // deletion
-            w1 = word1[i - 1] + w1;
-            w2 = "-" + w2;
-            i--;
-
-        } else if (j > 0 && ed[i][j] === ed[i][j - 1] + 1) {
-            // insertion
-            w1 = "-" + w1;
-            w2 = word2[j - 1] + w2;
-            j--;
-        } else {
+        const charEqualCost = word1[i - 1] === word2[j - 1] ? 0 : 1;
+        if (i > 0 && j > 0 && ed[i][j] === ed[i - 1][j - 1] + charEqualCost) {
             // substitution or no-op
             w1 = word1[i - 1] + w1;
             w2 = word2[j - 1] + w2;
             i--;
+            j--;
+        } else if (i > 0 && ed[i][j] === ed[i - 1][j] + 1) {
+            // deletion
+            w1 = word1[i - 1] + w1;
+            w2 = "-" + w2;
+            i--;
+        } else {
+            // insertion
+            w1 = "-" + w1;
+            w2 = word2[j - 1] + w2;
             j--;
         }
     }

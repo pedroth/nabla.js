@@ -1,5 +1,5 @@
-import { ArrayUtils } from "../ArrayUtils";
-import { Pair } from "../Pair";
+import { ArrayUtils } from "../ArrayUtils/index.js";
+import { Pair } from "../Pair/index.js";
 
 /**
  * N-dimensional array implementation in column major order.
