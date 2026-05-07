@@ -1,5 +1,10 @@
 import { Tuple } from "../Tuple/index.js";
 
+/**
+ * S(a) := {} | {a} ∪ S(a)
+ *
+ * Immutable linked set with structural equality support.
+ */
 export class Set {
     constructor(head, tail) {
         this.equality = (x, y) => x === y || (x?.equals && x.equals(y));
@@ -7,9 +12,35 @@ export class Set {
         this.tail = tail;
     }
 
+    // ========== Core State Operations ==========
+
     isEmpty() {
         return this.head == null && this.tail == null; // == on purpose
     }
+
+    size() {
+        if (this.isEmpty()) return 0;
+        return 1 + this.tail.size();
+    }
+
+    // ========== Membership & Comparison ==========
+
+    contains(x) {
+        if (this.isEmpty()) return false;
+        if (this.equality(this.head, x)) return true;
+        return this.tail.contains(x);
+    }
+
+    isSubSet(set) {
+        return this.map(x => set.contains(x)).fold(true, (e, x) => e && x);
+    }
+
+    equals(set) {
+        if (!(set instanceof Set)) return false;
+        return this.isSubSet(set) && set.isSubSet(this);
+    }
+
+    // ========== Set Operations ==========
 
     add(x) {
         if (this.isEmpty()) return new Set(x, new Set())
@@ -42,6 +73,8 @@ export class Set {
         }).flatMap(x => x);
     }
 
+    // ========== Functional/Monadic Operations ==========
+
     filter(predicate) {
         if (this.isEmpty()) return this;
         if (predicate(this.head)) return new Set(this.head, this.tail.filter(predicate))
@@ -51,6 +84,12 @@ export class Set {
     map(lambda) {
         if (this.isEmpty()) return this;
         return new Set(lambda(this.head), this.tail.map(lambda));
+    }
+
+    forEach(lambda) {
+        if (this.isEmpty()) return;
+        lambda(this.head);
+        this.tail.forEach(lambda);
     }
 
     flatMap(lambda = x => x) {
@@ -63,25 +102,7 @@ export class Set {
         return this.tail.fold(folder(init, this.head), folder);
     }
 
-    contains(x) {
-        if (this.isEmpty()) return false;
-        if (this.equality(this.head, x)) return true;
-        return this.tail.contains(x);
-    }
-
-    isSubSet(set) {
-        return this.map(x => set.contains(x)).fold(true, (e, x) => e && x);
-    }
-
-    equals(set) {
-        if (!(set instanceof Set)) return false;
-        return this.isSubSet(set) && set.isSubSet(this);
-    }
-
-    size() {
-        if (this.isEmpty()) return 0;
-        return 1 + this.tail.size();
-    }
+    // ========== Conversion & Representation ==========
 
     toArray() {
         if (this.isEmpty()) return [];
@@ -96,18 +117,20 @@ export class Set {
         return `\\{${this.toArray()}\\}`
     }
 
-    static fromArray(array) {
-        const ans = Set.EMPTY;
-        for (let i = 0; i < array.length; i++) {
-            ans.add(array[i]);
-        }
-        return ans;
-    }
+    // ========== Static Factory Methods ==========
 
     static of(...args) {
         let ans = Set.EMPTY;
         for (let i = 0; i < args.length; i++) {
             ans = ans.add(args[i]);
+        }
+        return ans;
+    }
+
+    static fromArray(array) {
+        const ans = Set.EMPTY;
+        for (let i = 0; i < array.length; i++) {
+            ans.add(array[i]);
         }
         return ans;
     }

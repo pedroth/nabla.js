@@ -16,8 +16,9 @@ const values = {
 };
 
 // type: {name: string, symbol: string}, left: expression, right: expression
-export function binaryOp({name, symbol}, left, right) {
+export function binaryOp({ name, symbol }, left, right) {
     const ans = { type: name, left, right };
+    ans.children = [left, right];
     ans.add = (other) => add(ans, other);
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
@@ -27,8 +28,8 @@ export function binaryOp({name, symbol}, left, right) {
     ans.toVisual = () => ({ type: "latex", value: `(${left.toVisual().value} ${symbol} ${right.toVisual().value})` });
     ans.equals = (other) => {
         if (other?.type !== name) return false;
-        if(!left.equals(other.left)) return false;
-        if(!right.equals(other.right)) return false;
+        if (!left.equals(other.left)) return false;
+        if (!right.equals(other.right)) return false;
         return true;
     }
     ans.vars = Set.of(...left.vars.toArray(), ...right.vars.toArray());
@@ -38,7 +39,7 @@ export function binaryOp({name, symbol}, left, right) {
 }
 
 export function add(a, b) {
-    const ans = binaryOp({name: "add", symbol: "+"}, a, b);
+    const ans = binaryOp({ name: "add", symbol: "+" }, a, b);
     ans.nabla = () => {
         return covec(real(1), real(1));
     };
@@ -46,7 +47,7 @@ export function add(a, b) {
 }
 
 export function sub(a, b) {
-    const ans = binaryOp({name: "sub", symbol: "-"}, a, b);
+    const ans = binaryOp({ name: "sub", symbol: "-" }, a, b);
     ans.nabla = () => {
         return covec(real(1), real(-1));
     };
@@ -54,7 +55,7 @@ export function sub(a, b) {
 }
 
 export function mul(a, b) {
-    const ans = binaryOp({name: "mul", symbol: "\\cdot"}, a, b);
+    const ans = binaryOp({ name: "mul", symbol: "\\cdot" }, a, b);
     ans.nabla = () => {
         return covec(b, a);
     };
@@ -62,7 +63,7 @@ export function mul(a, b) {
 }
 
 export function div(numerator, denominator) {
-    const ans = binaryOp({name: "div", symbol: "/"}, numerator, denominator);
+    const ans = binaryOp({ name: "div", symbol: "/" }, numerator, denominator);
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numerator.toVisual().value}}{${denominator.toVisual().value}}` });
     ans.nabla = () => {
         return covec(div(real(1), denominator), div(mul(real(-1), numerator), mul(denominator, denominator)));
@@ -72,6 +73,7 @@ export function div(numerator, denominator) {
 
 export function real(value) {
     const ans = { type: "real", value: value };
+    ans.children = [];
     ans.add = (other) => add(ans, other);
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
@@ -81,7 +83,7 @@ export function real(value) {
     ans.toVisual = () => ({ type: "latex", value: ans.value.toString() });
     ans.equals = (other) => other?.type === "real" && other.value === value;
     ans.nabla = () => {
-        return covec(real(0));
+        return real(0);
     };
     ans.vars = Set.of();
     return ans;
@@ -89,6 +91,7 @@ export function real(value) {
 
 export function variable(name) {
     const ans = { type: "variable", name };
+    ans.children = [];
     ans.add = (other) => add(ans, other);
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
@@ -98,7 +101,7 @@ export function variable(name) {
     ans.toVisual = () => ({ type: "latex", value: name });
     ans.equals = (other) => other?.type === "variable" && other.name === name;
     ans.nabla = () => {
-        return covec(real(1));
+        return real(1);
     };
     ans.vars = Set.of(ans);
     return ans;
@@ -106,6 +109,7 @@ export function variable(name) {
 
 export function vec(...components) {
     const ans = { type: "vector", components };
+    ans.dim = components.length;
     ans.add = (other) => {
         if (other.type !== "vector" || other.components.length !== components.length) {
             throw new Error("Can only add vectors of the same dimension");
@@ -138,7 +142,6 @@ export function vec(...components) {
         const newComponents = components.map(c => c.scale(factor));
         return vec(...newComponents);
     };
-
     ans.prod = (covector) => {
         if (covector.type !== "vector" || covector.components.length !== components.length) {
             throw new Error("Can only take the product of a covector and a vector of the same dimension");
@@ -156,7 +159,13 @@ export function vec(...components) {
         }
         return ans;
     }
-    ans.nabla = () => {        
+    ans.transpose = () => {
+        return covec(...components);
+    };
+    ans.dot = (otherVec) => {
+        return ans.transpose().prod(otherVec);
+    }
+    ans.nabla = () => {
         const components = ans.components.map(c => c.nabla());
         return covec(...components);
     }
@@ -167,6 +176,7 @@ export function vec(...components) {
 
 export function covec(...components) {
     const ans = { type: "covector", components };
+    ans.dim = components.length;
     ans.add = (other) => {
         if (other.type !== "covector" || other.components.length !== components.length) {
             throw new Error("Can only add covectors of the same dimension");
@@ -216,6 +226,12 @@ export function covec(...components) {
         }
         return ans;
     };
+    ans.transpose = () => {
+        return covec(...components);
+    };
+    ans.dot = (otherVec) => {
+        return ans.transpose().prod(otherVec);
+    }
     ans.nabla = () => {
         const components = ans.components.map(c => c.nabla());
         return covec(...components);
@@ -314,10 +330,18 @@ export function simplify(expression) {
 }
 
 export function partial(expression, variable) {
-    
+    if (expression.children.length === 0) {
+        return expression.equals(variable) ? real(1) : real(0);
+    }
+    const dExprDChildren = expression.nabla();
+    const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable)));
+    return dExprDChildren.prod(dChildrenDVariable);
 }
 
 export function derivative(expression) {
-    expression.vars
-    
+    const partials = [];
+    expression.vars.forEach((v) => {
+        partials.push(partial(expression, v));
+    })
+    return covec(...partials);
 }
