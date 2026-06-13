@@ -150,8 +150,11 @@
             });
 
         onCellStateChange(({ input }) => {
-            const hlCode = highlightCode(input);
             codeDOM.map(raw => {
+                // If the element is focused and has newer content than state (debounce pending),
+                // skip re-render to avoid reverting user's in-progress typing.
+                if (raw === document.activeElement && raw.textContent !== input) return;
+                const hlCode = highlightCode(input);
                 const cursorOffset = saveCursorPosition(raw);
                 codeDOM.inner(hlCode);
                 restoreCursorPosition(cursorOffset, raw);

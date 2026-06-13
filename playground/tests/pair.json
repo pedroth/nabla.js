@@ -5,6 +5,6 @@
     {"input": "Pair.of(1, 2).map(x => x * 10).toString();"},
     {"input": "Pair.of(1, 2).mapLeft(x => x * 10).toString();"},
     {"input": "Pair.of(1, 2).mapRight(x => x * 10).toString();"},
-    {"input": "Pair.of(3, 7).fold((a, b) => a + b);"},
+    {"input": "Pair.of(3, 7).fold(0, (a, b) => a + b);"},
     {"input": "Pair.of(1, 2).toArray();"}
 ]

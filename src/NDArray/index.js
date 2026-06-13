@@ -2,12 +2,12 @@ import { ArrayUtils } from "../ArrayUtils/index.js";
 import { Pair } from "../Pair/index.js";
 
 /**
- * N-dimensional array implementation in column major order.
+ * N-dimensional array implementation in row major order.
  */
 export class NDArray {
     constructor(dim, array) {
         this.dim = dim;
-        // column major array
+        // row major array
         this.array = [];
         this.powers = computePowers(dim);
 

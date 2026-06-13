@@ -1,22 +1,45 @@
 import { Set } from "../Set/index.js";
 
-
-const binaryOps = {
-    add,
-    sub,
-    mul,
-    div
-};
-
-const values = {
+const Symbolic = {
     real,
     variable,
     vec,
-    covec
+    covec,
+    add,
+    sub,
+    mul,
+    div,
+    pow,
+    exp,
+    log,
+    simplify,
+    derivative,
 };
 
+export { Symbolic };
+
+function singleArgFunc({ name }, arg) {
+    const ans = { type: name, value: arg };
+    ans.children = [arg];
+    ans.add = (other) => add(ans, other);
+    ans.sub = (other) => sub(ans, other);
+    ans.mul = (other) => mul(ans, other);
+    ans.div = (denominator) => div(ans, denominator);
+    ans.scale = (factor) => mul(real(factor), ans);
+    ans.toString = () => `${name}(${arg.toString()})`;
+    ans.toVisual = () => ({ type: "latex", value: `${name}(${arg.toVisual().value})` });
+    ans.equals = (other) => {
+        if (other?.type !== name) return false;
+        if (!arg.equals(other.value)) return false;
+        return true;
+    }
+    ans.vars = arg.vars;
+    arg.parents = arg.parents ? arg.parents.concat([ans]) : [ans];
+    return ans;
+}
+
 // type: {name: string, symbol: string}, left: expression, right: expression
-export function binaryOp({ name, symbol }, left, right) {
+function binaryOp({ name, symbol }, left, right) {
     const ans = { type: name, left, right };
     ans.children = [left, right];
     ans.add = (other) => add(ans, other);
@@ -38,7 +61,7 @@ export function binaryOp({ name, symbol }, left, right) {
     return ans;
 }
 
-export function add(a, b) {
+function add(a, b) {
     const ans = binaryOp({ name: "add", symbol: "+" }, a, b);
     ans.nabla = () => {
         return covec(real(1), real(1));
@@ -46,7 +69,7 @@ export function add(a, b) {
     return ans;
 }
 
-export function sub(a, b) {
+function sub(a, b) {
     const ans = binaryOp({ name: "sub", symbol: "-" }, a, b);
     ans.nabla = () => {
         return covec(real(1), real(-1));
@@ -54,7 +77,7 @@ export function sub(a, b) {
     return ans;
 }
 
-export function mul(a, b) {
+function mul(a, b) {
     const ans = binaryOp({ name: "mul", symbol: "\\cdot" }, a, b);
     ans.nabla = () => {
         return covec(b, a);
@@ -62,7 +85,7 @@ export function mul(a, b) {
     return ans;
 }
 
-export function div(numerator, denominator) {
+function div(numerator, denominator) {
     const ans = binaryOp({ name: "div", symbol: "/" }, numerator, denominator);
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numerator.toVisual().value}}{${denominator.toVisual().value}}` });
     ans.nabla = () => {
@@ -71,7 +94,41 @@ export function div(numerator, denominator) {
     return ans;
 }
 
-export function real(value) {
+function pow(base, exponent) {
+    const ans = binaryOp({ name: "pow", symbol: "^" }, base, exponent);
+    ans.toVisual = () => ({ type: "latex", value: `{${base.toVisual().value}}^{${exponent.toVisual().value}}` });
+    ans.nabla = () => {
+        // d(base^exp)/d(base)     = exp * base^(exp-1)
+        // d(base^exp)/d(exponent) = base^exp * log(base)
+        return covec(
+            mul(exponent, pow(base, sub(exponent, real(1)))),
+            mul(ans, log(base))
+        );
+    };
+    return ans;
+}
+
+function exp(value) {
+    const ans = singleArgFunc({ name: "exp" }, value);
+    ans.toVisual = () => ({ type: "latex", value: `e^{${value.toVisual().value}}` });
+    ans.nabla = () => {
+        // d(e^value)/d(value) = e^value
+        return covec(ans);
+    };
+    return ans;
+}
+
+function log(value) {
+    const ans = singleArgFunc({ name: "log" }, value);
+    ans.toVisual = () => ({ type: "latex", value: `\\log(${value.toVisual().value})` });
+    ans.nabla = () => {
+        // d(log(value))/d(value) = 1/value
+        return covec(div(real(1), value));
+    };
+    return ans;
+}
+
+function real(value) {
     const ans = { type: "real", value: value };
     ans.children = [];
     ans.add = (other) => add(ans, other);
@@ -89,7 +146,7 @@ export function real(value) {
     return ans;
 }
 
-export function variable(name) {
+function variable(name) {
     const ans = { type: "variable", name };
     ans.children = [];
     ans.add = (other) => add(ans, other);
@@ -107,7 +164,7 @@ export function variable(name) {
     return ans;
 }
 
-export function vec(...components) {
+function vec(...components) {
     const ans = { type: "vector", components };
     ans.dim = components.length;
     ans.add = (other) => {
@@ -174,7 +231,7 @@ export function vec(...components) {
     return ans;
 }
 
-export function covec(...components) {
+function covec(...components) {
     const ans = { type: "covector", components };
     ans.dim = components.length;
     ans.add = (other) => {
@@ -242,7 +299,7 @@ export function covec(...components) {
     return ans;
 }
 
-export function simplify(expression) {
+function simplifyStep(expression) {
     const { type } = expression;
 
     if (type === "vector" || type === "covector") {
@@ -250,7 +307,7 @@ export function simplify(expression) {
         return type === "vector" ? vec(...newComponents) : covec(...newComponents);
     }
 
-    if (type === "add" || type === "sub" || type === "mul" || type === "div") {
+    if (type === "add" || type === "sub" || type === "mul" || type === "div" || type === "pow") {
         const left = simplify(expression.left);
         const right = simplify(expression.right);
 
@@ -270,15 +327,35 @@ export function simplify(expression) {
             }
             // real folding: (a * x) + x = (a + 1) * x
             if (right.type === "variable" && left.type === "mul" && left.left.type === "real" && left.right.equals(right)) {
-                return mul(simplify(add(real(1), left.left)), right);
+                return mul(simplifyStep(add(real(1), left.left)), right);
             }
 
             // (a * x) + (b * x) = (a + b) * x
             if (left.type === "mul" && right.type === "mul") {
                 if (left.right.equals(right.right)) {
-                    return mul(simplify(add(left.left, right.left)), left.right);
+                    return mul(simplifyStep(add(left.left, right.left)), left.right);
                 }
             }
+
+            // a + (-1 * b) = a - b
+            if (right.type === "mul" && right.left.type === "real" && right.left.value === -1) {
+                return simplifyStep(sub(left, right.right));
+            }
+            // a + (b * -1) = a - b
+            if (right.type === "mul" && right.right.type === "real" && right.right.value === -1) {
+                return simplifyStep(sub(left, right.left));
+            }
+
+            // (a - b) + (c + b) = a + c  (and symmetric variants)
+            if (left.type === "sub" && right.type === "add") {
+                if (left.right.equals(right.right)) return simplifyStep(add(left.left, right.left));
+                if (left.right.equals(right.left)) return simplifyStep(add(left.left, right.right));
+            }
+            if (left.type === "add" && right.type === "sub") {
+                if (left.right.equals(right.right)) return simplifyStep(add(left.left, right.left));
+                if (left.left.equals(right.right)) return simplifyStep(add(left.right, right.left));
+            }
+
             return add(left, right);
         }
 
@@ -294,19 +371,42 @@ export function simplify(expression) {
 
             // real folding: x - (a * x) = (1 - a) * x
             if (left.type === "variable" && right.type === "mul" && right.left.type === "real" && right.right.equals(left)) {
-                return mul(simplify(add(real(1), mul(real(-1), right.left))), left);
+                return mul(simplifyStep(add(real(1), mul(real(-1), right.left))), left);
             }
             // real folding: (a * x) - x = (a - 1) * x
             if (right.type === "variable" && left.type === "mul" && left.left.type === "real" && left.right.equals(right)) {
-                return mul(simplify(add(left.left, real(-1))), right);
+                return mul(simplifyStep(add(left.left, real(-1))), right);
             }
 
             // (a * x) - (b * x) = (a - b) * x
             if (left.type === "mul" && right.type === "mul") {
                 if (left.right.equals(right.right)) {
-                    return mul(simplify(add(left.left, mul(real(-1), right.left))), left.right);
+                    return mul(simplifyStep(add(left.left, mul(real(-1), right.left))), left.right);
                 }
             }
+            // (a + b) - (c + d) where a common term cancels
+            if (left.type === "add" && right.type === "add") {
+                if (left.left.equals(right.left)) return simplifyStep(sub(left.right, right.right));
+                if (left.left.equals(right.right)) return simplifyStep(sub(left.right, right.left));
+                if (left.right.equals(right.left)) return simplifyStep(sub(left.left, right.right));
+                if (left.right.equals(right.right)) return simplifyStep(sub(left.left, right.left));
+            }
+
+            // (a - b) - (a + c) = -(b + c),  (a - b) - (c + b) = a - c - 2b, etc.
+            if (left.type === "sub" && right.type === "add") {
+                if (left.left.equals(right.left)) return simplifyStep(mul(real(-1), add(left.right, right.right)));
+                if (left.left.equals(right.right)) return simplifyStep(mul(real(-1), add(left.right, right.left)));
+                if (left.right.equals(right.left)) return simplifyStep(sub(left.left, add(simplifyStep(mul(real(2), right.left)), right.right)));
+                if (left.right.equals(right.right)) return simplifyStep(sub(left.left, add(right.left, simplifyStep(mul(real(2), right.right)))));
+            }
+            // (a + b) - (c - d) where a term cancels
+            if (left.type === "add" && right.type === "sub") {
+                if (left.left.equals(right.left)) return simplifyStep(add(left.right, right.right));
+                if (left.right.equals(right.left)) return simplifyStep(add(left.left, right.right));
+                if (left.left.equals(right.right)) return simplifyStep(add(left.right, right.left));
+                if (left.right.equals(right.right)) return simplifyStep(add(left.left, right.left));
+            }
+
             return sub(left, right);
         }
 
@@ -327,11 +427,95 @@ export function simplify(expression) {
             if (right.type === "real" && left.type === "mul" && left.left.type === "real") {
                 return mul(real(right.value * left.left.value), left.right);
             }
-            // (a * x) + (b * x) = (a + b) * x
+
+            // a^m * a^n = a^(m+n)
+            if (left.type === "pow" && right.type === "pow" && left.left.equals(right.left)) {
+                return simplifyStep(pow(left.left, simplifyStep(add(left.right, right.right))));
+            }
+            // a^n * a = a^(n+1)
+            if (left.type === "pow" && left.left.equals(right)) {
+                return simplifyStep(pow(left.left, simplifyStep(add(left.right, real(1)))));
+            }
+            // a * a^n = a^(n+1)
+            if (right.type === "pow" && right.left.equals(left)) {
+                return simplifyStep(pow(right.left, simplifyStep(add(right.right, real(1)))));
+            }
+
+            // (a/b) * (c/d) = (a*c)/(b*d)
+            if (left.type === "div" && right.type === "div") {
+                return simplifyStep(div(simplifyStep(mul(left.left, right.left)), simplifyStep(mul(left.right, right.right))));
+            }
+            // (a/b^n) * (k*b) = (k*a)/b^(n-1)  — cancel one factor of base from denominator power
+            if (left.type === "div" && left.right.type === "pow" && right.type === "mul") {
+                const base = left.right.left;
+                if (right.right.equals(base)) {
+                    const newNum = simplifyStep(mul(left.left, right.left));
+                    const newExp = simplifyStep(sub(left.right.right, real(1)));
+                    return simplifyStep(div(newNum, simplifyStep(pow(base, newExp))));
+                }
+                if (right.left.equals(base)) {
+                    const newNum = simplifyStep(mul(left.left, right.right));
+                    const newExp = simplifyStep(sub(left.right.right, real(1)));
+                    return simplifyStep(div(newNum, simplifyStep(pow(base, newExp))));
+                }
+            }
+            // (a/b^n) * b = a/b^(n-1)
+            if (left.type === "div" && left.right.type === "pow" && right.equals(left.right.left)) {
+                const newExp = simplifyStep(sub(left.right.right, real(1)));
+                return simplifyStep(div(left.left, simplifyStep(pow(left.right.left, newExp))));
+            }
+            // (a/b) * c = (a*c)/b
+            if (left.type === "div") {
+                return simplifyStep(div(simplifyStep(mul(left.left, right)), left.right));
+            }
+            // a * (b/c) = (a*b)/c
+            if (right.type === "div") {
+                return simplifyStep(div(simplifyStep(mul(left, right.left)), right.right));
+            }
+
+            // (a * x) + (b * x) = (a + b) * x  [left here as comment — handled in add section]
             if (left.type === "mul" && right.type === "mul") {
                 if (left.right.equals(right.right)) {
-                    return mul(simplify(add(left.left, right.left)), left.right);
+                    return mul(simplifyStep(add(left.left, right.left)), left.right);
                 }
+            }
+
+            // distributive property: a * (b + c) = a * b + a * c
+            if (right.type === "add" || right.type === "sub") {
+                const a = right.left;
+                const b = right.right;
+                const leftMulA = simplifyStep(mul(left, a));
+                const leftMulB = simplifyStep(mul(left, b));
+                if (right.type === "add") {
+                    return simplifyStep(add(leftMulA, leftMulB));
+                } else {
+                    return simplifyStep(sub(leftMulA, leftMulB));
+                }
+            }
+
+            // distributive property: (a + b) * c = a * c + b * c
+            if (left.type === "add" || left.type === "sub") {
+                const a = left.left;
+                const b = left.right;
+                const aMulRight = simplifyStep(mul(a, right));
+                const bMulRight = simplifyStep(mul(b, right));
+                if (left.type === "add") {
+                    return simplifyStep(add(aMulRight, bMulRight));
+                } else {
+                    return simplifyStep(sub(aMulRight, bMulRight));
+                }
+            }
+
+            // canonical ordering: sort variable * variable alphabetically so x*y and y*x are the same
+            if (left.type === "variable" && right.type === "variable" && left.name > right.name) {
+                return mul(right, left);
+            }
+
+            // x * x = x^2
+            if (left.equals(right)) return pow(left, real(2));
+            // real folding: x * (a * x) = (a + 1) * x
+            if (left.type === "variable" && right.type === "mul" && right.left.type === "real" && right.right.equals(left)) {
+                return mul(add(real(1), right.left), left);
             }
             return mul(left, right);
         }
@@ -345,15 +529,90 @@ export function simplify(expression) {
             if (right.type === "real" && right.value === 1) return left;
             // x / x = 1
             if (left.equals(right)) return real(1);
+
+            // (a/b) / c = a/(b*c)
+            if (left.type === "div") {
+                return simplifyStep(div(left.left, simplifyStep(mul(left.right, right))));
+            }
+            // a / (b/c) = (a*c)/b
+            if (right.type === "div") {
+                return simplifyStep(div(simplifyStep(mul(left, right.right)), right.left));
+            }
+
+            // a^m / a^n = a^(m-n)
+            if (left.type === "pow" && right.type === "pow" && left.left.equals(right.left)) {
+                const newExp = simplifyStep(sub(left.right, right.right));
+                if (newExp.type === "real" && newExp.value === 0) return real(1);
+                if (newExp.type === "real" && newExp.value > 0) return simplifyStep(pow(left.left, newExp));
+                if (newExp.type === "real" && newExp.value < 0) return simplifyStep(div(real(1), pow(left.left, real(-newExp.value))));
+                return simplifyStep(pow(left.left, newExp));
+            }
+            // a^m / a = a^(m-1)
+            if (left.type === "pow" && left.left.equals(right)) {
+                const newExp = simplifyStep(sub(left.right, real(1)));
+                if (newExp.type === "real" && newExp.value === 0) return real(1);
+                if (newExp.type === "real" && newExp.value < 0) return simplifyStep(div(real(1), pow(left.left, real(-newExp.value))));
+                return simplifyStep(pow(left.left, newExp));
+            }
+            // a / a^n = 1/a^(n-1)
+            if (right.type === "pow" && right.left.equals(left)) {
+                const newExp = simplifyStep(sub(right.right, real(1)));
+                if (newExp.type === "real" && newExp.value === 0) return real(1);
+                if (newExp.type === "real" && newExp.value > 0) return simplifyStep(div(real(1), pow(left, newExp)));
+                if (newExp.type === "real" && newExp.value < 0) return simplifyStep(pow(left, real(-newExp.value)));
+                return simplifyStep(div(real(1), pow(left, newExp)));
+            }
+
+            // (a*b) / c: cancel c from numerator
+            if (left.type === "mul") {
+                if (left.left.equals(right)) return simplifyStep(left.right);
+                if (left.right.equals(right)) return simplifyStep(left.left);
+                // (a*b) / (a*c) = b/c  (and variants)
+                if (right.type === "mul") {
+                    if (left.left.equals(right.left)) return simplifyStep(div(left.right, right.right));
+                    if (left.left.equals(right.right)) return simplifyStep(div(left.right, right.left));
+                    if (left.right.equals(right.left)) return simplifyStep(div(left.left, right.right));
+                    if (left.right.equals(right.right)) return simplifyStep(div(left.left, right.left));
+                }
+            }
+            // a / (b*c): cancel a from denominator
+            if (right.type === "mul") {
+                if (right.left.equals(left)) return simplifyStep(div(real(1), right.right));
+                if (right.right.equals(left)) return simplifyStep(div(real(1), right.left));
+            }
+
             return div(left, right);
+        }
+
+        if (type === "pow") {
+            // x^0 = 1
+            if (right.type === "real" && right.value === 0) return real(1);
+            // x^1 = x
+            if (right.type === "real" && right.value === 1) return left;
+            // constant folding
+            if (left.type === "real" && right.type === "real") return real(Math.pow(left.value, right.value));
+            // (a^m)^n = a^(m*n)
+            if (left.type === "pow") {
+                return simplifyStep(pow(left.left, simplifyStep(mul(left.right, right))));
+            }
+            return pow(left, right);
         }
     }
 
     return expression;
-
 }
 
-export function partial(expression, variable) {
+function simplify(expression) {
+    let current = expression;
+    for (let i = 0; i < 20; i++) {
+        const next = simplifyStep(current);
+        if (next.toString() === current.toString()) break;
+        current = next;
+    }
+    return current;
+}
+
+function partial(expression, variable) {
     if (expression.children.length === 0) {
         return expression.equals(variable) ? real(1) : real(0);
     }
@@ -362,8 +621,11 @@ export function partial(expression, variable) {
     return dExprDChildren.prod(dChildrenDVariable);
 }
 
-export function derivative(expression) {
+function derivative(expression) {
     const partials = [];
+    if(expression.type === "vector" || expression.type === "covector") {
+        return covec(...expression.components.map(c => derivative(c)));
+    }
     expression.vars.forEach((v) => {
         partials.push(partial(expression, v));
     })
