@@ -629,5 +629,5 @@ function derivative(expression) {
     expression.vars.forEach((v) => {
         partials.push(partial(expression, v));
     })
-    return covec(...partials);
+    return partials.length === 1 ? partials[0] : covec(...partials);
 }
