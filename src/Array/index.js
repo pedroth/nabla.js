@@ -1,6 +1,7 @@
 import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
 import { Tuple } from "../Tuple/index.js";
+import { HashMap } from "../HashMap/index.js";
 
 const NATIVE_ARRAY = globalThis.Array;
 const INITIAL_CAPACITY = 7;
@@ -165,12 +166,12 @@ export class Array {
         // !! Mutation !!
         const n = this.elements.length;
         const v = this.elements;
-        const stack = [];
+        const stack = new Array();
         stack.push(0);
         stack.push(n - 1);
         while (stack.length > 0) {
-            const high = stack.pop();
-            const low = stack.pop();
+            const high = stack.pop().orElse();
+            const low = stack.pop().orElse();
             /*
              * partition
              */
@@ -206,9 +207,51 @@ export class Array {
     }
 
     swap(i, j) {
+        // !! Mutation !!
+        if (i < 0 || i >= this.length) return;
+        if (j < 0 || j >= this.length) return;
+        if (i === j) return;
         const temp = this.elements[i];
         this.elements[i] = this.elements[j];
         this.elements[j] = temp;
+    }
+
+    // () => Array
+    shuffle() {
+        const newArray = new Array(this.capacity);
+        for (let i = 0; i < this.length; i++) {
+            newArray.elements[i] = this.elements[i];
+        }
+        newArray.length = this.length;
+        for (let i = this.length - 1; i > 0; i--) {
+            const r = Math.floor(Math.random() * (i + 1));
+            const temp = newArray.elements[i];
+            newArray.elements[i] = newArray.elements[r];
+            newArray.elements[r] = temp;
+        }
+        return newArray;
+    }
+
+    // array => (permutation: array) => array
+    permute(permutation) {
+        const ans = new Array(this.capacity);
+        const len = Math.min(this.length, permutation.length);
+        for (let i = 0; i < len; i++) {
+            ans.elements[permutation[i]] = this.elements[i];
+        }
+        ans.length = this.length;
+        return ans;
+    }
+
+    // array => (groupFunction: elem => key) => HashMap<key, Array<elem>>
+    groupBy(groupFunction) {
+        const ans = new HashMap();
+        this.forEach(x => {
+            const key = groupFunction(x);
+            if (!ans.has(key)) ans.put(key, new Array());
+            ans.get(key).map(array => array.push(x));
+        });
+        return ans;
     }
 
     // ========== Element Removal ==========

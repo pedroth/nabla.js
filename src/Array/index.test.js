@@ -180,3 +180,34 @@ test("toString", () => {
     expect(Array.of(1, 2, 3).toString()).toBe("[1, 2, 3]");
     expect(Array.of().toString()).toBe("[]");
 });
+
+test("swap", () => {
+    const a = Array.of(1, 2, 3);
+    a.swap(0, 2);
+    expect(a.toArray()).toEqual([3, 2, 1]);
+    a.swap(0, 5); // out-of-bounds: no-op
+    expect(a.toArray()).toEqual([3, 2, 1]);
+    a.swap(1, 1); // same index: no-op
+    expect(a.toArray()).toEqual([3, 2, 1]);
+});
+
+test("shuffle", () => {
+    const a = Array.of(1, 2, 3, 4, 5);
+    const b = a.shuffle();
+    expect(b.size()).toBe(5);
+    expect(b.sort().toArray()).toEqual([1, 2, 3, 4, 5]);
+    expect(a.toArray()).toEqual([1, 2, 3, 4, 5]); // original unchanged
+});
+
+test("permute", () => {
+    // element at index i is placed at position permutation[i]
+    const a = Array.of("a", "b", "c");
+    expect(a.permute([2, 0, 1]).toArray()).toEqual(["b", "c", "a"]);
+});
+
+test("groupBy", () => {
+    const a = Array.of(1, 2, 3, 4, 5, 6);
+    const groups = a.groupBy(x => x % 2 === 0 ? "even" : "odd");
+    expect(groups.get("even").orElse().toArray()).toEqual([2, 4, 6]);
+    expect(groups.get("odd").orElse().toArray()).toEqual([1, 3, 5]);
+});

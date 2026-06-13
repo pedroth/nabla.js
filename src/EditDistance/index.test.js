@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { editDistance, editDistanceRec, alignWords } from "./index.js";
+import { editDistance, editDistanceRec, alignWords, alignWords2 } from "./index.js";
 
 // editDistance
 
@@ -107,4 +107,66 @@ test("alignWords: one deletion", () => {
 test("alignWords: output lengths match", () => {
     const [w1, w2] = alignWords("kitten", "sitting");
     expect(w1.length).toBe(w2.length);
+});
+
+// alignWords vs alignWords2 — correctness
+
+const PAIRS = [
+    ["cat", "bat"],
+    ["kitten", "sitting"],
+    ["sunday", "saturday"],
+    ["abc", "yabd"],
+    ["", "hello"],
+    ["hello", ""],
+    ["abc", "abc"],
+];
+
+test("alignWords vs alignWords2: both produce cost matching editDistance", () => {
+    for (const [a, b] of PAIRS) {
+        const [expected] = editDistance(a, b);
+
+        // alignWords cost = number of mismatches + gaps
+        const [w1, w2] = alignWords(a, b);
+        let cost1 = 0;
+        for (let i = 0; i < w1.length; i++) {
+            if (w1[i] === "-" || w2[i] === "-") cost1++;
+            else if (w1[i] !== w2[i]) cost1++;
+        }
+        expect(cost1).toBe(expected);
+
+        // alignWords2 cost is returned directly
+        const { cost: cost2 } = alignWords2(a.split(""), b.split(""));
+        expect(cost2).toBe(expected);
+    }
+});
+
+test("alignWords vs alignWords2: aligned lengths match", () => {
+    for (const [a, b] of PAIRS) {
+        const [w1, w2] = alignWords(a, b);
+        expect(w1.length).toBe(w2.length);
+
+        const { a1, a2 } = alignWords2(a.split(""), b.split(""));
+        expect(a1.length).toBe(a2.length);
+    }
+});
+
+// alignWords vs alignWords2 — performance
+test("alignWords vs alignWords2: performance on long strings", () => {
+    const long1 = "abcdefghijklmnopqrstuvwxyz".repeat(4); // 104 chars
+    const long2 = "zyxwvutsrqponmlkjihgfedcba".repeat(4);
+
+    const t1 = performance.now();
+    alignWords(long1, long2);
+    const elapsed1 = performance.now() - t1;
+
+    const t2 = performance.now();
+    alignWords2(long1.split(""), long2.split(""));
+    const elapsed2 = performance.now() - t2;
+
+    console.log(`alignWords:  ${elapsed1.toFixed(2)}ms`);
+    console.log(`alignWords2: ${elapsed2.toFixed(2)}ms`);
+
+    // sanity: both must finish in reasonable time
+    expect(elapsed1).toBeLessThan(5000);
+    expect(elapsed2).toBeLessThan(5000);
 });

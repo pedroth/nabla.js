@@ -41,6 +41,48 @@ export function editDistanceRec(word1, word2) {
     return rec(word1.length, word2.length);
 }
 
+export function alignWords2(s1, s2) {
+    const memo = new HashMap();
+
+    function align(s1, s2) {
+
+        const key = `${s1.length},${s2.length}`;
+    
+        if (memo.has(key)) return memo.get(key).orElse(() => 0);
+    
+        if (s1.length === 0 && s2.length === 0) return { cost: 0, a1: [], a2: [] };
+        if (s1.length === 0) return { cost: s2.length, a1: s2.map(_ => "_"), a2: s2 };
+        if (s2.length === 0) return { cost: s1.length, a1: s1, a2: s1.map(_ => "_") };
+    
+        const [h1, ...t1] = s1;
+        const [h2, ...t2] = s2;
+    
+        const resA = align(t1, t2);
+        const costA = (h1 == h2 ? 0 : 1) + resA.cost;
+    
+        const resB = align(t1, s2);
+        const costB = 1 + resB.cost;
+    
+        const resC = align(s1, t2);
+        const costC = 1 + resC.cost;
+    
+        let best;
+        const minCost = Math.min(costA, costB, costC);
+    
+        if (minCost === costA) {
+            best = { cost: costA, a1: [h1, ...resA.a1], a2: [h2, ...resA.a2] };
+        } else if (minCost === costB) {
+            best = { cost: costB, a1: [h1, ...resB.a1], a2: ["_", ...resB.a2] };
+        } else {
+            best = { cost: costC, a1: ["_", ...resC.a1], a2: [h2, ...resC.a2] };
+        }
+    
+        memo.put(key, best);
+        return best;
+    }
+    return align(s1, s2);
+}
+
 export function alignWords(word1, word2) {
     const n = word1.length;
     const m = word2.length;
