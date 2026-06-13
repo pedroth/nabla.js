@@ -40,6 +40,10 @@
         "path": "/playground/tests/queue.json"
     },
     {
+        "title": "Edit distance",
+        "path": "/playground/tests/edit_distance.json"
+    },
+    {
         "title": "Symbolic expressions",
         "path": "/playground/tests/symbolic.json"
     }

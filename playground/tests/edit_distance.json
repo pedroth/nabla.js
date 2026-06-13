@@ -1,0 +1,9 @@
+[
+    {"input": "editDistance(\"kitten\", \"sitting\");"},
+    {"input": "editDistance(\"sunday\", \"saturday\");"},
+    {"input": "editDistance(\"abc\", \"abc\");"},
+    {"input": "editDistance(\"\", \"hello\");"},
+    {"input": "alignWords(\"kitten\", \"sitting\");"},
+    {"input": "alignWords(\"sunday\", \"saturday\");"},
+    {"input": "alignWords(\"cat\", \"bat\");"}
+]
