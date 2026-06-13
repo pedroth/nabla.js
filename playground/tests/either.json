@@ -8,5 +8,8 @@
     {"input": "Either.left(\"error\").isLeft();"},
     {"input": "Either.right(\"success\").isRight();"},
     {"input": "Either.left(1).toString();"},
-    {"input": "Either.right(1).toString();"}
+    {"input": "Either.right(1).toString();"},
+    {"input": "const parseIntE = s => {\n  const n = Number(s);\n  return isNaN(n) ? Either.left(\"Not a number\") : Either.right(Math.trunc(n));\n};\nconst reciprocal = x => x === 0 ?\n                        Either.left(\"Division by zero\") :\n                        Either.right(1.0 / x);\n\nparseIntE(\"5\").flatMap(reciprocal);"},
+    {"input": "parseIntE(\"abc\").flatMap(reciprocal);"},
+    {"input": "parseIntE(\"0\").flatMap(reciprocal).toString();"}
 ]
