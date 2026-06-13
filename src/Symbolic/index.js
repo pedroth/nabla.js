@@ -473,13 +473,6 @@ function simplifyStep(expression) {
                 return simplifyStep(div(simplifyStep(mul(left, right.left)), right.right));
             }
 
-            // (a * x) + (b * x) = (a + b) * x  [left here as comment — handled in add section]
-            if (left.type === "mul" && right.type === "mul") {
-                if (left.right.equals(right.right)) {
-                    return mul(simplifyStep(add(left.left, right.left)), left.right);
-                }
-            }
-
             // distributive property: a * (b + c) = a * b + a * c
             if (right.type === "add" || right.type === "sub") {
                 const a = right.left;
@@ -513,10 +506,6 @@ function simplifyStep(expression) {
 
             // x * x = x^2
             if (left.equals(right)) return pow(left, real(2));
-            // real folding: x * (a * x) = (a + 1) * x
-            if (left.type === "variable" && right.type === "mul" && right.left.type === "real" && right.right.equals(left)) {
-                return mul(add(real(1), right.left), left);
-            }
             return mul(left, right);
         }
 
