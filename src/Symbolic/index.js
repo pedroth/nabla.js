@@ -25,7 +25,7 @@ function singleArgFunc({ name }, arg) {
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
     ans.div = (denominator) => div(ans, denominator);
-    ans.scale = (factor) => mul(real(factor), ans);
+    ans.scale = (factor) => factor.type === "real" ? mul(real(factor), ans) : mul(factor, ans);
     ans.toString = () => `${name}(${arg.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `${name}(${arg.toVisual().value})` });
     ans.equals = (other) => {
@@ -46,7 +46,7 @@ function binaryOp({ name, symbol }, left, right) {
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
     ans.div = (denominator) => div(ans, denominator);
-    ans.scale = (factor) => mul(real(factor), ans);
+    ans.scale = (factor) => factor.type === "real" ? mul(real(factor), ans) : mul(factor, ans);
     ans.toString = () => `(${left.toString()} ${symbol} ${right.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `(${left.toVisual().value} ${symbol} ${right.toVisual().value})` });
     ans.equals = (other) => {
@@ -135,7 +135,7 @@ function real(value) {
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
     ans.div = (denominator) => div(ans, denominator);
-    ans.scale = (factor) => mul(real(factor), ans);
+    ans.scale = (factor) => factor.type === "real" ? mul(real(factor), ans) : mul(factor, ans);
     ans.toString = () => ans.value.toString();
     ans.toVisual = () => ({ type: "latex", value: ans.value.toString() });
     ans.equals = (other) => other?.type === "real" && other.value === value;
@@ -153,7 +153,7 @@ function variable(name) {
     ans.sub = (other) => sub(ans, other);
     ans.mul = (other) => mul(ans, other);
     ans.div = (denominator) => div(ans, denominator);
-    ans.scale = (factor) => mul(real(factor), ans);
+    ans.scale = (factor) => factor.type === "real" ? mul(real(factor), ans) : mul(factor, ans);
     ans.toString = () => name;
     ans.toVisual = () => ({ type: "latex", value: name });
     ans.equals = (other) => other?.type === "variable" && other.name === name;
