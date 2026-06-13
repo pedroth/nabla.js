@@ -63,3 +63,17 @@ test("isEmpty", () => {
     expect(Either.right(undefined).isEmpty()).toBe(true);
     expect(Either.right(1).isEmpty()).toBe(false);
 });
+
+test("flatMap chaining (right-biased)", () => {
+    function parseIntE(s) {
+        const n = Number(s);
+        return isNaN(n) ? Either.left("Not a number") : Either.right(Math.trunc(n));
+    }
+    function reciprocal(x) {
+        return x === 0 ? Either.left("Division by zero") : Either.right(1.0 / x);
+    }
+
+    expect(parseIntE("5").flatMap(reciprocal).toString()).toBe("Right(0.2)");
+    expect(parseIntE("abc").flatMap(reciprocal).toString()).toBe("Left(Not a number)");
+    expect(parseIntE("0").flatMap(reciprocal).toString()).toBe("Left(Division by zero)");
+});

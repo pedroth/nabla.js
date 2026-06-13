@@ -41,6 +41,10 @@ class Left {
         return this;
     }
 
+    flatMap() {
+        return this;
+    }
+
     // ========== Value Extraction ==========
 
     orLeft() {
@@ -101,6 +105,10 @@ class Right {
 
     mapRight(f) {
         return new Right(f(this.value));
+    }
+
+    flatMap(f) {
+        return f(this.value);
     }
 
     // ========== Value Extraction ==========
