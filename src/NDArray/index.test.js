@@ -1,14 +1,13 @@
 import {NDArray} from "./index.js";
-import { Pair } from "../Pair/index.js";
 import { expect, test } from "bun:test";
 
 
 test("test getter", () => {
   const denseNDArray = new NDArray([3, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   expect(denseNDArray.get([0, 0])).toBe(1);
-  expect(denseNDArray.get([1, 2])).toBe(8);
-  expect(denseNDArray.get([0, 2])).toBe(7);
-  expect(denseNDArray.get([2, 1])).toBe(6);
+  expect(denseNDArray.get([1, 2])).toBe(6);
+  expect(denseNDArray.get([0, 2])).toBe(3);
+  expect(denseNDArray.get([2, 1])).toBe(8);
   expect(denseNDArray.get([1, 1])).toBe(5);
 
   const denseNDArray1 = NDArray.of(denseNDArray, [9, 1]);
@@ -21,17 +20,17 @@ test("test getter", () => {
   expect(denseNDArray2.get([4])).toBe(5);
   expect(denseNDArray2.get([8])).toBe(9);
 
-  expect(denseNDArray.get("1,2")).toBe(8.0);
+  expect(denseNDArray.get("1,2")).toBe(6.0);
   expect(denseNDArray.get("1,1")).toBe(5.0);
 
-  expect(NDArray.of([[1, 2], [3, 4], [5, 6]]).get([0, 1])).toBe(3);
-  expect(NDArray.of([[1, 2], [3, 4], [5, 6]]).get([1, 2])).toBe(6);
+  expect(NDArray.of([[1, 2], [3, 4], [5, 6]]).get([0, 1])).toBe(2);
+  expect(NDArray.of([[1, 2], [3, 4], [5, 6]]).get([2, 1])).toBe(6);
   expect(
     NDArray.of([
       [[1, 2], [3, 4], [5, 6]],
       [[7, 8], [9, 10], [11, 12]],
       [[13, 14], [15, 16], [17, 18]]
-    ]).get([1, 2, 2])
+    ]).get([2, 2, 1])
   ).toBe(18);
   expect(
     NDArray.of([
