@@ -149,6 +149,7 @@ export class NDArray {
             return acc;
         }
         const nLeft = s1.length - 1;
+        // C[i,j] = sum_l A[i,l] * B[l,j]
         return new NDArray(outDim).transformWithIndex((_, coord) => {
             const leftCoord = [...coord.slice(0, nLeft), 0]; // placeholder for contracted dim
             const rightCoord = [0, ...coord.slice(nLeft)]; // placeholder for contracted dim
@@ -308,7 +309,7 @@ export class NDArray {
         throw "set only accepts strings and integer arrays as the first argument and objects and NDArray as the second";
     }
 
-    // NDArray => (scalar => scalar) => NDArray  !! Mutation !!
+    // NDArray => (number => number) => NDArray  
     transform(f) {
         const size = this.size();
         for (let i = 0; i < size; i++) {
@@ -317,7 +318,7 @@ export class NDArray {
         return this;
     }
 
-    // NDArray => ((scalar, number[]) => scalar) => NDArray  !! Mutation !!
+    // NDArray => ((number, number[]) => number) => NDArray  
     transformWithIndex(f) {
         const size = this.size();
         const dim = this.dim;
