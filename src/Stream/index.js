@@ -20,7 +20,7 @@ export class Stream {
 
     map(lambda) {
         if(this.isEmpty()) return new Stream();
-        return new Stream(lambda(this._head), () => this._tail().map(lambda))
+        return new Stream(lambda(this._head), () => this._tail().map(lambda));
     }
 
     filter(predicate = () => true) {

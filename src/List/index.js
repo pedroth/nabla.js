@@ -11,7 +11,11 @@ export class List {
         this.tail = tail;
     }
 
-    // ========== Core State Operations ==========
+    // ==========================================================
+    // Non-mutating Operations (return new values, leave this intact)
+    // ==========================================================
+
+    // ========== Query ==========
 
     isEmpty() {
         return this.head == null && this.tail == null;
@@ -21,50 +25,13 @@ export class List {
         return this.isEmpty() ? 0 : 1 + this.tail.size()
     }
 
-    // ========== Access Operations ==========
-
     get(index) {
         if (this.isEmpty()) return Maybe.none();
         if (index <= 0) return Maybe.of(this.head);
         return this.tail.get(index - 1);
     }
 
-    set(index, value) {
-        if (this.isEmpty()) return this;
-        if (index <= 0) {
-            this.head = value;
-            return this;
-        }
-        this.tail.set(index - 1, value);
-        return this;
-    }
-
-    // ========== Stack Operations ==========
-
-    push(value) {
-        // !! Mutation !!
-        if (this.isEmpty()) {
-            this.head = value;
-            this.tail = new List();
-            return this;
-        }
-        this.tail.push(value);
-        return this;
-    }
-
-    pop() {
-        // !! Mutation !!
-        if (this.isEmpty()) return Maybe.none();
-        if (this.tail.isEmpty()) {
-            const ans = this.head;
-            this.head = undefined;
-            this.tail = undefined;
-            return Maybe.of(ans);
-        }
-        return this.tail.pop();
-    }
-
-    // ========== Functional/Monadic Operations ==========
+    // ========== Functional/Monadic ==========
 
     map(lambda) {
         if (this.isEmpty()) return this;
@@ -101,7 +68,7 @@ export class List {
         return this.tail.some(predicate);
     }
 
-    // ========== List Combination Operations ==========
+    // ========== Combination ==========
 
     union(list) {
         if (list.isEmpty()) return this;
@@ -130,7 +97,7 @@ export class List {
         }).flatMap()
     }
 
-    // ========== Sorting & Transformation ==========
+    // ========== Transformation ==========
 
     sort(comparator = (a, b) => a - b) {
         if (this.isEmpty()) return this;
@@ -143,19 +110,6 @@ export class List {
     reverse() {
         if (this.isEmpty()) return this;
         return this.tail.reverse().union(List.of(this.head));
-    }
-
-    // ========== Element Removal ==========
-
-    del(index) {
-        if (this.isEmpty()) return this;
-        if (index <= 0) {
-            this.head = this.tail.head;
-            this.tail = this.tail.tail;
-            return this;
-        }
-        this.tail.del(index - 1);
-        return this;
     }
 
     // ========== Iteration ==========
@@ -189,7 +143,55 @@ export class List {
         return `[${this.toArray()}]`
     }
 
-    // ========== Static Factory Methods ==========
+    // ==========================================================
+    // Mutating Operations (modify this in place)
+    // ==========================================================
+
+    set(index, value) {
+        if (this.isEmpty()) return this;
+        if (index <= 0) {
+            this.head = value;
+            return this;
+        }
+        this.tail.set(index - 1, value);
+        return this;
+    }
+
+    push(value) {
+        if (this.isEmpty()) {
+            this.head = value;
+            this.tail = new List();
+            return this;
+        }
+        this.tail.push(value);
+        return this;
+    }
+
+    pop() {
+        if (this.isEmpty()) return Maybe.none();
+        if (this.tail.isEmpty()) {
+            const ans = this.head;
+            this.head = undefined;
+            this.tail = undefined;
+            return Maybe.of(ans);
+        }
+        return this.tail.pop();
+    }
+
+    del(index) {
+        if (this.isEmpty()) return this;
+        if (index <= 0) {
+            this.head = this.tail.head;
+            this.tail = this.tail.tail;
+            return this;
+        }
+        this.tail.del(index - 1);
+        return this;
+    }
+
+    // ==========================================================
+    // Static Factory Methods
+    // ==========================================================
 
     static of(...elements) {
         let ans = new List();

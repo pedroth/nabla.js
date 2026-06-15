@@ -35,6 +35,11 @@ test("map", () => {
     expect(new Stream().map(x => x + 1).isEmpty()).toBe(true);
 });
 
+test("map with composition", () => {
+    const s = Stream.range(0, 10).map(x => x + 1).map(x => x * 2).map(x => x * x);
+    expect(s.toArray()).toEqual([4, 16, 36, 64, 100, 144, 196, 256, 324, 400]);
+});
+
 test("filter", () => {
     // filter on infinite stream with take
     expect(
