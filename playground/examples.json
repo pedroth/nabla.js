@@ -1,5 +1,33 @@
 [
     {
+        "title": "MNIST Neural Generator",
+        "path": "/playground/tests/mnist_neural_generator.json"
+    },
+    {
+        "title": "MNIST PCA data exploration",
+        "path": "/playground/tests/mnist_pca_data_exploration.json"
+    },
+    {
+        "title": "Point cloud clustering",
+        "path": "/playground/tests/point_cloud_clustering.json"
+    },
+    {
+        "title": "PDEs on point clouds",
+        "path": "/playground/tests/pdes_on_point_clouds.json"
+    },
+    {
+        "title": "Soft body simulation",
+        "path": "/playground/tests/soft_body_simulation.json"
+    },
+    {
+        "title": "Point cloud flow matching",
+        "path": "/playground/tests/point_cloud_flow_matching.json"
+    },
+    {
+        "title": "Point cloud SDFs",
+        "path": "/playground/tests/point_cloud_sdfs.json"
+    },
+    {
         "title": "Pair (product)",
         "path": "/playground/tests/pair.json"
     },

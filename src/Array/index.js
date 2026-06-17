@@ -131,7 +131,7 @@ export class Array {
     }
 
     // Slice: Array => (start: number, end: number) => Array
-    slice(start, end) {
+    slice(start = 0, end = this.length) {
         if(end <= start) return new Array();
         const newArray = new Array(Math.max(0, end - start));
         for (let i = start; i < end && i < this.length; i++) {

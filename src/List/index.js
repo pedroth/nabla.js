@@ -97,6 +97,14 @@ export class List {
         }).flatMap()
     }
 
+    slice(start = 0, end = this.size()) {
+        if (end <= start) return new List();
+        if (this.isEmpty()) return this;
+        if (start <= 0) return new List(this.head, this.tail.slice(0, end - 1));
+        // need to change both index, because end is relative to the beginning of the list.
+        return this.tail.slice(start - 1, end - 1); 
+    } 
+
     // ========== Transformation ==========
 
     sort(comparator = (a, b) => a - b) {

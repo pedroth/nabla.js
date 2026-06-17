@@ -128,6 +128,14 @@ test("prod", () => {
     expect(l.prod(l).prod(l).equals(expectedTernary)).toBe(true);
 });
 
+test("slice", () => {
+    expect(List.of(1, 2, 3, 4, 5).slice(1, 5).toArray()).toEqual([2, 3, 4, 5]);
+    expect(List.of(1, 2, 3).slice(0, 2).toArray()).toEqual([1, 2]);
+    expect(List.of(1, 2, 3).slice(2).toArray()).toEqual([3]);
+    expect(List.of(1, 2, 3).slice(0, 0).isEmpty()).toBe(true);
+    expect(List.of().slice(0, 1).isEmpty()).toBe(true);
+});
+
 test("toString", () => {
     expect(List.of(1, 2, 3).toString()).toBe("[1,2,3]");
     expect(List.of().toString()).toBe("[]");
