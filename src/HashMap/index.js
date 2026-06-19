@@ -12,7 +12,6 @@ const hash_str = (s) => {
     }
     return hash;
 }
-
 class DynamicArray {
     constructor() {
         this.capacity = 7;

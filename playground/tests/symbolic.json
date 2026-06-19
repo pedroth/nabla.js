@@ -1,9 +1,9 @@
 [
-	{"input": "const {variable, real, vec, covec, add, sub, mul, div, pow, exp, log, simplify, derivative} = Symbolic;"},
-	{"input": "variable(\"x\").add(variable(\"y\"));"},
-	{"input": "variable(\"x\").sub(variable(\"y\"));"},
-	{"input": "variable(\"x\").mul(variable(\"y\"));"},
-	{"input": "variable(\"x\").div(variable(\"y\"));"},
-	{"input": "variable(\"x\").add(variable(\"y\")).mul(variable(\"x\").sub(variable(\"y\")));"},
-	{"input": "variable(\"x\").scale(3).div(variable(\"y\").add(variable(\"x\")));"}
+	{"input": "const {realVar, real, vec, covec, add, sub, mul, div, poly, derivative} = Symbolic;"},
+	{"input": "realVar(\"x\").add(realVar(\"y\"));"},
+	{"input": "realVar(\"x\").sub(realVar(\"y\"));"},
+	{"input": "realVar(\"x\").mul(realVar(\"y\"));"},
+	{"input": "realVar(\"x\").div(realVar(\"y\"));"},
+	{"input": "realVar(\"x\").add(realVar(\"y\")).mul(realVar(\"x\").sub(realVar(\"y\")));"},
+	{"input": "realVar(\"x\").mul(real(3)).div(realVar(\"y\").add(realVar(\"x\")));"}
 ]

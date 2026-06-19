@@ -1,3 +1,4 @@
+import { Maybe } from "../Maybe/index.js";
 import { Tuple } from "../Tuple/index.js";
 
 /**
@@ -12,7 +13,11 @@ export class Set {
         this.tail = tail;
     }
 
-    // ========== Core State Operations ==========
+    // ==========================================================
+    // Non-mutating Operations (return new values, leave this intact)
+    // ==========================================================
+
+    // ========== Query ==========
 
     isEmpty() {
         return this.head == null && this.tail == null; // == on purpose
@@ -22,8 +27,6 @@ export class Set {
         if (this.isEmpty()) return 0;
         return 1 + this.tail.size();
     }
-
-    // ========== Membership & Comparison ==========
 
     contains(x) {
         if (this.isEmpty()) return false;
@@ -40,7 +43,7 @@ export class Set {
         return this.isSubSet(set) && set.isSubSet(this);
     }
 
-    // ========== Set Operations ==========
+    // ========== Combination ==========
 
     add(x) {
         if (this.isEmpty()) return new Set(x, new Set())
@@ -73,7 +76,7 @@ export class Set {
         }).flatMap(x => x);
     }
 
-    // ========== Functional/Monadic Operations ==========
+    // ========== Functional/Monadic ==========
 
     filter(predicate) {
         if (this.isEmpty()) return this;
@@ -102,7 +105,7 @@ export class Set {
         return this.tail.fold(folder(init, this.head), folder);
     }
 
-    // ========== Conversion & Representation ==========
+    // ========== Conversion & Comparison ==========
 
     toArray() {
         if (this.isEmpty()) return [];
@@ -117,7 +120,23 @@ export class Set {
         return `\\{${this.toArray()}\\}`
     }
 
-    // ========== Static Factory Methods ==========
+    // ========== Iteration ==========
+
+    iterator() {
+        let current = this;
+        return {
+            next: () => {
+                if (current.isEmpty()) return Maybe.none();
+                const ans = current.head;
+                current = current.tail;
+                return Maybe.of(ans);
+            }
+        }
+    }
+
+    // ==========================================================
+    // Static Factory Methods
+    // ==========================================================
 
     static of(...args) {
         let ans = Set.EMPTY;
