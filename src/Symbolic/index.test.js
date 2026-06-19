@@ -1,76 +1,43 @@
 import { expect, test } from "bun:test";
-import { complex, constant, real, variable } from ".";
+import { Symbolic } from "./index.js";
 
-function numericField(value) {
-	return {
-		value,
-		add(other) {
-			return numericField(this.value + other.value);
-		},
-		toString() {
-			return this.value.toString();
-		},
-	};
+
+function gaussian2d() {
+	const x = Symbolic.realVar("x");
+	const y = Symbolic.realVar("y");
+	const r = Symbolic.vec(x, y);
+	return { x, y, gaussian: Symbolic.exp(r.dot(r).mul(Symbolic.real(-1))) };
 }
 
-test("variable expressions compose to strings", () => {
-	const x = variable("x");
-	const y = variable("y");
 
-	expect(x.add(y).toString()).toBe("(x + y)");
-	expect(x.sub(y).toString()).toBe("(x - y)");
-	expect(x.mul(y).toString()).toBe("(x * y)");
-	expect(x.div(y).toString()).toBe("(x / y)");
+test("exp derivative keeps atomic visual metadata after simplification", () => {
+	const x = Symbolic.realVar("x");
+
+	expect(Symbolic.exp(x).simplify().derivative().simplify().toVisual().value).toBe("e^{x}");
 });
 
-test("renders nested expressions to string and latex", () => {
-	const x = variable("x");
-	const y = variable("y");
-	const expression = x.add(y).mul(x.sub(y));
+test("exp derivative simplifies to the original exponential", () => {
+	const x = Symbolic.realVar("x");
 
-	expect(expression.toString()).toBe("((x + y) * (x - y))");
-	expect(expression.toVisual()).toEqual({
-		type: "latex",
-		value: "((x + y) \\cdot (x - y))",
-	});
+	expect(Symbolic.exp(x).simplify().derivative().simplify().toString()).toBe("exp(x)");
 });
 
-test("real and complex values render as symbolic leaves", () => {
-	expect(real(2).toString()).toBe("2");
-	expect(real(2).toVisual()).toEqual({ type: "latex", value: "2" });
+test("gaussian sum derivative simplifies without recursion errors", () => {
+	const { gaussian } = gaussian2d();
 
-	const z = complex(real(2), real(3));
-	expect(z.toString()).toBe("(2 + 3i)");
-	expect(z.toVisual()).toEqual({ type: "latex", value: "(2 + 3i)" });
+	expect(gaussian.add(gaussian).derivative().simplify().toString()).toBe(
+		"covec(-4exp(-x^{2} - y^{2})x, -4exp(-x^{2} - y^{2})y)",
+	);
 });
 
-test("scale nests constants inside division output", () => {
-	const x = variable("x");
-	const y = variable("y");
-	const expression = x.scale(3).div(y.add(x));
+test("identical gaussian expressions simplify to zero", () => {
+	const { gaussian } = gaussian2d();
 
-	expect(expression.toString()).toBe("((3 * x) / (y + x))");
-	expect(expression.toVisual()).toEqual({
-		type: "latex",
-		value: "\\frac{(3 \\cdot x)}{(y + x)}",
-	});
+	expect(gaussian.sub(gaussian).simplify().toString()).toBe("0");
 });
 
-test("constant expressions keep structure until simplified", () => {
-	const one = constant(numericField(1));
-	const two = constant(numericField(2));
+test("exp derivative keeps atomic visual metadata after simplification", () => {
+	const x = Symbolic.realVar("x");
 
-	expect(one.add(two).toString()).toBe("(1 + 2)");
-});
-
-test("constant expressions simplify when both sides are constants", () => {
-	const one = constant(numericField(1));
-	const two = constant(numericField(2));
-	const three = one.add(two).simplify();
-
-	expect(three.toString()).toBe("3");
-	expect(three.toVisual()).toEqual({
-		type: "latex",
-		value: "3",
-	});
+	expect(Symbolic.exp(x).simplify().derivative().simplify().toVisual().value).toBe("e^{x}");
 });
