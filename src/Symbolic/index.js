@@ -273,6 +273,13 @@ function polyToString(polyExpr, exprToStr,) {
             const varCombStr = Array.fromArray(varComb.split("*"))
                 .groupBy(v => v)
                 .getEntries()
+                .toArray()
+                .sort((a, b) => {
+                    // regular variables before atomic expressions (e.g. exp(...))
+                    const aIsAtomic = a.left().startsWith("__atomic__");
+                    const bIsAtomic = b.left().startsWith("__atomic__");
+                    return aIsAtomic - bIsAtomic;
+                })
                 .map(pair => {
                     const [varName, occurrences] = [pair.left(), pair.right()];
                     let finalVarName = varName;
@@ -281,7 +288,7 @@ function polyToString(polyExpr, exprToStr,) {
                     }
                     return occurrences.length > 1 ? `${finalVarName}^{${occurrences.length}}` : finalVarName;
                 })
-                .fold("", (acc, v) => acc + v);
+                .join("");
             const absCoeff = Math.abs(coeff.value);
             const coeffStr = absCoeff === 1 && varCombStr ? "" : exprToStr(real(absCoeff));
             const sign = coeff.value < 0 ? "-" : "+";

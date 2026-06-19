@@ -26,7 +26,7 @@ test("gaussian sum derivative simplifies without recursion errors", () => {
 	const { gaussian } = gaussian2d();
 
 	expect(gaussian.add(gaussian).derivative().simplify().toString()).toBe(
-		"covec(-4exp(-x^{2} - y^{2})x, -4exp(-x^{2} - y^{2})y)",
+		"covec(-4xexp(-x^{2} - y^{2}), -4yexp(-x^{2} - y^{2}))",
 	);
 });
 
