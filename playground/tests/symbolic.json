@@ -1,5 +1,5 @@
 [
-	{"input": "const {realVar, real, vec, covec, add, sub, mul, div, poly, derivative} = Symbolic;"},
+	{"input": "const {realVar, real, vec, covec, add, sub, mul, div, poly, exp, log, derivative} = Symbolic;"},
 	{"input": "realVar(\"x\").add(realVar(\"y\"));"},
 	{"input": "realVar(\"x\").sub(realVar(\"y\"));"},
 	{"input": "realVar(\"x\").mul(realVar(\"y\"));"},

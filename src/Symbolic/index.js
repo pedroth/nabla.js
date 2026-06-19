@@ -42,6 +42,8 @@ const Symbolic = {
     mul,
     div,
     poly,
+    exp,
+    log,
     derivative,
     simplify: (expr) => expr.simplify(),
 };
@@ -58,6 +60,28 @@ const TYPES = {
     mul: "mul",
     div: "div",
     poly: "poly",
+}
+
+function sortVars(vars) {
+    return vars.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function mergeVars(...expressions) {
+    return sortVars(Set.of(...expressions.flatMap(expression => expression.vars)).toArray());
+}
+
+function zeroPoly(vars = []) {
+    return poly(new Map(), vars);
+}
+
+function isZero(expression) {
+    if (expression.type === TYPES.real) {
+        return expression.value === 0;
+    }
+    if (expression.type === TYPES.poly) {
+        return expression.varCombCoeffsMap.size === 0;
+    }
+    return false;
 }
 
 function real(value) {
@@ -118,7 +142,7 @@ function binaryOp({ name, symbol }, left, right) {
     const ans = { type: name, left, right };
 
     ans.children = [left, right];
-    ans.vars = Set.of(...left.vars, ...right.vars).toArray().sort((a, b) => a.name.localeCompare(b.name));
+    ans.vars = mergeVars(left, right);
 
     ans.add = (other) => add(ans, other);
     ans.sub = (other) => sub(ans, other);
@@ -150,6 +174,7 @@ function binaryOp({ name, symbol }, left, right) {
     return ans;
 }
 
+
 function add(a, b) {
     const ans = binaryOp({ name: TYPES.add, symbol: "+" }, a, b);
 
@@ -159,8 +184,12 @@ function add(a, b) {
         return flatA.add(flatB);
     }
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value + b.value);
-        return ans.flat();
+        const simplifiedA = a.simplify();
+        const simplifiedB = b.simplify();
+        if (isZero(simplifiedA)) return simplifiedB;
+        if (isZero(simplifiedB)) return simplifiedA;
+        if (simplifiedA.type === TYPES.real && simplifiedB.type === TYPES.real) return real(simplifiedA.value + simplifiedB.value);
+        return simplifiedA.add(simplifiedB).flat();
     }
 
     ans.pullback = () => {
@@ -179,8 +208,12 @@ function sub(a, b) {
         return flatA.sub(flatB);
     }
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value - b.value);
-        return ans.flat();
+        const simplifiedA = a.simplify();
+        const simplifiedB = b.simplify();
+        if (simplifiedA.equals(simplifiedB)) return zeroPoly(mergeVars(simplifiedA, simplifiedB));
+        if (isZero(simplifiedB)) return simplifiedA;
+        if (simplifiedA.type === TYPES.real && simplifiedB.type === TYPES.real) return real(simplifiedA.value - simplifiedB.value);
+        return simplifiedA.sub(simplifiedB).flat();
     }
 
     ans.pullback = () => {
@@ -199,8 +232,11 @@ function mul(a, b) {
         return flatA.mul(flatB);
     }
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value * b.value);
-        return ans.flat();
+        const simplifiedA = a.simplify();
+        const simplifiedB = b.simplify();
+        if (isZero(simplifiedA) || isZero(simplifiedB)) return zeroPoly(mergeVars(simplifiedA, simplifiedB));
+        if (simplifiedA.type === TYPES.real && simplifiedB.type === TYPES.real) return real(simplifiedA.value * simplifiedB.value);
+        return simplifiedA.mul(simplifiedB).flat();
     }
 
     ans.pullback = () => {
@@ -218,8 +254,11 @@ function div(numerator, denominator) {
         return flatNumerator.div(flatDenominator);
     }
     ans.simplify = () => {
-        if (numerator.type === TYPES.real && denominator.type === TYPES.real) return real(numerator.value / denominator.value);
-        return ans.flat();
+        const simplifiedNumerator = numerator.simplify();
+        const simplifiedDenominator = denominator.simplify();
+        if (isZero(simplifiedNumerator)) return zeroPoly(mergeVars(simplifiedNumerator, simplifiedDenominator));
+        if (simplifiedNumerator.type === TYPES.real && simplifiedDenominator.type === TYPES.real) return real(simplifiedNumerator.value / simplifiedDenominator.value);
+        return simplifiedNumerator.div(simplifiedDenominator).flat();
     }
 
     ans.pullback = () => {
@@ -231,6 +270,9 @@ function div(numerator, denominator) {
 }
 
 function polyToString(varCombCoeffsMap, coeffToStr) {
+    if (varCombCoeffsMap.size === 0) {
+        return coeffToStr(real(0));
+    }
     return [...varCombCoeffsMap.entries()]
         .map(([varComb, coeff], i) => {
             const varCombStr = Array.fromArray(varComb.split("*"))
@@ -258,6 +300,9 @@ function poly(varCombCoeffsMap, vars = []) {
 
     ans.add = (expr) => {
         const flatExpr = expr.flat();
+        if(expr.type !== TYPES.poly) {
+            return ans.add(flatExpr);
+        }
         const newVars = Set.of(...ans.vars, ...expr.vars).toArray().sort((a, b) => a.name.localeCompare(b.name));
         const newVarCombCoeffsMap = new Map(ans.varCombCoeffsMap);
         expr.varCombCoeffsMap.keys().forEach((varComb) => {
@@ -280,6 +325,9 @@ function poly(varCombCoeffsMap, vars = []) {
     };
     ans.sub = (expr) => {
         const flatExpr = expr.flat();
+        if(expr.type !== TYPES.poly) {
+            return ans.sub(flatExpr);
+        }
         const newVars = Set.of(...ans.vars, ...expr.vars).toArray().sort((a, b) => a.name.localeCompare(b.name));
         const newVarCombCoeffsMap = new Map(ans.varCombCoeffsMap);
         flatExpr.varCombCoeffsMap.keys().forEach((varComb) => {
@@ -302,6 +350,9 @@ function poly(varCombCoeffsMap, vars = []) {
     };
     ans.mul = (expr) => {
         const flatExpr = expr.flat();
+        if(expr.type !== TYPES.poly) {
+            return ans.mul(flatExpr);
+        }
         const newVars = Set.of(...ans.vars, ...expr.vars).toArray().sort((a, b) => a.name.localeCompare(b.name));
         const newVarCombCoeffsMap = new Map();
         ans.varCombCoeffsMap.keys().forEach((varComb1) => {
@@ -371,6 +422,43 @@ function poly(varCombCoeffsMap, vars = []) {
         return true;
     }
     return ans;
+}
+
+
+function ratioPoly(numeratorPoly, denominatorPoly) {
+    if(numeratorPoly.type !== TYPES.poly || denominatorPoly.type !== TYPES.poly) {
+        throw new Error("ratioPoly only accepts polynomials as numerator and denominator");
+    }
+    const ans = { type: "ratioPoly", numeratorPoly, denominatorPoly };
+
+    ans.add = (other) => add(ans, other);
+    ans.sub = (other) => sub(ans, other);
+    ans.mul = (other) => mul(ans, other);
+    ans.div = (denominator) => div(ans, denominator);
+
+    ans.flat = () => {
+        return ans; // default implementation.
+    }
+    ans.simplify = () => {
+        return ans; // default implementation.
+    };
+
+    ans.pullback = () => {
+        throw new Error(`pullback not implemented for ratioPoly`);
+    };
+    ans.derivative = () => {
+        return derivative(ans);
+    }
+
+    ans.toString = () => `(${numeratorPoly.toString()}) / (${denominatorPoly.toString()})`;
+    ans.toVisual = () => ({ type: "latex", value: `\\frac{${numeratorPoly.toVisual().value}}{${denominatorPoly.toVisual().value}}` });
+    ans.equals = (other) => {
+        if (other?.type !== "ratioPoly") return false;
+        if (!numeratorPoly.equals(other.numeratorPoly)) return false;
+        if (!denominatorPoly.equals(other.denominatorPoly)) return false;
+        return true;
+    };
+     return ans;
 }
 
 function vec(...components) {
@@ -564,6 +652,75 @@ function covec(...components) {
             }
         }
     };
+    return ans;
+}
+
+function singleArgFunc({ name }, arg) {
+    const ans = { type: name, value: arg };
+    ans.children = [arg];
+    ans.vars = arg.vars;
+
+    ans.add = (other) => add(ans, other);
+    ans.sub = (other) => sub(ans, other);
+    ans.mul = (other) => mul(ans, other);
+    ans.div = (denominator) => div(ans, denominator);
+
+    ans.flat = () => {
+        return ans; // default implementation.
+    }
+    ans.simplify = () => {
+        return ans; // default implementation.
+    };
+
+    ans.pullback = () => {
+        throw new Error(`pullback not implemented for ${name}`);
+    };
+    ans.derivative = () => {
+        return derivative(ans);
+    }
+
+    ans.toString = () => `${name}(${arg.toString()})`;
+    ans.toVisual = () => ({ type: "latex", value: `${name}(${arg.toVisual().value})` });
+    ans.equals = (other) => {
+        if (other?.type !== name) return false;
+        if (!arg.equals(other.value)) return false;
+        return true;
+    }
+
+    return ans;
+}
+
+function exp(value) {
+    const ans = singleArgFunc({ name: "exp" }, value);
+
+    ans.flat = () => {
+        return exp(value.flat());
+    }
+
+    ans.pullback = () => {
+        // d(e^value)/d(value) = e^value
+        return covec(ans);
+    };
+
+    ans.toVisual = () => ({ type: "latex", value: `e^{${value.toVisual().value}}` });
+    
+    return ans;
+}
+
+function log(value) {
+    const ans = singleArgFunc({ name: "log" }, value);
+    
+    ans.flat = () => {
+        return log(value.flat());
+    }
+
+    ans.pullback = () => {
+        // d(log(value))/d(value) = 1/value
+        return covec(div(real(1), value));
+    };
+
+    ans.toVisual = () => ({ type: "latex", value: `\\log(${value.toVisual().value})` });
+
     return ans;
 }
 
