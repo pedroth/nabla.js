@@ -32,23 +32,10 @@ import { Array } from "../Array/index.js";
  * }
  * 
  */
-const Symbolic = {
-    real,
-    realVar,
-    vec,
-    covec,
-    add,
-    sub,
-    mul,
-    div,
-    poly,
-    exp,
-    log,
-    derivative,
-    simplify: (expr) => expr.simplify(),
-};
 
-export { Symbolic };
+// =============================================================================
+// Constants
+// =============================================================================
 
 const TYPES = {
     real: "real",
@@ -62,7 +49,11 @@ const TYPES = {
     poly: "poly",
     exp: "exp",
     log: "log",
-}
+};
+
+// =============================================================================
+// Helpers
+// =============================================================================
 
 function sortVars(vars) {
     return vars.sort((a, b) => a.name.localeCompare(b.name));
@@ -82,6 +73,69 @@ function mergeAtomicExprMaps(...expressions) {
     });
     return mergedMap;
 }
+
+function polyToString(polyExpr, exprToStr) {
+    if (polyExpr.varCombCoeffsMap.size === 0) {
+        return exprToStr(real(0));
+    }
+    return [...polyExpr.varCombCoeffsMap.entries()]
+        .map(([varComb, coeff], i) => {
+            const varCombStr = Array.fromArray(varComb.split("*"))
+                .groupBy(v => v)
+                .getEntries()
+                .toArray()
+                .sort((a, b) => {
+                    // regular variables before atomic expressions (e.g. exp(...)), then alphabetically
+                    const aIsAtomic = a.left().startsWith("__atomic__");
+                    const bIsAtomic = b.left().startsWith("__atomic__");
+                    if (aIsAtomic !== bIsAtomic) return aIsAtomic - bIsAtomic;
+                    return a.left().localeCompare(b.left());
+                })
+                .map(pair => {
+                    const [varName, occurrences] = [pair.left(), pair.right()];
+                    let finalVarName = varName;
+                    if (polyExpr.atomicExprMap.has(varName)) {
+                        finalVarName = exprToStr(polyExpr.atomicExprMap.get(varName));
+                    }
+                    if (occurrences.length > 1) {
+                        const base = varName.startsWith("__atomic__") ? `\\left(${finalVarName}\\right)` : finalVarName;
+                        return `${base}^{${occurrences.length}}`;
+                    }
+                    return finalVarName;
+                })
+                .join("");
+            const absCoeff = Math.abs(coeff.value);
+            const coeffStr = absCoeff === 1 && varCombStr ? "" : exprToStr(real(absCoeff));
+            const sign = coeff.value < 0 ? "-" : "+";
+            return i === 0
+                ? `${sign === "-" ? "-" : ""}${coeffStr}${varCombStr}`
+                : `${sign} ${coeffStr}${varCombStr}`;
+        }).join(" ");
+}
+
+function hash_str(s) {
+    let hash = 0;
+    let prime = 1;
+    for (let i = 0; i < s.length; i++) {
+        hash = hash + s.charCodeAt(i) * prime;
+        prime = prime * 31;
+    }
+    return hash;
+}
+
+function hashAtomic(expr) {
+    return hash_str(expr.toString());
+}
+
+function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
+    // Simplify the ratio of two polynomials by factoring out common factors.
+    // For now, we will just return the numerator and denominator as is.
+    return [numeratorPoly, denominatorPoly];
+}
+
+// =============================================================================
+// Atomic expressions
+// =============================================================================
 
 function real(value) {
     const ans = { type: TYPES.real, value: value };
@@ -136,6 +190,10 @@ function realVar(name) {
     return ans;
 }
 
+// =============================================================================
+// Binary operations
+// =============================================================================
+
 // type: {name: string, symbol: string}, left: expression, right: expression
 function binaryOp({ name, symbol }, left, right) {
     const ans = { type: name, left, right };
@@ -150,7 +208,7 @@ function binaryOp({ name, symbol }, left, right) {
 
     ans.flat = () => {
         return ans; // default implementation.
-    }
+    };
     ans.simplify = () => {
         return ans; // default implementation.
     };
@@ -160,7 +218,7 @@ function binaryOp({ name, symbol }, left, right) {
     };
     ans.derivative = () => {
         return derivative(ans);
-    }
+    };
 
     ans.toString = () => `(${left.toString()} ${symbol} ${right.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `(${left.toVisual().value} ${symbol} ${right.toVisual().value})` });
@@ -169,10 +227,9 @@ function binaryOp({ name, symbol }, left, right) {
         if (!left.equals(other.left)) return false;
         if (!right.equals(other.right)) return false;
         return true;
-    }
+    };
     return ans;
 }
-
 
 function add(a, b) {
     const ans = binaryOp({ name: TYPES.add, symbol: "+" }, a, b);
@@ -181,11 +238,11 @@ function add(a, b) {
         const flatA = a.flat();
         const flatB = b.flat();
         return flatA.add(flatB);
-    }
+    };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value + b.value);
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         return covec(real(1), real(1));
@@ -201,11 +258,11 @@ function sub(a, b) {
         const flatA = a.flat();
         const flatB = b.flat();
         return flatA.sub(flatB);
-    }
+    };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value - b.value);
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         return covec(real(1), real(-1));
@@ -221,11 +278,11 @@ function mul(a, b) {
         const flatA = a.flat();
         const flatB = b.flat();
         return flatA.mul(flatB);
-    }
+    };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value * b.value);
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         return covec(b, a);
@@ -240,11 +297,11 @@ function div(numerator, denominator) {
         const flatNumerator = numerator.flat();
         const flatDenominator = denominator.flat();
         return flatNumerator.div(flatDenominator);
-    }
+    };
     ans.simplify = () => {
         if (numerator.type === TYPES.real && denominator.type === TYPES.real) return real(numerator.value / denominator.value);
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         return covec(div(real(1), denominator), div(mul(real(-1), numerator), mul(denominator, denominator)));
@@ -254,44 +311,9 @@ function div(numerator, denominator) {
     return ans;
 }
 
-function polyToString(polyExpr, exprToStr,) {
-    if (polyExpr.varCombCoeffsMap.size === 0) {
-        return exprToStr(real(0));
-    }
-    return [...polyExpr.varCombCoeffsMap.entries()]
-        .map(([varComb, coeff], i) => {
-            const varCombStr = Array.fromArray(varComb.split("*"))
-                .groupBy(v => v)
-                .getEntries()
-                .toArray()
-                .sort((a, b) => {
-                    // regular variables before atomic expressions (e.g. exp(...)), then alphabetically
-                    const aIsAtomic = a.left().startsWith("__atomic__");
-                    const bIsAtomic = b.left().startsWith("__atomic__");
-                    if (aIsAtomic !== bIsAtomic) return aIsAtomic - bIsAtomic;
-                    return a.left().localeCompare(b.left());
-                })
-                .map(pair => {
-                    const [varName, occurrences] = [pair.left(), pair.right()];
-                    let finalVarName = varName;
-                    if (polyExpr.atomicExprMap.has(varName)) {
-                        finalVarName = exprToStr(polyExpr.atomicExprMap.get(varName));
-                    }
-                    if (occurrences.length > 1) {
-                        const base = varName.startsWith("__atomic__") ? `\\left(${finalVarName}\\right)` : finalVarName;
-                        return `${base}^{${occurrences.length}}`;
-                    }
-                    return finalVarName;
-                })
-                .join("");
-            const absCoeff = Math.abs(coeff.value);
-            const coeffStr = absCoeff === 1 && varCombStr ? "" : exprToStr(real(absCoeff));
-            const sign = coeff.value < 0 ? "-" : "+";
-            return i === 0
-                ? `${sign === "-" ? "-" : ""}${coeffStr}${varCombStr}`
-                : `${sign} ${coeffStr}${varCombStr}`;
-        }).join(" ");
-}
+// =============================================================================
+// Polynomial expressions
+// =============================================================================
 
 function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     // varCombCoeffsMap: Map<varComb: string, coeff>, varComb example: "x^2*y^3", "", coeff: field_expr
@@ -447,13 +469,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     return ans;
 }
 
-function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
-    // Simplify the ratio of two polynomials by factoring out common factors.
-    // For now, we will just return the numerator and denominator as is.
-    return [numeratorPoly, denominatorPoly];
-}
-
-// numerator and denominator must be polynomials. 
+// numerator and denominator must be polynomials.
 function ratioPoly(numeratorPoly, denominatorPoly) {
     if (numeratorPoly.type !== TYPES.poly || denominatorPoly.type !== TYPES.poly) {
         throw new Error("ratioPoly only accepts polynomials as numerator and denominator");
@@ -524,6 +540,10 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     };
     return ans;
 }
+
+// =============================================================================
+// Vector and covector expressions
+// =============================================================================
 
 function vec(...components) {
     const ans = { type: TYPES.vector, components };
@@ -719,6 +739,10 @@ function covec(...components) {
     return ans;
 }
 
+// =============================================================================
+// Unary functions
+// =============================================================================
+
 function singleArgFunc({ name }, arg) {
     const ans = { type: name, value: arg };
     ans.children = [arg];
@@ -731,7 +755,7 @@ function singleArgFunc({ name }, arg) {
 
     ans.flat = () => {
         return ans; // default implementation.
-    }
+    };
     ans.simplify = () => {
         return ans; // default implementation.
     };
@@ -741,7 +765,7 @@ function singleArgFunc({ name }, arg) {
     };
     ans.derivative = () => {
         return derivative(ans);
-    }
+    };
 
     ans.toString = () => `${name}(${arg.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `${name}(${arg.toVisual().value})` });
@@ -749,23 +773,9 @@ function singleArgFunc({ name }, arg) {
         if (other?.type !== name) return false;
         if (!arg.equals(other.value)) return false;
         return true;
-    }
+    };
 
     return ans;
-}
-
-const hash_str = (s) => {
-    let hash = 0;
-    let prime = 1;
-    for (let i = 0; i < s.length; i++) {
-        hash = hash + s.charCodeAt(i) * prime;
-        prime = prime * 31;
-    }
-    return hash;
-}
-
-function hashAtomic(expr) {
-    return hash_str(expr.toString());
 }
 
 function exp(value) {
@@ -776,11 +786,11 @@ function exp(value) {
         const hash = hashAtomic(flat);
         const atomicVarStr = `__atomic__${hash}`;
         return poly(new Map([[atomicVarStr, real(1)]]), flat.vars, new Map([[atomicVarStr, flat]]));
-    }
+    };
 
     ans.simplify = () => {
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         // d(e^value)/d(value) = e^value
@@ -800,11 +810,11 @@ function log(value) {
         const hash = hashAtomic(flat);
         const atomicVarStr = `__atomic__${hash}`;
         return poly(new Map([[atomicVarStr, real(1)]]), flat.vars, new Map([[atomicVarStr, flat]]));
-    }
+    };
 
     ans.simplify = () => {
         return ans.flat();
-    }
+    };
 
     ans.pullback = () => {
         // d(log(value))/d(value) = 1/value
@@ -816,6 +826,9 @@ function log(value) {
     return ans;
 }
 
+// =============================================================================
+// Differentiation
+// =============================================================================
 
 function partial(expression, variable) {
     if (expression.type === TYPES.poly || expression.type === "ratioPoly") {
@@ -834,12 +847,31 @@ function partial(expression, variable) {
 }
 
 function derivative(expression) {
-    const partials = [];
     if (expression.type === TYPES.vector || expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
-    expression.vars.forEach((v) => {
-        partials.push(partial(expression, v));
-    })
+    const partials = expression.vars.map(v => partial(expression, v));
     return partials.length === 1 ? partials[0] : covec(...partials);
 }
+
+// =============================================================================
+// Public API
+// =============================================================================
+
+const Symbolic = {
+    real,
+    realVar,
+    vec,
+    covec,
+    add,
+    sub,
+    mul,
+    div,
+    poly,
+    exp,
+    log,
+    derivative,
+    simplify: (expr) => expr.simplify(),
+};
+
+export { Symbolic };
