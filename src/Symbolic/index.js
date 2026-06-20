@@ -83,16 +83,6 @@ function mergeAtomicExprMaps(...expressions) {
     return mergedMap;
 }
 
-function isZero(expression) {
-    if (expression.type === TYPES.real) {
-        return expression.value === 0;
-    }
-    if (expression.type === TYPES.poly) {
-        return expression.varCombCoeffsMap.size === 0;
-    }
-    return false;
-}
-
 function real(value) {
     const ans = { type: TYPES.real, value: value };
     ans.children = [];
@@ -275,10 +265,11 @@ function polyToString(polyExpr, exprToStr,) {
                 .getEntries()
                 .toArray()
                 .sort((a, b) => {
-                    // regular variables before atomic expressions (e.g. exp(...))
+                    // regular variables before atomic expressions (e.g. exp(...)), then alphabetically
                     const aIsAtomic = a.left().startsWith("__atomic__");
                     const bIsAtomic = b.left().startsWith("__atomic__");
-                    return aIsAtomic - bIsAtomic;
+                    if (aIsAtomic !== bIsAtomic) return aIsAtomic - bIsAtomic;
+                    return a.left().localeCompare(b.left());
                 })
                 .map(pair => {
                     const [varName, occurrences] = [pair.left(), pair.right()];
@@ -286,7 +277,11 @@ function polyToString(polyExpr, exprToStr,) {
                     if (polyExpr.atomicExprMap.has(varName)) {
                         finalVarName = exprToStr(polyExpr.atomicExprMap.get(varName));
                     }
-                    return occurrences.length > 1 ? `${finalVarName}^{${occurrences.length}}` : finalVarName;
+                    if (occurrences.length > 1) {
+                        const base = varName.startsWith("__atomic__") ? `\\left(${finalVarName}\\right)` : finalVarName;
+                        return `${base}^{${occurrences.length}}`;
+                    }
+                    return finalVarName;
                 })
                 .join("");
             const absCoeff = Math.abs(coeff.value);
@@ -309,10 +304,15 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         // always creates a poly.
         const flatExpr = expr.flat();
 
+        if (flatExpr.type === "ratioPoly") {
+            // poly + num/denom = (poly * denom + num) / denom
+            return ratioPoly(ans.mul(flatExpr.denominatorPoly).add(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
+        }
+
         const newVars = mergeVars(ans, expr);
         const newAtomicExprMap = mergeAtomicExprMaps(ans, flatExpr);
         const newVarCombCoeffsMap = new Map(ans.varCombCoeffsMap);
-        expr.varCombCoeffsMap.keys().forEach((varComb) => {
+        flatExpr.varCombCoeffsMap.keys().forEach((varComb) => {
             const coeff = flatExpr.varCombCoeffsMap.get(varComb);
             if (ans.varCombCoeffsMap.has(varComb)) {
                 const newCoeff = ans.varCombCoeffsMap.get(varComb).add(coeff).simplify();
@@ -333,6 +333,11 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     ans.sub = (expr) => {
         // always creates a poly.
         const flatExpr = expr.flat();
+
+        if (flatExpr.type === "ratioPoly") {
+            // poly - num/denom = (poly * denom - num) / denom
+            return ratioPoly(ans.mul(flatExpr.denominatorPoly).sub(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
+        }
 
         const newVars = mergeVars(ans, expr);
         const newAtomicExprMap = mergeAtomicExprMaps(ans, flatExpr);
@@ -359,6 +364,11 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         // always creates a poly.
         const flatExpr = expr.flat();
 
+        if (flatExpr.type === "ratioPoly") {
+            // poly * (num/denom) = (poly * num) / denom
+            return ratioPoly(ans.mul(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
+        }
+
         const newVars = mergeVars(ans, expr);
         const newAtomicExprMap = mergeAtomicExprMaps(ans, flatExpr);
         const newVarCombCoeffsMap = new Map();
@@ -367,7 +377,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
             flatExpr.varCombCoeffsMap.keys().forEach((varComb2) => {
                 const coeff2 = flatExpr.varCombCoeffsMap.get(varComb2);
                 //Note that: [].join("*") => ""
-                const newVarComb = [varComb1, varComb2].filter(v => v !== "").sort().join("*");
+                const newVarComb = [...varComb1.split("*"), ...varComb2.split("*")].filter(v => v !== "").sort().join("*");
                 const newCoeff = coeff1.mul(coeff2).simplify();
                 if (newVarCombCoeffsMap.has(newVarComb)) {
                     const existingCoeff = newVarCombCoeffsMap.get(newVarComb);
@@ -387,7 +397,12 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         return newPoly;
     };
     ans.div = (denominator) => {
-        throw new Error("Division of polynomials not implemented");
+        const flatDenominator = denominator.flat();
+        if (flatDenominator.type === "ratioPoly") {
+            // poly / (n/d) = (poly * d) / n
+            return ratioPoly(ans.mul(flatDenominator.denominatorPoly), flatDenominator.numeratorPoly);
+        }
+        return ratioPoly(ans, flatDenominator);
     };
 
     ans.flat = () => ans;
@@ -429,6 +444,84 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         }
         return true;
     }
+    return ans;
+}
+
+function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
+    // Simplify the ratio of two polynomials by factoring out common factors.
+    // For now, we will just return the numerator and denominator as is.
+    return [numeratorPoly, denominatorPoly];
+}
+
+// numerator and denominator must be polynomials. 
+function ratioPoly(numeratorPoly, denominatorPoly) {
+    if (numeratorPoly.type !== TYPES.poly || denominatorPoly.type !== TYPES.poly) {
+        throw new Error("ratioPoly only accepts polynomials as numerator and denominator");
+    }
+    const [simplifiedNumerator, simplifiedDenominator] = simplifyRatioPoly(numeratorPoly, denominatorPoly);
+    const ans = { type: "ratioPoly", numeratorPoly: simplifiedNumerator, denominatorPoly: simplifiedDenominator };
+
+    ans.vars = mergeVars(simplifiedNumerator, simplifiedDenominator);
+    ans.children = [simplifiedNumerator, simplifiedDenominator];
+
+    // Normalize any flat expression to {numeratorPoly, denominatorPoly}
+    function asRatio(expr) {
+        const f = expr.flat();
+        if (f.type === "ratioPoly") return f;
+        if (f.type === TYPES.poly) return ratioPoly(f, poly(new Map([["", real(1)]]), f.vars));
+        throw new Error(`Cannot convert ${f.type} to ratioPoly`);
+    }
+
+    ans.add = (other) => {
+        // (n1/d1) + (n2/d2) = (n1*d2 + n2*d1) / (d1*d2)
+        const { numeratorPoly: n2, denominatorPoly: d2 } = asRatio(other);
+        return ratioPoly(
+            numeratorPoly.mul(d2).add(n2.mul(denominatorPoly)),
+            denominatorPoly.mul(d2)
+        );
+    };
+    ans.sub = (other) => {
+        // (n1/d1) - (n2/d2) = (n1*d2 - n2*d1) / (d1*d2)
+        const { numeratorPoly: n2, denominatorPoly: d2 } = asRatio(other);
+        return ratioPoly(
+            numeratorPoly.mul(d2).sub(n2.mul(denominatorPoly)),
+            denominatorPoly.mul(d2)
+        );
+    };
+    ans.mul = (other) => {
+        // (n1/d1) * (n2/d2) = (n1*n2) / (d1*d2)
+        const { numeratorPoly: n2, denominatorPoly: d2 } = asRatio(other);
+        return ratioPoly(
+            numeratorPoly.mul(n2),
+            denominatorPoly.mul(d2)
+        );
+    };
+    ans.div = (other) => {
+        // (n1/d1) / (n2/d2) = (n1*d2) / (d1*n2)
+        const { numeratorPoly: n2, denominatorPoly: d2 } = asRatio(other);
+        return ratioPoly(
+            numeratorPoly.mul(d2),
+            denominatorPoly.mul(n2)
+        );
+    };
+
+    ans.flat = () => ratioPoly(numeratorPoly.flat(), denominatorPoly.flat());
+    ans.unFlat = () => div(numeratorPoly.unFlat(), denominatorPoly.unFlat());
+    ans.simplify = () => ratioPoly(numeratorPoly.simplify(), denominatorPoly.simplify());
+
+    ans.pullback = () => {
+        throw new Error(`pullback not implemented for ratioPoly`);
+    };
+    ans.derivative = () => ans.unFlat().derivative();
+
+    ans.toString = () => `(${numeratorPoly.toString()}) / (${denominatorPoly.toString()})`;
+    ans.toVisual = () => ({ type: "latex", value: `\\frac{${numeratorPoly.toVisual().value}}{${denominatorPoly.toVisual().value}}` });
+    ans.equals = (other) => {
+        if (other?.type !== "ratioPoly") return false;
+        if (!numeratorPoly.equals(other.numeratorPoly)) return false;
+        if (!denominatorPoly.equals(other.denominatorPoly)) return false;
+        return true;
+    };
     return ans;
 }
 
@@ -578,7 +671,7 @@ function covec(...components) {
             if (c.type === TYPES.vector || c.type === TYPES.covector) {
                 return c.scale(vectorComponent);
             }
-            return c.mul(vectorComponent);
+            return vectorComponent.mul(c);
         });
         let ans = products[0];
         for (let i = 1; i < products.length; i++) {
@@ -703,12 +796,14 @@ function log(value) {
     const ans = singleArgFunc({ name: "log" }, value);
 
     ans.flat = () => {
-        return log(value.flat());
+        const flat = log(value.flat());
+        const hash = hashAtomic(flat);
+        const atomicVarStr = `__atomic__${hash}`;
+        return poly(new Map([[atomicVarStr, real(1)]]), flat.vars, new Map([[atomicVarStr, flat]]));
     }
 
     ans.simplify = () => {
-        const simplifiedValue = value.simplify();
-        return log(simplifiedValue);
+        return ans.flat();
     }
 
     ans.pullback = () => {
@@ -723,7 +818,7 @@ function log(value) {
 
 
 function partial(expression, variable) {
-    if(expression.type === TYPES.poly) {
+    if (expression.type === TYPES.poly || expression.type === "ratioPoly") {
         return partial(expression.unFlat(), variable);
     }
     // partial of atomics like real and realVar.
