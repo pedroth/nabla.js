@@ -8,14 +8,20 @@
     <link rel="stylesheet" href="../index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <style>
-        @keyframes ellipsis {
-            0%   { content: "." }
-            33%  { content: ".." }
-            66%  { content: "..." }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .cell-loading::after {
-            content: ".";
-            animation: ellipsis 1.2s steps(1, end) infinite;
+            content: "";
+            display: inline-block;
+            width: 0.9em;
+            height: 0.9em;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-left: 0.5em;
         }
     </style>
 </head>
@@ -124,14 +130,16 @@
 
     async function evalCell(cell) {
         const { getCellState, setCellState } = cell;
+        const code = AppState.cells
+            .slice(0, getCellIndex(cell))
+            .map(c => c.getCellState().input)
+            .join("\n");
+        if (getCellState().codeHash === code) return;
         setCellState(() => ({ loading: true }));
+        await new Promise(r => setTimeout(r, 0)); // yield to browser for repaint
         try {
-            const code = AppState.cells
-                .slice(0, getCellIndex(cell))
-                .map(c => c.getCellState().input)
-                .join("\n");
             const result = await codeEval(code);
-            setCellState(() => ({ output: result }));
+            setCellState(() => ({ output: result, codeHash: code }));
         } finally {
             setCellState(() => ({ loading: false }));
         }

@@ -1,7 +1,10 @@
 import { Canvas, Color } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
 const IO = {}
+IO._cache = {}
 
 IO.loadMNIST = async function (samples = 1000) {
+    const key = `loadMNIST_${samples}`;
+    if (IO._cache[key]) return IO._cache[key];
     let canvas = await Canvas.ofUrl("/assets/mnist_images.png");
     const width = canvas.width;
     const height = Math.min(canvas.height, samples);
@@ -14,6 +17,7 @@ IO.loadMNIST = async function (samples = 1000) {
         }
         data.push(mnistSample);
     }
+    IO._cache[key] = data;
     return data;
 }
 
