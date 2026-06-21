@@ -283,7 +283,7 @@ function add(a, b) {
     };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value + b.value);
-        return ans.flat();
+        return ans.flat().simplify();
     };
 
     ans.pullback = () => {
@@ -308,7 +308,7 @@ function sub(a, b) {
     };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value - b.value);
-        return ans.flat();
+        return ans.flat().simplify();
     };
 
     ans.pullback = () => {
@@ -334,7 +334,7 @@ function mul(a, b) {
     };
     ans.simplify = () => {
         if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value * b.value);
-        return ans.flat();
+        return ans.flat().simplify();
     };
 
     ans.pullback = () => {
@@ -358,7 +358,7 @@ function div(numerator, denominator) {
     };
     ans.simplify = () => {
         if (numerator.type === TYPES.real && denominator.type === TYPES.real) return real(numerator.value / denominator.value);
-        return ans.flat();
+        return ans.flat().simplify();
     };
 
     ans.pullback = () => {
