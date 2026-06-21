@@ -665,7 +665,12 @@ function vec(...components) {
         return vec(...newComponents);
     };
     ans.scale = (factor) => {
-        const newComponents = components.map(c => c.mul(factor));
+        const newComponents = components.map(c => {
+            if (c.type === TYPES.vector || c.type === TYPES.covector) {
+                return c.scale(factor);
+            }
+            return c.mul(factor);
+        });
         return vec(...newComponents);
     };
     ans.prod = (covector) => {
@@ -770,7 +775,12 @@ function covec(...components) {
         return covec(...newComponents);
     };
     ans.scale = (factor) => {
-        const newComponents = components.map(c => c.mul(factor));
+        const newComponents = components.map(c => {
+            if (c.type === TYPES.vector || c.type === TYPES.covector) {
+                return c.scale(factor);
+            }
+            return c.mul(factor);
+        });
         return covec(...newComponents);
     };
     ans.prod = (vector) => {
@@ -782,7 +792,7 @@ function covec(...components) {
             if (c.type === TYPES.vector || c.type === TYPES.covector) {
                 return c.scale(vectorComponent);
             }
-            return vectorComponent.mul(c);
+            return c.mul(vectorComponent);
         });
         let ans = products[0];
         for (let i = 1; i < products.length; i++) {

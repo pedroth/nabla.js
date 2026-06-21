@@ -5,8 +5,11 @@ import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/we
 function returnLastExpression(code) {
     const lines = code.trimEnd().split("\n");
     let i = lines.length - 1;
+    // Walk back past empty lines
     while (i >= 0 && lines[i].trim() === "") i--;
     if (i < 0) return code;
+    // Walk back past method chain continuation lines
+    while (i > 0 && lines[i].trim().startsWith(".")) i--;
     const last = lines[i].trim();
     const noReturn = ["return ", "if ", "for ", "while ", "do ", "switch ",
         "try ", "throw ", "const ", "let ", "var ", "function ", "class ", "{", "}"];

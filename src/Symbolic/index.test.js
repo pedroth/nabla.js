@@ -41,3 +41,17 @@ test("exp derivative keeps atomic visual metadata after simplification", () => {
 
 	expect(Symbolic.exp(x).simplify().derivative().simplify().toVisual().value).toBe("e^{x}");
 });
+
+test("triple derivative of r^3 contracted with unit vectors equals 48", () => {
+	const { realVar, real, vec } = Symbolic;
+	const r = realVar("x").add(realVar("y"));
+
+	const result = r.mul(r).mul(r)
+		.derivative().derivative().derivative()
+		.simplify()
+		.prod(vec(real(1), real(1)))
+		.prod(vec(real(1), real(1)))
+		.prod(vec(real(1), real(1)));
+
+	expect(result.toString()).toBe("48");
+});
