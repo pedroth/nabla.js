@@ -217,10 +217,16 @@ function realVar(name) {
         return covec(real(1));
     };
     ans.eval = (variableValues) => {
+        // return itself if value not provided, instead of throwing an error, to allow partial evaluation.
         if (!(ans.name in variableValues)) {
-            throw new Error(`Value for variable ${name} not provided`);
+            return ans;
         }
-        return variableValues[ans.name];
+        // check if is native number transforms to real, otherwise return the value as is.
+        const value = variableValues[ans.name];
+        if (typeof value === "number") {
+            return real(value);
+        }
+        return value;
     };
 
     ans.toString = () => name;
