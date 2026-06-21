@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const samples = await IO.loadMNIST();\nIO.paintMNIST(samples[0]);"
+    }
+]

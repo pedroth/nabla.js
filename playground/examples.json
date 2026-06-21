@@ -16,6 +16,10 @@
         "path": "/playground/tests/pdes_on_point_clouds.json"
     },
     {
+        "title": "PDEs on meshes",
+        "path": "/playground/tests/pdes_on_meshes.json"
+    },
+    {
         "title": "Soft body simulation",
         "path": "/playground/tests/soft_body_simulation.json"
     },

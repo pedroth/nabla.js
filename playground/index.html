@@ -7,6 +7,17 @@
     <title>∇.js playground</title>
     <link rel="stylesheet" href="../index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        @keyframes ellipsis {
+            0%   { content: "." }
+            33%  { content: ".." }
+            66%  { content: "..." }
+        }
+        .cell-loading::after {
+            content: ".";
+            animation: ellipsis 1.2s steps(1, end) infinite;
+        }
+    </style>
 </head>
 
 <body>
@@ -113,12 +124,17 @@
 
     async function evalCell(cell) {
         const { getCellState, setCellState } = cell;
-        const code = AppState.cells
-            .slice(0, getCellIndex(cell))
-            .map(c => c.getCellState().input)
-            .join("\n");
-        const result = await codeEval(code);
-        setCellState(() => ({ output: result }));
+        setCellState(() => ({ loading: true }));
+        try {
+            const code = AppState.cells
+                .slice(0, getCellIndex(cell))
+                .map(c => c.getCellState().input)
+                .join("\n");
+            const result = await codeEval(code);
+            setCellState(() => ({ output: result }));
+        } finally {
+            setCellState(() => ({ loading: false }));
+        }
     }
 
     function cellInput(cell) {
@@ -172,8 +188,14 @@
         const { onCellStateChange, getCellState } = cell;
         const { output } = getCellState(); // initial state
         const outputDOM = DOM.of("pre").addClass("cell-output").inner(output);
-        onCellStateChange(({ output }) => {
-            outputDOM.inner(output);
+        onCellStateChange(({ output, loading }) => {
+            if (loading) {
+                outputDOM.inner("Evaluating");
+                outputDOM.map(el => el.classList.add("cell-loading"));
+            } else {
+                outputDOM.map(el => el.classList.remove("cell-loading"));
+                outputDOM.inner(output);
+            }
         })
         return outputDOM;
     }
@@ -339,7 +361,7 @@
     }
 
     function cell(id) {
-        const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "" })
+        const [getCellState, setCellState, onCellStateChange] = useState({ id, input: "", output: "", loading: false })
         const ans = {
             id,
             getCellState,

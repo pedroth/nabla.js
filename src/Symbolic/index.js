@@ -691,6 +691,10 @@ function vec(...components) {
     ans.dot = (otherVec) => {
         return ans.transpose().prod(otherVec);
     }
+    ans.map = (fn) => {
+        const newComponents = components.map(c => fn(c));
+        return vec(...newComponents);
+    }
 
 
     ans.flat = () => {
@@ -792,6 +796,10 @@ function covec(...components) {
     ans.dot = (otherVec) => {
         return ans.transpose().prod(otherVec);
     }
+    ans.map = (fn) => {
+        const newComponents = components.map(c => fn(c));
+        return covec(...newComponents);
+    }
 
     ans.flat = () => {
         const flatComponents = components.map(c => c.flat());
@@ -887,10 +895,11 @@ function exp(value) {
         return covec(ans);
     };
     ans.eval = (variableValues) => {
-        return extractReal(value.eval(variableValues))
+        const evaluatedValue = value.eval(variableValues);
+        return extractReal(evaluatedValue)
             .map((realValue) => real(Math.exp(realValue.value))
             ).orElse(() => {
-                throw new Error(`Cannot evaluate exp with non-real value: ${value.toString()}`);
+                return exp(evaluatedValue);
             });
     }
 
@@ -918,10 +927,11 @@ function log(value) {
         return covec(div(real(1), value));
     };
     ans.eval = (variableValues) => {
-        return extractReal(value.eval(variableValues))
+        const evaluatedValue = value.eval(variableValues);
+        return extractReal(evaluatedValue)
             .map((realValue) => real(Math.log(realValue.value))
             ).orElse(() => {
-                throw new Error(`Cannot evaluate log with non-real value: ${value.toString()}`);
+                return log(evaluatedValue);
             });
     }
 
@@ -961,6 +971,7 @@ function derivative(expression) {
 // =============================================================================
 // Public API
 // =============================================================================
+
 
 const Symbolic = {
     real,

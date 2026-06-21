@@ -190,6 +190,9 @@ a:hover {
     overflow-x: auto;
     min-height: 1.5rem;
     font-family: monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .cell-output .katex,
