@@ -1,5 +1,6 @@
 import { Set } from "../Set/index.js";
 import { Array } from "../Array/index.js";
+import { Maybe } from "../Maybe/index.js";
 
 /**
  * Symbolic is a library for symbolic maths. Main features are symbolic simplification and automatic differentiation. 
@@ -25,6 +26,7 @@ import { Array } from "../Array/index.js";
  * 
  *     pullback() => covector of partial derivatives with respect to children
  *     derivative() => covector of partial derivatives with respect to vars
+ *     eval(variableValues: { [variableName: string]: expression }) => expression
  * 
  *     toString() => string
  *     toVisual() => { type: "latex", value: string }
@@ -127,10 +129,40 @@ function hashAtomic(expr) {
     return hash_str(expr.toString());
 }
 
+function gcd(a, b) {
+    const posA = Math.abs(a);
+    const posB = Math.abs(b);
+    if (posA < posB) return gcd(posB, posA);
+    if (posB === 0) return posA;
+    return gcd(posB, posA % posB);
+}
+
 function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
     // Simplify the ratio of two polynomials by factoring out common factors.
-    // For now, we will just return the numerator and denominator as is.
-    return [numeratorPoly, denominatorPoly];
+    return extractReal(numeratorPoly.flat())
+        .flatMap(num =>
+            extractReal(denominatorPoly.flat())
+                .map(denom => {
+                    const commonDiv = gcd(num.value, denom.value);
+                    let simplifiedNum = num.value / commonDiv;
+                    let simplifiedDenom = denom.value / commonDiv;
+                    // Normalize sign: keep denominator positive
+                    if (simplifiedDenom < 0) {
+                        simplifiedNum = -simplifiedNum;
+                        simplifiedDenom = -simplifiedDenom;
+                    }
+                    return [poly(new Map([["", real(simplifiedNum)]])), poly(new Map([["", real(simplifiedDenom)]]))];
+                })
+        )
+        // For now, we will just return the numerator and denominator .
+        .orElse(() => [numeratorPoly, denominatorPoly]);
+}
+
+function extractReal(expr) {
+    const flatExpr = expr.flat();
+    if (flatExpr.type === TYPES.poly && flatExpr.varCombCoeffsMap.has("")) return Maybe.some(flatExpr.varCombCoeffsMap.get(""));
+    return Maybe.none();
+
 }
 
 // =============================================================================
@@ -156,6 +188,7 @@ function real(value) {
     ans.derivative = () => {
         return covec(real(0));
     };
+    ans.eval = () => ans;
 
     ans.toString = () => ans.value.toString();
     ans.toVisual = () => ({ type: "latex", value: ans.value.toString() });
@@ -182,6 +215,12 @@ function realVar(name) {
     };
     ans.derivative = () => {
         return covec(real(1));
+    };
+    ans.eval = (variableValues) => {
+        if (!(ans.name in variableValues)) {
+            throw new Error(`Value for variable ${name} not provided`);
+        }
+        return variableValues[ans.name];
     };
 
     ans.toString = () => name;
@@ -219,6 +258,9 @@ function binaryOp({ name, symbol }, left, right) {
     ans.derivative = () => {
         return derivative(ans);
     };
+    ans.eval = () => {
+        throw new Error(`eval not implemented for ${name}`);
+    }
 
     ans.toString = () => `(${left.toString()} ${symbol} ${right.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `(${left.toVisual().value} ${symbol} ${right.toVisual().value})` });
@@ -247,6 +289,11 @@ function add(a, b) {
     ans.pullback = () => {
         return covec(real(1), real(1));
     };
+    ans.eval = (variableValues) => {
+        const evalA = a.eval(variableValues);
+        const evalB = b.eval(variableValues);
+        return evalA.add(evalB);
+    }
 
     return ans;
 }
@@ -268,6 +315,12 @@ function sub(a, b) {
         return covec(real(1), real(-1));
     };
 
+    ans.eval = (variableValues) => {
+        const evalA = a.eval(variableValues);
+        const evalB = b.eval(variableValues);
+        return evalA.sub(evalB);
+    }
+
     return ans;
 }
 
@@ -287,6 +340,11 @@ function mul(a, b) {
     ans.pullback = () => {
         return covec(b, a);
     };
+    ans.eval = (variableValues) => {
+        const evalA = a.eval(variableValues);
+        const evalB = b.eval(variableValues);
+        return evalA.mul(evalB);
+    }
     return ans;
 }
 
@@ -305,6 +363,11 @@ function div(numerator, denominator) {
 
     ans.pullback = () => {
         return covec(div(real(1), denominator), div(mul(real(-1), numerator), mul(denominator, denominator)));
+    };
+    ans.eval = (variableValues) => {
+        const evalNumerator = numerator.eval(variableValues);
+        const evalDenominator = denominator.eval(variableValues);
+        return evalNumerator.div(evalDenominator);
     };
 
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numerator.toVisual().value}}{${denominator.toVisual().value}}` });
@@ -450,6 +513,9 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     ans.derivative = () => {
         return ans.unFlat().derivative();
     };
+    ans.eval = (variableValues) => {
+        return ans.unFlat().eval(variableValues);
+    }
 
     ans.toString = () => polyToString(ans, coeff => coeff.toString());
     ans.toVisual = () => ({ type: "latex", value: polyToString(ans, coeff => coeff.toVisual().value) });
@@ -474,11 +540,11 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     if (numeratorPoly.type !== TYPES.poly || denominatorPoly.type !== TYPES.poly) {
         throw new Error("ratioPoly only accepts polynomials as numerator and denominator");
     }
-    const [simplifiedNumerator, simplifiedDenominator] = simplifyRatioPoly(numeratorPoly, denominatorPoly);
-    const ans = { type: "ratioPoly", numeratorPoly: simplifiedNumerator, denominatorPoly: simplifiedDenominator };
+    [numeratorPoly, denominatorPoly] = simplifyRatioPoly(numeratorPoly, denominatorPoly);
+    const ans = { type: "ratioPoly", numeratorPoly, denominatorPoly };
 
-    ans.vars = mergeVars(simplifiedNumerator, simplifiedDenominator);
-    ans.children = [simplifiedNumerator, simplifiedDenominator];
+    ans.vars = mergeVars(numeratorPoly, denominatorPoly);
+    ans.children = [numeratorPoly, denominatorPoly];
 
     // Normalize any flat expression to {numeratorPoly, denominatorPoly}
     function asRatio(expr) {
@@ -523,12 +589,24 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
 
     ans.flat = () => ratioPoly(numeratorPoly.flat(), denominatorPoly.flat());
     ans.unFlat = () => div(numeratorPoly.unFlat(), denominatorPoly.unFlat());
-    ans.simplify = () => ratioPoly(numeratorPoly.simplify(), denominatorPoly.simplify());
+    ans.simplify = () => {
+        const flat = ans.flat();
+        if (
+            flat.denominatorPoly.varCombCoeffsMap.size === 1 &&
+            flat.denominatorPoly.varCombCoeffsMap.has("") &&
+            flat.denominatorPoly.varCombCoeffsMap.get("").type === TYPES.real &&
+            flat.denominatorPoly.varCombCoeffsMap.get("").value === 1
+        ) {
+            return flat.numeratorPoly;
+        }
+        return flat;
+    };
 
     ans.pullback = () => {
         throw new Error(`pullback not implemented for ratioPoly`);
     };
     ans.derivative = () => ans.unFlat().derivative();
+    ans.eval = (variableValues) => ans.unFlat().eval(variableValues);
 
     ans.toString = () => `(${numeratorPoly.toString()}) / (${denominatorPoly.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numeratorPoly.toVisual().value}}{${denominatorPoly.toVisual().value}}` });
@@ -625,6 +703,9 @@ function vec(...components) {
     ans.derivative = () => {
         const components = ans.components.map(c => c.derivative());
         return covec(...components);
+    }
+    ans.eval = (variableValues) => {
+        return vec(...components.map(c => c.eval(variableValues)));
     }
 
 
@@ -723,6 +804,9 @@ function covec(...components) {
         const components = ans.components.map(c => c.derivative());
         return covec(...components);
     };
+    ans.eval = (variableValues) => {
+        return covec(...components.map(c => c.eval(variableValues)));
+    }
 
     ans.toString = () => `covec(${components.map(c => c.toString()).join(", ")})`;
     ans.toVisual = () => ({ type: "latex", value: `[${components.map(c => c.toVisual().value).join(", ")}]` });
@@ -796,6 +880,13 @@ function exp(value) {
         // d(e^value)/d(value) = e^value
         return covec(ans);
     };
+    ans.eval = (variableValues) => {
+        return extractReal(value.eval(variableValues))
+            .map((realValue) => real(Math.exp(realValue.value))
+            ).orElse(() => {
+                throw new Error(`Cannot evaluate exp with non-real value: ${value.toString()}`);
+            });
+    }
 
     ans.toVisual = () => ({ type: "latex", value: `e^{${value.toVisual().value}}` });
 
@@ -820,6 +911,13 @@ function log(value) {
         // d(log(value))/d(value) = 1/value
         return covec(div(real(1), value));
     };
+    ans.eval = (variableValues) => {
+        return extractReal(value.eval(variableValues))
+            .map((realValue) => real(Math.log(realValue.value))
+            ).orElse(() => {
+                throw new Error(`Cannot evaluate log with non-real value: ${value.toString()}`);
+            });
+    }
 
     ans.toVisual = () => ({ type: "latex", value: `\\log(${value.toVisual().value})` });
 
