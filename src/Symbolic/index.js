@@ -629,7 +629,118 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
 // Vector and covector expressions
 // =============================================================================
 
+function _is_tensor(expr) {
+    return expr.type === TYPES.vector || expr.type === TYPES.covector;
+}
+
+function _tensor_mul(a, b) {
+    if (_is_tensor(a) && _is_tensor(b)) return a.prod(b);
+    if (_is_tensor(a)) return a.map(c => c.mul(b));
+    if (_is_tensor(b)) return b.map(c => a.mul(c));
+    return a.mul(b);
+}
+
+function _tensor_contraction(a, b) {
+    // Recursively multiply and accumulate across the matching dimensions
+    let acc = _tensor_mul(a.components[0], b.components[0]);
+    for (let i = 1; i < a.components.length; i++) {
+        acc = acc.add(_tensor_mul(a.components[i], b.components[i]));
+    }
+    return acc;
+}
+
+function _tensor_outer(a, b) {
+    const nextComponents = a.components.map(comp => _tensor_mul(comp, b));
+    return a.type === TYPES.covector ? covec(...nextComponents) : vec(...nextComponents);
+}
+
+function covec(...components) {
+    components = components.map(c => typeof c === "number" ? real(c) : c);
+
+    const ans = { type: TYPES.covector, components };
+    ans.dim = components.length;
+    ans.children = components;
+    ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
+
+    ans.add = (other) => {
+        if (components?.length === other?.components?.length) {
+            return covec(...components.map((c, i) => c.add(other.components[i])));
+        }
+        return covec(...components.map(c => c.add(other)));
+    };
+    ans.sub = (other) => {
+        if (components?.length === other?.components?.length) {
+            return covec(...components.map((c, i) => c.sub(other.components[i])));
+        }
+        return covec(...components.map(c => c.sub(other)));
+    }
+    ans.mul = (other) => {
+        if (components?.length === other?.components?.length) {
+            return covec(...components.map((c, i) => c.mul(other.components[i])));
+        }
+        return covec(...components.map(c => c.mul(other)));
+    };
+    ans.div = (denominator) => {
+        if (components?.length === denominator?.components?.length) {
+            return covec(...components.map((c, i) => c.div(denominator.components[i])));
+        }
+        return covec(...components.map(c => c.div(denominator)));
+    };
+    ans.prod = (other) => {
+        if (other.type === TYPES.vector) return _tensor_contraction(ans, other);
+        if (other.type === TYPES.covector) return _tensor_outer(ans, other);
+        return covec(...components.map(c => c.prod(other)));
+    };
+    ans.transpose = () => {
+        return vec(...components);
+    };
+    ans.dot = (otherVec) => {
+        return ans.transpose().prod(otherVec);
+    }
+    ans.map = (fn) => {
+        const newComponents = components.map(c => fn(c));
+        return covec(...newComponents);
+    }
+
+    ans.flat = () => {
+        const flatComponents = components.map(c => c.flat());
+        return covec(...flatComponents);
+    }
+    ans.simplify = () => {
+        const simplifiedComponents = components.map(c => c.simplify());
+        return covec(...simplifiedComponents);
+    };
+
+    ans.pullback = () => {
+        const components = ans.components.map(c => c.pullback());
+        return covec(...components);
+    }
+    ans.derivative = () => {
+        const components = ans.components.map(c => c.derivative());
+        return covec(...components);
+    };
+    ans.eval = (variableValues) => {
+        return covec(...components.map(c => c.eval(variableValues)));
+    }
+
+    ans.toString = () => `covec(${components.map(c => c.toString()).join(", ")})`;
+    ans.toVisual = () => ({ type: "latex", value: `\\left [${components.map(c => c.toVisual().value).join(", ")}\\right ]` });
+    ans.equals = (other) => {
+        if (other?.type !== TYPES.covector || other.components.length !== components.length) {
+            return false;
+        }
+        for (let i = 0; i < components.length; i++) {
+            if (!components[i].equals(other.components[i])) {
+                return false;
+            }
+        }
+        return true;
+    };
+    return ans;
+}
+
 function vec(...components) {
+    components = components.map(c => typeof c === "number" ? real(c) : c);
     const ans = { type: TYPES.vector, components };
 
     ans.dim = components.length;
@@ -637,59 +748,34 @@ function vec(...components) {
     ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
 
     ans.add = (other) => {
-        if (other.type !== TYPES.vector || other.components.length !== components.length) {
-            throw new Error("Can only add vectors of the same dimension");
+        if (components?.length === other?.components?.length) {
+            return vec(...components.map((c, i) => c.add(other.components[i])));
         }
-        const newComponents = components.map((c, i) => c.add(other.components[i]));
-        return vec(...newComponents);
+        return vec(...components.map(c => c.add(other)));
     };
     ans.sub = (other) => {
-        if (other.type !== TYPES.vector || other.components.length !== components.length) {
-            throw new Error("Can only subtract vectors of the same dimension");
+        if (components?.length === other?.components?.length) {
+            return vec(...components.map((c, i) => c.sub(other.components[i])));
         }
-        const newComponents = components.map((c, i) => c.sub(other.components[i]));
-        return vec(...newComponents);
+        return vec(...components.map(c => c.sub(other)));
     }
     ans.mul = (other) => {
-        if (other.type !== TYPES.vector || other.components.length !== components.length) {
-            throw new Error("Can only multiply vectors of the same dimension");
+        if (components?.length === other?.components?.length) {
+            return vec(...components.map((c, i) => c.mul(other.components[i])));
         }
-        const newComponents = components.map((c, i) => c.mul(other.components[i]));
-        return vec(...newComponents);
+        return vec(...components.map(c => c.mul(other)));
     };
     ans.div = (denominator) => {
-        if (denominator.type !== TYPES.vector || denominator.components.length !== components.length) {
-            throw new Error("Can only divide vectors of the same dimension");
+        if (components?.length === denominator?.components?.length) {
+            return vec(...components.map((c, i) => c.div(denominator.components[i])));
         }
-        const newComponents = components.map((c, i) => c.div(denominator.components[i]));
-        return vec(...newComponents);
+        return vec(...components.map(c => c.div(denominator)));
     };
-    ans.scale = (factor) => {
-        const newComponents = components.map(c => {
-            if (c.type === TYPES.vector || c.type === TYPES.covector) {
-                return c.scale(factor);
-            }
-            return c.mul(factor);
-        });
-        return vec(...newComponents);
+    ans.prod = (other) => {
+        if (other.type === TYPES.covector) return _tensor_contraction(ans, other);
+        if (other.type === TYPES.vector) return _tensor_outer(ans, other);
+        return vec(...components.map(c => c.prod(other)));
     };
-    ans.prod = (covector) => {
-        if (covector.type !== TYPES.vector || covector.components.length !== components.length) {
-            throw new Error("Can only take the product of a covector and a vector of the same dimension");
-        }
-        const products = components.map((c, i) => {
-            const vectorComponent = covector.components[i];
-            if (c.type === TYPES.vector || c.type === TYPES.covector) {
-                return c.scale(vectorComponent);
-            }
-            return c.mul(vectorComponent);
-        });
-        let ans = products[0];
-        for (let i = 1; i < products.length; i++) {
-            ans = ans.add(products[i]);
-        }
-        return ans;
-    }
     ans.transpose = () => {
         return covec(...components);
     };
@@ -723,9 +809,8 @@ function vec(...components) {
         return vec(...components.map(c => c.eval(variableValues)));
     }
 
-
     ans.toString = () => `vec(${components.map(c => c.toString()).join(", ")})`;
-    ans.toVisual = () => ({ type: "latex", value: `(${components.map(c => c.toVisual().value).join(", ")})` });
+    ans.toVisual = () => ({ type: "latex", value: `\\begin{pmatrix}${components.map(c => c.toVisual().value).join(" \\\\ ")}\\end{pmatrix}` });
     ans.equals = (other) => {
         if (other?.type !== TYPES.vector || other.components.length !== components.length) {
             return false;
@@ -737,113 +822,6 @@ function vec(...components) {
         }
         return true;
     }
-    return ans;
-}
-
-function covec(...components) {
-    const ans = { type: TYPES.covector, components };
-    ans.dim = components.length;
-    ans.children = components;
-    ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
-
-    ans.add = (other) => {
-        if (other.type !== TYPES.covector || other.components.length !== components.length) {
-            throw new Error("Can only add covectors of the same dimension");
-        }
-        const newComponents = components.map((c, i) => c.add(other.components[i]));
-        return covec(...newComponents);
-    };
-    ans.sub = (other) => {
-        if (other.type !== TYPES.covector || other.components.length !== components.length) {
-            throw new Error("Can only subtract covectors of the same dimension");
-        }
-        const newComponents = components.map((c, i) => c.sub(other.components[i]));
-        return covec(...newComponents);
-    }
-    ans.mul = (other) => {
-        if (other.type !== TYPES.covector || other.components.length !== components.length) {
-            throw new Error("Can only multiply covectors of the same dimension");
-        }
-        const newComponents = components.map((c, i) => c.mul(other.components[i]));
-        return covec(...newComponents);
-    };
-    ans.div = (denominator) => {
-        if (denominator.type !== TYPES.covector || denominator.components.length !== components.length) {
-            throw new Error("Can only divide covectors of the same dimension");
-        }
-        const newComponents = components.map((c, i) => c.div(denominator.components[i]));
-        return covec(...newComponents);
-    };
-    ans.scale = (factor) => {
-        const newComponents = components.map(c => {
-            if (c.type === TYPES.vector || c.type === TYPES.covector) {
-                return c.scale(factor);
-            }
-            return c.mul(factor);
-        });
-        return covec(...newComponents);
-    };
-    ans.prod = (vector) => {
-        if (vector.type !== TYPES.vector || vector.components.length !== components.length) {
-            throw new Error("Can only take the product of a covector and a vector of the same dimension");
-        }
-        const products = components.map((c, i) => {
-            const vectorComponent = vector.components[i];
-            if (c.type === TYPES.vector || c.type === TYPES.covector) {
-                return c.scale(vectorComponent);
-            }
-            return c.mul(vectorComponent);
-        });
-        let ans = products[0];
-        for (let i = 1; i < products.length; i++) {
-            ans = ans.add(products[i]);
-        }
-        return ans;
-    };
-    ans.transpose = () => {
-        return covec(...components);
-    };
-    ans.dot = (otherVec) => {
-        return ans.transpose().prod(otherVec);
-    }
-    ans.map = (fn) => {
-        const newComponents = components.map(c => fn(c));
-        return covec(...newComponents);
-    }
-
-    ans.flat = () => {
-        const flatComponents = components.map(c => c.flat());
-        return covec(...flatComponents);
-    }
-    ans.simplify = () => {
-        const simplifiedComponents = components.map(c => c.simplify());
-        return covec(...simplifiedComponents);
-    };
-
-    ans.pullback = () => {
-        const components = ans.components.map(c => c.pullback());
-        return covec(...components);
-    }
-    ans.derivative = () => {
-        const components = ans.components.map(c => c.derivative());
-        return covec(...components);
-    };
-    ans.eval = (variableValues) => {
-        return covec(...components.map(c => c.eval(variableValues)));
-    }
-
-    ans.toString = () => `covec(${components.map(c => c.toString()).join(", ")})`;
-    ans.toVisual = () => ({ type: "latex", value: `[${components.map(c => c.toVisual().value).join(", ")}]` });
-    ans.equals = (other) => {
-        if (other?.type !== TYPES.covector || other.components.length !== components.length) {
-            return false;
-        }
-        for (let i = 0; i < components.length; i++) {
-            if (!components[i].equals(other.components[i])) {
-                return false;
-            }
-        }
-    };
     return ans;
 }
 
@@ -951,6 +929,26 @@ function log(value) {
 }
 
 // =============================================================================
+// Vector and covector vars
+// =============================================================================
+
+function vectorVar(name, dim) {
+    const components = [];
+    for (let i = 0; i < dim; i++) {
+        components.push(realVar(`${name}_${i}`));
+    }
+    return vec(...components);
+}
+
+function covectorVar(name, dim) {
+    const components = [];
+    for (let i = 0; i < dim; i++) {
+        components.push(realVar(`${name}_${i}`));
+    }
+    return covec(...components);
+}
+
+// =============================================================================
 // Differentiation
 // =============================================================================
 
@@ -997,6 +995,8 @@ const Symbolic = {
     log,
     derivative,
     simplify: (expr) => expr.simplify(),
+    vectorVar,
+    covectorVar,
 };
 
 export { Symbolic };

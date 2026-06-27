@@ -242,18 +242,21 @@ export class NDArray {
     }
 
     toStringRecursive(coord) {
-        const stringBuilder = [];
         const size = coord.length;
-        if (size != this.dim.length) {
-            stringBuilder.push("[");
-            for (let j = 0; j < this.dim[size]; j++) {
-                stringBuilder.push(this.toStringRecursive(coord.concat([j])));
-            }
-            stringBuilder.push("]");
-        } else {
-            stringBuilder.push(`${this.get(coord)}, `);
+
+        // Base Case: We've reached the actual value at this coordinate
+        if (size === this.dim.length) {
+            return this.get(coord).toString();
         }
-        return stringBuilder.join("");
+
+        // Recursive Case: Build the nested array string
+        const subArrays = [];
+        for (let j = 0; j < this.dim[size]; j++) {
+            subArrays.push(this.toStringRecursive(coord.concat([j])));
+        }
+
+        // Join the sub-results with a comma and space, wrapped in brackets
+        return `[${subArrays.join(", ")}]`;
     }
 
     // NDArray => () => NDArray (deep copy)
