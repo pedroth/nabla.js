@@ -18,7 +18,7 @@ export class NDArray {
             }
         } else {
             if (array.length !== this.array.length) {
-                throw `Shape/dim doesn't agree with size ${dim}`;
+                throw new Error(`Shape/dim doesn't agree with size ${dim}`);
             }
             this.array = array.slice();
         }
@@ -80,7 +80,7 @@ export class NDArray {
             }
             return newNDArray;
         }
-        throw "method 'get' only accepts strings and integer arrays";
+        throw new Error("method 'get' only accepts strings and integer arrays");
     }
 
     // ========== Functional/Monadic ==========
@@ -135,7 +135,7 @@ export class NDArray {
         const s2 = otherArray.dim;
         const k = s1[s1.length - 1];
         if (s2[0] !== k) {
-            throw `prod: last dim of left (${k}) must equal first dim of right (${s2[0]})`;
+            throw new Error(`prod: last dim of left (${k}) must equal first dim of right (${s2[0]})`);
         }
         const leftDims = s1.slice(0, -1);  // all dims of s1 except the contracted last
         const rightDims = s2.slice(1);      // all dims of s2 except the contracted first
@@ -163,31 +163,43 @@ export class NDArray {
         });
     }
 
+    add(otherArray) {
+        return this.binaryOp(otherArray, (a, b) => a + b);
+    }
+
+    sub(otherArray) {
+        return this.binaryOp(otherArray, (a, b) => a - b);
+    }
+
+    mul(otherArray) {
+        return this.binaryOp(otherArray, (a, b) => a * b);
+    }
+
+    div(otherArray) {
+        return this.binaryOp(otherArray, (a, b) => a / b);
+    }
+
     // NDArray => (NDArray, (number, number) => number) => NDArray
     binaryOp(ndArray, binaryOperator) {
-        const s1 = this.shape();
-
         // if ndArray is a number
         const dense = typeof ndArray == "number" ? NDArray.of(ndArray) : ndArray;
+        const s1 = this.shape();
         const s2 = dense.shape();
 
-        const small = s1.length < s2.length ? s1 : s2;
-        const large = s1.length < s2.length ? s2 : s1;
+        // 1. Compute the broadcasted output shape safely
+        const maxLength = Math.max(s1.length, s2.length);
+        const newShape = new Array(maxLength);
 
-        let newShape = [];
-        for (let i = 0; i < small.length; i++) {
+        for (let i = 0; i < maxLength; i++) {
+            // Pad shorter shapes with 1 on the left
+            const dim1 = s1[s1.length - 1 - i] ?? 1;
+            const dim2 = s2[s2.length - 1 - i] ?? 1;
             try {
-                newShape.push(
-                    auxBroadCast(small[small.length - i - 1], large[large.length - i - 1])
-                );
+                newShape[maxLength - 1 - i] = auxBroadCast(dim1, dim2);
             } catch (e) {
-                throw `Dimensions ${s1} and ${s2} are not compatible for broadcast`;
+                throw new Error(`Dimensions [${s1}] and [${s2}] are not compatible for broadcast`);
             }
         }
-        for (let i = small.length; i < large.length; i++) {
-            newShape.push(large[large.length - i - 1]);
-        }
-        newShape = newShape.reverse();
         const ans = new NDArray(newShape);
         return ans.transformWithIndex((x, index) => {
             const a = this.get(getBroadCastIndex(this, index));
@@ -200,11 +212,11 @@ export class NDArray {
         const s1 = this.shape();
         const s2 = otherArray.shape();
         if (s1.length != s2.length) {
-            throw `can't zip arrays of different dimensions ${s1} and ${s2}`;
+            throw new Error(`can't zip arrays of different dimensions ${s1} and ${s2}`);
         }
         for (let i = 0; i < s1.length; i++) {
             if (s1[i] != s2[i]) {
-                throw `can't zip arrays of different shapes ${s1} and ${s2}`;
+                throw new Error(`can't zip arrays of different shapes ${s1} and ${s2}`);
             }
         }
         return new NDArray(s1, this.array.map((x, i) => Pair.of(x, otherArray.array[i])));
@@ -309,7 +321,7 @@ export class NDArray {
             }
             return this;
         }
-        throw "set only accepts strings and integer arrays as the first argument and objects and NDArray as the second";
+        throw new Error("set only accepts strings and integer arrays as the first argument and objects and NDArray as the second");
     }
 
     // NDArray => (number => number) => NDArray  
@@ -390,7 +402,7 @@ export class NDArray {
                     );
                     const myInterval = [xmin, xmax];
                     if (xmax - xmin === 0) {
-                        throw `empty interval xmax : ${xmax} < xmin : ${xmin}`;
+                        throw new Error(`empty interval xmax : ${xmax} < xmin : ${xmin}`);
                     }
                     intervals[i] = myInterval;
                 }
@@ -411,13 +423,13 @@ export class NDArray {
             )
                 .some(x => x === 1);
         if (isZeroDimOutOfBounds || isOutOfBounds) {
-            throw `index out of bounds ${coord}, actual shape is ${this.dim}`;
+            throw new Error(`index out of bounds ${coord}, actual shape is ${this.dim}`);
         }
     }
 
     checkIfCoordSizeCompatible(size) {
         if (this.dim.length !== 0 && size > this.dim.length) {
-            throw `Size dimension incorrect : ${size}. Correct size dimension should be less or equal ${this.dim.length}`;
+            throw new Error(`Size dimension incorrect : ${size}. Correct size dimension should be less or equal ${this.dim.length}`);
         }
     }
 
@@ -438,7 +450,52 @@ export class NDArray {
         }
         return new NDArray(dim, array);
     }
+
+    static zeros(dim) {
+        return new NDArray(dim);
+    }
+
+    static ones(dim) {
+        const array = new Array(computePowers(dim)[0]);
+        for (let i = 0; i < array.length; i++) {
+            array[i] = 1;
+        }
+        return new NDArray(dim, array);
+    }
+
+    static random(dim, min = 0, max = 1) {
+        const array = new Array(computePowers(dim)[0]);
+        for (let i = 0; i < array.length; i++) {
+            array[i] = Math.random() * (max - min) + min;
+        }
+        return new NDArray(dim, array);
+    }
+
+    static eye(n) {
+        const array = new Array(n * n);
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                array[i * n + j] = i === j ? 1 : 0;
+            }
+        }
+        return new NDArray([n, n], array);
+    }
+
+    static range(start, end, step = 1) {
+        const array = [];
+        for (let i = start; i < end; i += step) {
+            array.push(i);
+        }
+        return new NDArray([array.length], array);
+    }
 }
+
+//========================================================================================
+/*                                                                                      *
+ *                                  AUXILIARY FUNCTIONS                                 *
+ *                                                                                      */
+//========================================================================================
+
 
 function checkIfArrayIsLinear(array) {
     return array.length > 0 && array[0].length === undefined;
@@ -462,26 +519,30 @@ function computePowers(dim) {
 function auxBroadCast(a, b) {
     if (a == b) return a;
     if (a == 1 || b == 1) return a * b;
-    throw "values are not one and they are different ";
+    throw new Error("values are not one and they are different ");
 }
-
 
 /**
  *  Get the index of a coordinate in a dense array, taking into account broadcasting.
  *  (NDArray, number[]) => number[]
  */
-function getBroadCastIndex(dense, coord) {
+function getBroadCastIndex(dense, broadcastedCoord) {
     const shape = dense.shape();
+
+    // Scalar array (0-dim) always points to index [0]
+    if (shape.length === 0) return [0];
+
     const ans = [];
+    // Align shapes from right-to-left
     for (let i = 0; i < shape.length; i++) {
-        ans.unshift(
-            shape[shape.length - 1 - i] === 1 ?
-                0 :
-                coord[coord.length - 1 - i]
-        );
+        const shapeDim = shape[shape.length - 1 - i];
+        const coordDim = broadcastedCoord[broadcastedCoord.length - 1 - i];
+
+        // push to beginning of ans to maintain the correct order
+        const targetIndex = shape.length - 1 - i;
+        ans[targetIndex] = shapeDim === 1 ? 0 : coordDim;
     }
-    // if shape is empty (0-dim array) => ans is empty need to add trivial value
-    return ans.length === 0 ? ans.concat(0) : ans;
+    return ans;
 }
 
 /**

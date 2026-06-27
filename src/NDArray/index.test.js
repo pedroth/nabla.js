@@ -240,15 +240,20 @@ test("test prod: 2x2 matrix multiplication", () => {
   expect(C.get([1, 1])).toBe(46); // 2*7 + 4*8
 });
 
-test("test prod: non-square matrices [2,3] x [3,2]", () => {
-  const A = NDArray.of([[1, 2], [3, 4], [5, 6]]); // dim [2,3]
-  const B = NDArray.of([[1, 2, 3], [4, 5, 6]]);   // dim [3,2]
+test("test prod: non-square matrices [3,2] x [2,3]", () => {
+  const A = NDArray.of([[1, 2], [3, 4], [5, 6]]); // dim [3,2]
+  const B = NDArray.of([[1, 2, 3], [4, 5, 6]]);   // dim [2,3]
   const C = A.prod(B);
-  expect(C.shape()).toStrictEqual([2, 2]);
-  expect(C.get([0, 0])).toBe(22); // 1*1 + 3*2 + 5*3
-  expect(C.get([1, 0])).toBe(28); // 2*1 + 4*2 + 6*3
-  expect(C.get([0, 1])).toBe(49); // 1*4 + 3*5 + 5*6
-  expect(C.get([1, 1])).toBe(64); // 2*4 + 4*5 + 6*6
+  expect(C.shape()).toStrictEqual([3, 3]);
+  expect(C.get([0, 0])).toBe(9); // 1*1 + 2*4
+  expect(C.get([0, 1])).toBe(12); // 1*2 + 2*5
+  expect(C.get([0, 2])).toBe(15); // 1*3 + 2*6
+  expect(C.get([1, 0])).toBe(19); // 3*1 + 4*4
+  expect(C.get([1, 1])).toBe(26); // 3*2 + 4*5
+  expect(C.get([1, 2])).toBe(33); // 3*3 + 4*6
+  expect(C.get([2, 0])).toBe(29); // 5*1 + 6*4
+  expect(C.get([2, 1])).toBe(40); // 5*2 + 6*5
+  expect(C.get([2, 2])).toBe(51); // 5*3 + 6*6
 });
 
 test("test prod: dot product (1D)", () => {
@@ -260,20 +265,20 @@ test("test prod: dot product (1D)", () => {
 test("test prod: custom binary operator", () => {
   const A = NDArray.of([[1, 0], [0, 1]]);
   const B = NDArray.of([[2, 3], [4, 5]]);
-  // column-major: B[0,0]=2, B[1,0]=3, B[0,1]=4, B[1,1]=5
+  // row-major: B[0,0]=2, B[0,1]=3, B[1,0]=4, B[1,1]=5
   // C[i,j] = sum_l max(A[i,l], B[l,j])
   const C = A.prod(B, 0, (e, x, y) => e + Math.max(x, y));
   expect(C.shape()).toStrictEqual([2, 2]);
-  expect(C.get([0, 0])).toBe(Math.max(1, 2) + Math.max(0, 3)); // max(A[0,0],B[0,0])+max(A[0,1],B[1,0]) = 2+3
-  expect(C.get([1, 1])).toBe(Math.max(0, 4) + Math.max(1, 5)); // max(A[1,0],B[0,1])+max(A[1,1],B[1,1]) = 4+5
+  expect(C.get([0, 0])).toBe(Math.max(1, 2) + Math.max(0, 4)); // max(A[0,0],B[0,0])+max(A[0,1],B[1,0]) = 2+4
+  expect(C.get([1, 1])).toBe(Math.max(0, 3) + Math.max(1, 5)); // max(A[1,0],B[0,1])+max(A[1,1],B[1,1]) = 3+5
 });
 
 test("test prod: 3x3x3 tensor times 3 vector", () => {
-  // T[i,j,l] = i+j+l+1 — stored column-major: outermost axis = l, middle = j, innermost = i
+  // T[i,j,l] = i+j+l+1 — stored row-major: outermost axis = i, middle = j, innermost = l
   const T = NDArray.of([
-    [[1, 2, 3], [2, 3, 4], [3, 4, 5]],  // l=0
-    [[2, 3, 4], [3, 4, 5], [4, 5, 6]],  // l=1
-    [[3, 4, 5], [4, 5, 6], [5, 6, 7]],  // l=2
+    [[1, 2, 3], [2, 3, 4], [3, 4, 5]],  // i=0
+    [[2, 3, 4], [3, 4, 5], [4, 5, 6]],  // i=1
+    [[3, 4, 5], [4, 5, 6], [5, 6, 7]],  // i=2
   ]);
   // V[l] = l+1
   const V = NDArray.of([1, 2, 3]);
