@@ -105,7 +105,7 @@ function polyToString(polyExpr, exprToStr) {
                     }
                     return finalVarName;
                 })
-                .join("");
+                .join(" ");
             const absCoeff = Math.abs(coeff.value);
             const coeffStr = absCoeff === 1 && varCombStr ? "" : exprToStr(real(absCoeff));
             const sign = coeff.value < 0 ? "-" : "+";
@@ -160,7 +160,12 @@ function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
 
 function extractReal(expr) {
     const flatExpr = expr.flat();
-    if (flatExpr.type === TYPES.poly && flatExpr.varCombCoeffsMap.has("")) return Maybe.some(flatExpr.varCombCoeffsMap.get(""));
+    if (
+        flatExpr.type === TYPES.poly &&
+        flatExpr.varCombCoeffsMap.has("") &&
+        flatExpr.varCombCoeffsMap.size === 1
+    )
+        return Maybe.some(flatExpr.varCombCoeffsMap.get(""));
     return Maybe.none();
 
 }
@@ -948,6 +953,18 @@ function covectorVar(name, dim) {
     return covec(...components);
 }
 
+function matrixVar(name, rows, cols) {
+    const components = [];
+    for (let i = 0; i < rows; i++) {
+        const rowComponents = [];
+        for (let j = 0; j < cols; j++) {
+            rowComponents.push(realVar(`${name}_${i}^${j}`));
+        }
+        components.push(covec(...rowComponents));
+    }
+    return vec(...components);
+}
+
 // =============================================================================
 // Differentiation
 // =============================================================================
@@ -997,6 +1014,7 @@ const Symbolic = {
     simplify: (expr) => expr.simplify(),
     vectorVar,
     covectorVar,
+    matrixVar,
 };
 
 export { Symbolic };
