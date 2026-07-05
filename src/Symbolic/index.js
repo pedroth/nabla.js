@@ -170,6 +170,17 @@ function extractReal(expr) {
 
 }
 
+function isPolyJustAReal(poly, value) {
+    // An empty varCombCoeffsMap means all terms cancelled out, representing zero
+    if (poly.varCombCoeffsMap.size === 0 && value === 0) return true;
+    return (
+        poly.varCombCoeffsMap.size === 1 &&
+        poly.varCombCoeffsMap.has("") &&
+        poly.varCombCoeffsMap.get("").type === TYPES.real &&
+        poly.varCombCoeffsMap.get("").value === value
+    );
+}
+
 // =============================================================================
 // Atomic expressions
 // =============================================================================
@@ -191,7 +202,7 @@ function real(value) {
         return real(0);
     };
     ans.derivative = () => {
-        return covec(real(0));
+        return derivative(ans);
     };
     ans.eval = () => ans;
 
@@ -219,7 +230,7 @@ function realVar(name) {
         return real(1);
     };
     ans.derivative = () => {
-        return covec(real(1));
+        return derivative(ans);
     };
     ans.eval = (variableValues) => {
         // return itself if value not provided, instead of throwing an error, to allow partial evaluation.
@@ -602,12 +613,10 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     ans.unFlat = () => div(numeratorPoly.unFlat(), denominatorPoly.unFlat());
     ans.simplify = () => {
         const flat = ans.flat();
-        if (
-            flat.denominatorPoly.varCombCoeffsMap.size === 1 &&
-            flat.denominatorPoly.varCombCoeffsMap.has("") &&
-            flat.denominatorPoly.varCombCoeffsMap.get("").type === TYPES.real &&
-            flat.denominatorPoly.varCombCoeffsMap.get("").value === 1
-        ) {
+        if (isPolyJustAReal(flat.numeratorPoly, 0)) {
+            return real(0);
+        }
+        if (isPolyJustAReal(flat.denominatorPoly, 1)) {
             return flat.numeratorPoly;
         }
         return flat;
@@ -666,6 +675,8 @@ function covec(...components) {
     ans.dim = components.length;
     ans.children = components;
     ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
+    components.forEach(c => c.vars = ans.vars);
+
 
     ans.add = (other) => {
         if (components?.length === other?.components?.length) {
@@ -721,8 +732,7 @@ function covec(...components) {
         return covec(...components);
     }
     ans.derivative = () => {
-        const components = ans.components.map(c => c.derivative());
-        return covec(...components);
+        return derivative(ans);
     };
     ans.eval = (variableValues) => {
         return covec(...components.map(c => c.eval(variableValues)));
@@ -751,6 +761,7 @@ function vec(...components) {
     ans.dim = components.length;
     ans.children = components;
     ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
+    components.forEach(c => c.vars = ans.vars);
 
     ans.add = (other) => {
         if (components?.length === other?.components?.length) {
@@ -807,8 +818,7 @@ function vec(...components) {
         return covec(...components);
     }
     ans.derivative = () => {
-        const components = ans.components.map(c => c.derivative());
-        return covec(...components);
+        return derivative(ans);
     }
     ans.eval = (variableValues) => {
         return vec(...components.map(c => c.eval(variableValues)));
@@ -938,6 +948,9 @@ function log(value) {
 // =============================================================================
 
 function vectorVar(name, dim) {
+    if (dim <= 0) {
+        throw new Error("Dimension must be a positive integer");
+    }
     const components = [];
     for (let i = 0; i < dim; i++) {
         components.push(realVar(`${name}_${i}`));
@@ -946,6 +959,9 @@ function vectorVar(name, dim) {
 }
 
 function covectorVar(name, dim) {
+    if (dim <= 0) {
+        throw new Error("Dimension must be a positive integer");
+    }
     const components = [];
     for (let i = 0; i < dim; i++) {
         components.push(realVar(`${name}_${i}`));
@@ -989,8 +1005,12 @@ function derivative(expression) {
     if (expression.type === TYPES.vector || expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
-    const partials = expression.vars.map(v => partial(expression, v));
-    return partials.length === 1 ? partials[0] : covec(...partials);
+    // Capture the exact variables BEFORE differentiating collapses them
+    const parentVars = [...expression.vars];
+    const partials = parentVars.map(v => partial(expression, v));
+    let result = partials.length === 1 ? partials[0] : covec(...partials);
+    result.vars = parentVars;
+    return result;
 }
 
 // =============================================================================
