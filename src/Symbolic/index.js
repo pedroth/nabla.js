@@ -299,17 +299,34 @@ function complex(realPart, imagPart) {
         return div(ans, denominator);
     };
     ans.conj = () => complex(ans.real, mul(ans.imag, real(-1)));
-    
-    ans.flat = () => complex(ans.real.flat(), ans.imag.flat());
-    ans.simplify = () => ans.flat();
 
+    ans.flat = () => {
+        const result = complex(ans.real.flat(), ans.imag.flat());
+        result.vars = ans.vars;
+        return result;
+    };
+    ans.simplify = () => {
+        const result = complex(ans.real.simplify(), ans.imag.simplify());
+        result.vars = ans.vars;
+        return result;
+    };
     ans.pullback = () => {
-        return covec(ans.real.pullback(), ans.imag.pullback().mul(complex(0, 1)));
+        const realPullback = ans.real.pullback();
+        const imagPullback = ans.imag.pullback();
+        const components = [];
+        realPullback.components.forEach((realComp, i) => {
+            components.push(complex(realComp, imagPullback.components[i]));
+        });
+        return covec(...components);
     };
     ans.derivative = () => {
         return derivative(ans);
     };
-    ans.eval = (variableValues) => complex(ans.real.eval(variableValues), ans.imag.eval(variableValues));
+    ans.eval = (variableValues) => {
+        const result = complex(ans.real.eval(variableValues), ans.imag.eval(variableValues));
+        result.vars = ans.vars;
+        return result;
+    };
 
     ans.toString = () => `(${ans.real.toString()} + ${ans.imag.toString()}i)`;
     ans.toVisual = () => ({ type: "latex", value: `(${ans.real.toVisual().value} + ${ans.imag.toVisual().value}\\imath)` });
@@ -1074,6 +1091,15 @@ function partial(expression, variable) {
 }
 
 function derivative(expression) {
+    if (expression.type === TYPES.complex) {
+        const dreal = derivative(expression.real);
+        const dimag = derivative(expression.imag);
+        const components = [];
+        dreal.components.forEach((realComp, i) => {
+            components.push(complex(realComp, dimag.components[i]));
+        });
+        return covec(...components);
+    }
     if (expression.type === TYPES.vector || expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
