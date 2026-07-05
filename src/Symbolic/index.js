@@ -42,6 +42,7 @@ import { Maybe } from "../Maybe/index.js";
 const TYPES = {
     real: "real",
     realVar: "realVar",
+    complex: "complex",
     vector: "vector",
     covector: "covector",
     add: "add",
@@ -186,6 +187,7 @@ function isPolyJustAReal(poly, value) {
 // =============================================================================
 
 function real(value) {
+    if (typeof value !== "number") { throw new Error("Value must be a number"); }
     const ans = { type: TYPES.real, value: value };
     ans.children = [];
     ans.vars = [];
@@ -250,6 +252,72 @@ function realVar(name) {
     ans.equals = (other) => other?.type === ans.type && other.name === name;
     return ans;
 }
+
+// real: real , imag: real 
+function complex(realPart, imagPart) {
+    if (typeof realPart === "number") realPart = real(realPart);
+    if (typeof imagPart === "number") imagPart = real(imagPart);
+    const ans = { type: TYPES.complex, real: realPart, imag: imagPart };
+    ans.children = [ans.real, ans.imag];
+    ans.vars = mergeVars(ans.real, ans.imag);
+
+    ans.add = (other) => {
+        if (other.type === TYPES.real) {
+            return complex(add(ans.real, other), ans.imag);
+        }
+        if (other.type === TYPES.complex) {
+            return complex(add(ans.real, other.real), add(ans.imag, other.imag));
+        }
+        return add(ans, other);
+    };
+    ans.sub = (other) => {
+        if (other.type === TYPES.real) {
+            return complex(sub(ans.real, other), ans.imag);
+        }
+        if (other.type === TYPES.complex) {
+            return complex(sub(ans.real, other.real), sub(ans.imag, other.imag));
+        }
+        return sub(ans, other);
+    };
+    ans.mul = (other) => {
+        if (other.type === TYPES.real) {
+            return complex(mul(ans.real, other), mul(ans.imag, other));
+        }
+        if (other.type === TYPES.complex) {
+            return complex(sub(mul(ans.real, other.real), mul(ans.imag, other.imag)), add(mul(ans.real, other.imag), mul(ans.imag, other.real)));
+        }
+        return mul(ans, other);
+    }
+    ans.div = (denominator) => {
+        if (denominator.type === TYPES.real) {
+            return complex(div(ans.real, denominator), div(ans.imag, denominator));
+        }
+        if (denominator.type === TYPES.complex) {
+            const denom = add(mul(denominator.real, denominator.real), mul(denominator.imag, denominator.imag));
+            return complex(div(add(mul(ans.real, denominator.real), mul(ans.imag, denominator.imag)), denom), div(sub(mul(ans.imag, denominator.real), mul(ans.real, denominator.imag)), denom));
+        }
+        return div(ans, denominator);
+    };
+    ans.conj = () => complex(ans.real, mul(ans.imag, real(-1)));
+    
+    ans.flat = () => complex(ans.real.flat(), ans.imag.flat());
+    ans.simplify = () => ans.flat();
+
+    ans.pullback = () => {
+        return covec(ans.real.pullback(), ans.imag.pullback().mul(complex(0, 1)));
+    };
+    ans.derivative = () => {
+        return derivative(ans);
+    };
+    ans.eval = (variableValues) => complex(ans.real.eval(variableValues), ans.imag.eval(variableValues));
+
+    ans.toString = () => `(${ans.real.toString()} + ${ans.imag.toString()}i)`;
+    ans.toVisual = () => ({ type: "latex", value: `(${ans.real.toVisual().value} + ${ans.imag.toVisual().value}\\imath)` });
+    ans.equals = (other) => other?.type === TYPES.complex && other.real.equals(ans.real) && other.imag.equals(ans.imag);
+    return ans;
+}
+
+
 
 // =============================================================================
 // Binary operations
@@ -724,7 +792,9 @@ function covec(...components) {
     }
     ans.simplify = () => {
         const simplifiedComponents = components.map(c => c.simplify());
-        return covec(...simplifiedComponents);
+        const result = covec(...simplifiedComponents);
+        result.vars = ans.vars;
+        return result;
     };
 
     ans.pullback = () => {
@@ -810,7 +880,9 @@ function vec(...components) {
     }
     ans.simplify = () => {
         const simplifiedComponents = components.map(c => c.simplify());
-        return vec(...simplifiedComponents);
+        const result = vec(...simplifiedComponents);
+        result.vars = ans.vars;
+        return result;
     };
 
     ans.pullback = () => {
@@ -1020,6 +1092,7 @@ function derivative(expression) {
 
 const Symbolic = {
     real,
+    complex,
     realVar,
     vec,
     covec,
