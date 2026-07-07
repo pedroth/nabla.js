@@ -1,0 +1,21 @@
+[
+    {"input": "const {real, complex, dual} = Math;"},
+    {"input": "// Real numbers"},
+    {"input": "real(2).add(real(3));"},
+    {"input": "real(6).div(real(4));"},
+    {"input": "real(3).mul(real(3)).add(real(4).mul(real(4)));"},
+    {"input": "// Complex numbers"},
+    {"input": "complex(1, 2).add(complex(3, 4));"},
+    {"input": "complex(1, 2).mul(complex(3, 4));"},
+    {"input": "complex(1, 2).div(complex(3, 4));"},
+    {"input": "complex(1, 2).conj();"},
+    {"input": "complex(0, 1).mul(complex(0, 1)); // i² = -1"},
+    {"input": "// Dual numbers (automatic differentiation)"},
+    {"input": "// dual(f(x), f'(x)) — dual part tracks the derivative"},
+    {"input": "const f = x => x.mul(x); // f(x) = x²"},
+    {"input": "f(dual(3, 1)); // f(3)=9, f'(3)=6"},
+    {"input": "const g = x => x.mul(x).mul(x); // g(x) = x³"},
+    {"input": "g(dual(2, 1)); // g(2)=8, g'(2)=12"},
+    {"input": "const h = x => x.mul(x).add(dual(2,0).mul(x)).add(dual(1,0)); // h(x) = x²+2x+1"},
+    {"input": "h(dual(3, 1)); // h(3)=16, h'(3)=8"}
+]

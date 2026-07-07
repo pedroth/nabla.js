@@ -65,3 +65,8 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [x] Edit distance
 
 
+# TODO
+
+- Symbolic
+    - Complex coefficients poly
+    - Atomic add, multiply, divide, subtract, for atomic simple fields(real and complex)

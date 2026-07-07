@@ -78,5 +78,9 @@
     {
         "title": "Symbolic expressions",
         "path": "/playground/tests/symbolic.json"
+    },
+    {
+        "title": "Math test",
+        "path": "/playground/tests/math_test.json"
     }
 ]

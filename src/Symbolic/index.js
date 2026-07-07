@@ -3,36 +3,62 @@ import { Array } from "../Array/index.js";
 import { Maybe } from "../Maybe/index.js";
 
 /**
- * Symbolic is a library for symbolic maths. Main features are symbolic simplification and automatic differentiation. 
- * Expressions are represented as trees of objects, where each object has a type and methods for basic operations (add, sub, mul, div, pow) that return new expression objects. 
- * The library supports real numbers, variables, vectors, and covectors. 
- * The simplify function applies algebraic simplification rules to an expression, and the derivative function computes the symbolic derivative of an expression with respect to its variables.
- * 
+ * Symbolic is a library for symbolic maths. Main features are symbolic simplification and automatic differentiation.
+ * Expressions are represented as trees of objects, where each object has a type and methods for basic operations
+ * (add, sub, mul, div) that return new expression objects.
+ * The library supports real numbers, variables, complex numbers, vectors, covectors, and transcendental functions (exp, log).
+ * The simplify function applies algebraic simplification rules to an expression, and the derivative function computes
+ * the symbolic derivative of an expression with respect to its variables.
+ *
+ * Concrete expression types:
+ *   - real(value: number)                          — scalar real constant
+ *   - realVar(name: string)                        — scalar real variable
+ *   - complex(real: expression, imag: expression)  — complex number
+ *   - vec(...components: expression[])             — column vector
+ *   - covec(...components: expression[])           — row covector
+ *   - exp(value: expression)                       — e^value
+ *   - log(value: expression)                       — natural logarithm
+ *   - vectorVar(name: string, dim: number)         — vec of realVars named `name_i`
+ *   - covectorVar(name: string, dim: number)       — covec of realVars named `name_i`
+ *   - matrixVar(name: string, rows: number, cols: number) — vec of covecs named `name_i^j`
+ *
  * An expression :: {
- *     type,
- *     value?,
- * 
+ *     type: string,
+ *     value?: number | expression,
+ *
  *     children: Array<expression>,
- *     vars => Set<variable> 
- *     
- *     add(other : expression) => expression
- *     sub(other : expression) => expression
- *     mul(other : expression) => expression
- *     div(denominator : expression) => expression
- *     
- *     flat() => expression
- *     simplify() => expression
- * 
- * 
+ *     vars: Array<variable>,
+ *
+ *     add(other: expression) => expression
+ *     sub(other: expression) => expression
+ *     mul(other: expression) => expression
+ *     div(denominator: expression) => expression
+ *
+ *     flat() => poly | ratioPoly
+ *     simplify() => poly | ratioPoly | expression
+ *
  *     pullback() => covector of partial derivatives with respect to children
  *     derivative() => covector of partial derivatives with respect to vars
  *     eval(variableValues: { [variableName: string]: expression }) => expression
- * 
+ *
  *     toString() => string
  *     toVisual() => { type: "latex", value: string }
- *     equals(other : expression) => boolean
+ *     equals(other: expression) => boolean
  * }
- * 
+ *
+ * Additional properties/methods on vec and covec:
+ *     dim: number
+ *     components: Array<expression>
+ *     transpose() => vec | covec
+ *     prod(other: vec | covec | expression) => expression | vec | covec
+ *     dot(other: vec | covec) => expression
+ *     map(fn: (c: expression) => expression) => vec | covec
+ *
+ * Additional method on complex:
+ *     conj() => complex           — complex conjugate
+ *
+ * Public API: Symbolic.{ real, realVar, complex, vec, covec, add, sub, mul, div, poly,
+ *                         exp, log, derivative, simplify, vectorVar, covectorVar, matrixVar }
  */
 
 // =============================================================================
@@ -107,9 +133,11 @@ function polyToString(polyExpr, exprToStr) {
                     return finalVarName;
                 })
                 .join(" ");
-            const absCoeff = Math.abs(coeff.value);
-            const coeffStr = absCoeff === 1 && varCombStr ? "" : exprToStr(real(absCoeff));
-            const sign = coeff.value < 0 ? "-" : "+";
+            const isRealCoeff = coeff.type === TYPES.real;
+            const sign = isRealCoeff && coeff.value < 0 ? "-" : "+";
+            const coeffStr = isRealCoeff
+                ? (Math.abs(coeff.value) === 1 && varCombStr ? "" : exprToStr(real(Math.abs(coeff.value))))
+                : exprToStr(coeff);
             return i === 0
                 ? `${sign === "-" ? "-" : ""}${coeffStr}${varCombStr}`
                 : `${sign} ${coeffStr}${varCombStr}`;
@@ -182,6 +210,57 @@ function isPolyJustAReal(poly, value) {
     );
 }
 
+function isZero(expr) {
+    if (expr.type === TYPES.real && expr.value === 0) return true;
+    if (
+        expr.type === TYPES.complex &&
+        expr.vars.length === 0 &&
+        isZero(expr.real) &&
+        isZero(expr.imag)
+    ) return true;
+    const flatExpr = expr.flat();
+    if (flatExpr.type === TYPES.poly) {
+        return isPolyJustAReal(flatExpr, 0);
+    }
+    return false;
+}
+
+function isAtomicField(expr) {
+    return expr.type === TYPES.real || (expr.type === TYPES.complex && expr.vars.length === 0);
+
+}
+
+function toComplexPair(a) {
+    if (a.type === TYPES.real) return [a.value, 0];
+    return [a.real.value, a.imag.value];
+}
+
+function atomicFieldAdd(a, b) {
+    const [ar, ai] = toComplexPair(a);
+    const [br, bi] = toComplexPair(b);
+    return complex(real(ar + br), real(ai + bi));
+}
+
+function atomicFieldSub(a, b) {
+    const [ar, ai] = toComplexPair(a);
+    const [br, bi] = toComplexPair(b);
+    return complex(real(ar - br), real(ai - bi));
+}
+
+function atomicFieldMul(a, b) {
+    const [ar, ai] = toComplexPair(a);
+    const [br, bi] = toComplexPair(b);
+    return complex(real(ar * br - ai * bi), real(ar * bi + ai * br));
+}
+
+function atomicFieldDiv(a, b) {
+    const [ar, ai] = toComplexPair(a);
+    const [br, bi] = toComplexPair(b);
+    const denom = br * br + bi * bi;
+    if (denom === 0) throw new Error("division by zero");
+    return complex(real((ar * br + ai * bi) / denom), real((ai * br - ar * bi) / denom));
+}
+
 // =============================================================================
 // Atomic expressions
 // =============================================================================
@@ -201,7 +280,7 @@ function real(value) {
     ans.simplify = () => ans;
 
     ans.pullback = () => {
-        return real(0);
+        return covec(real(0));
     };
     ans.derivative = () => {
         return derivative(ans);
@@ -257,58 +336,41 @@ function realVar(name) {
 function complex(realPart, imagPart) {
     if (typeof realPart === "number") realPart = real(realPart);
     if (typeof imagPart === "number") imagPart = real(imagPart);
+    if (isZero(imagPart)) {
+        return realPart;
+    }
     const ans = { type: TYPES.complex, real: realPart, imag: imagPart };
     ans.children = [ans.real, ans.imag];
     ans.vars = mergeVars(ans.real, ans.imag);
 
-    ans.add = (other) => {
-        if (other.type === TYPES.real) {
-            return complex(add(ans.real, other), ans.imag);
-        }
-        if (other.type === TYPES.complex) {
-            return complex(add(ans.real, other.real), add(ans.imag, other.imag));
-        }
-        return add(ans, other);
-    };
-    ans.sub = (other) => {
-        if (other.type === TYPES.real) {
-            return complex(sub(ans.real, other), ans.imag);
-        }
-        if (other.type === TYPES.complex) {
-            return complex(sub(ans.real, other.real), sub(ans.imag, other.imag));
-        }
-        return sub(ans, other);
-    };
-    ans.mul = (other) => {
-        if (other.type === TYPES.real) {
-            return complex(mul(ans.real, other), mul(ans.imag, other));
-        }
-        if (other.type === TYPES.complex) {
-            return complex(sub(mul(ans.real, other.real), mul(ans.imag, other.imag)), add(mul(ans.real, other.imag), mul(ans.imag, other.real)));
-        }
-        return mul(ans, other);
-    }
-    ans.div = (denominator) => {
-        if (denominator.type === TYPES.real) {
-            return complex(div(ans.real, denominator), div(ans.imag, denominator));
-        }
-        if (denominator.type === TYPES.complex) {
-            const denom = add(mul(denominator.real, denominator.real), mul(denominator.imag, denominator.imag));
-            return complex(div(add(mul(ans.real, denominator.real), mul(ans.imag, denominator.imag)), denom), div(sub(mul(ans.imag, denominator.real), mul(ans.real, denominator.imag)), denom));
-        }
-        return div(ans, denominator);
-    };
+    ans.add = (other) => add(ans, other);
+    ans.sub = (other) => sub(ans, other);
+    ans.mul = (other) => mul(ans, other);
+    ans.div = (denominator) => div(ans, denominator);
+
     ans.conj = () => complex(ans.real, mul(ans.imag, real(-1)));
 
     ans.flat = () => {
-        const result = complex(ans.real.flat(), ans.imag.flat());
-        result.vars = ans.vars;
-        return result;
+        const realFlat = ans.real.flat();
+        const imagFlat = ans.imag.flat();
+        const varCoeffsMap = new Map();
+        realFlat.varCombCoeffsMap.forEach((coeff, varComb) => {
+            if (imagFlat.varCombCoeffsMap.has(varComb)) {
+                varCoeffsMap.set(varComb, complex(coeff, imagFlat.varCombCoeffsMap.get(varComb)));
+            } else {
+                varCoeffsMap.set(varComb, coeff);
+            }
+        })
+        imagFlat.varCombCoeffsMap.forEach((imagCoeff, imagVarComb) => {
+            if (!varCoeffsMap.has(imagVarComb)) {
+                varCoeffsMap.set(imagVarComb, complex(real(0), imagCoeff));
+            }
+        })
+        return poly(varCoeffsMap, ans.vars, mergeAtomicExprMaps(realFlat, imagFlat));
+
     };
     ans.simplify = () => {
-        const result = complex(ans.real.simplify(), ans.imag.simplify());
-        result.vars = ans.vars;
-        return result;
+        return ans.flat();
     };
     ans.pullback = () => {
         const realPullback = ans.real.pullback();
@@ -328,8 +390,20 @@ function complex(realPart, imagPart) {
         return result;
     };
 
-    ans.toString = () => `(${ans.real.toString()} + ${ans.imag.toString()}i)`;
-    ans.toVisual = () => ({ type: "latex", value: `(${ans.real.toVisual().value} + ${ans.imag.toVisual().value}\\imath)` });
+    ans.toString = () => {
+        const imagStr = ans.imag.type === TYPES.real  && ans.imag.value === 1 ? "" : ans.imag.toString();
+        if(isZero(ans.real)) {
+            return `(${imagStr}i)`;
+        }
+        return `(${ans.real.toString()} + ${imagStr}i)`;
+    };
+    ans.toVisual = () => {
+        const imagStr = ans.imag.type === TYPES.real  && ans.imag.value === 1 ? "" : ans.imag.toString();
+        if(isZero(ans.real)) {
+            return { type: "latex", value: `${imagStr}\\imath ` };
+        }
+        return { type: "latex", value: `(${ans.real.toVisual().value} + ${imagStr}\\imath) ` };
+    }
     ans.equals = (other) => other?.type === TYPES.complex && other.real.equals(ans.real) && other.imag.equals(ans.imag);
     return ans;
 }
@@ -389,7 +463,7 @@ function add(a, b) {
         return flatA.add(flatB);
     };
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value + b.value);
+        if (isAtomicField(a) && isAtomicField(b)) return atomicFieldAdd(a, b);
         return ans.flat().simplify();
     };
 
@@ -414,7 +488,7 @@ function sub(a, b) {
         return flatA.sub(flatB);
     };
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value - b.value);
+        if (isAtomicField(a) && isAtomicField(b)) return atomicFieldSub(a, b);
         return ans.flat().simplify();
     };
 
@@ -426,8 +500,8 @@ function sub(a, b) {
         const evalA = a.eval(variableValues);
         const evalB = b.eval(variableValues);
         return evalA.sub(evalB);
-    }
 
+    }
     return ans;
 }
 
@@ -440,7 +514,7 @@ function mul(a, b) {
         return flatA.mul(flatB);
     };
     ans.simplify = () => {
-        if (a.type === TYPES.real && b.type === TYPES.real) return real(a.value * b.value);
+        if (isAtomicField(a) && isAtomicField(b)) return atomicFieldMul(a, b);
         return ans.flat().simplify();
     };
 
@@ -464,7 +538,7 @@ function div(numerator, denominator) {
         return flatNumerator.div(flatDenominator);
     };
     ans.simplify = () => {
-        if (numerator.type === TYPES.real && denominator.type === TYPES.real) return real(numerator.value / denominator.value);
+        if (isAtomicField(numerator) && isAtomicField(denominator)) return atomicFieldDiv(numerator, denominator);
         return ans.flat().simplify();
     };
 
