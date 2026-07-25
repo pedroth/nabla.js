@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+</body>
+<script type="module">
+    import * as Nabla from "../src/index.js";
+    const { Array, NeuralNet } = Nabla;
+    const data = Array.range(0, 10).map((x, i) => -3 + 6 * Math.random()).map(x => [x, Math.sin(x)])
+    const inData = data.map(x => x[0]).toArray()
+    const outData = data.map(x => x[1]).toArray()
+
+    const nn = NeuralNet
+        .builder()
+        .input(1)
+        .layer(3)
+        .layer(1)
+        .build()
+
+    document.body.innerHTML = nn.fitData(inData, outData);
+</script>
+
+</html>

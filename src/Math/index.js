@@ -119,7 +119,7 @@ function log(x) {
     }
 }
 
-export const Math = {
+export const NablaMath = {
     real,
     complex,
     dual,

@@ -34,7 +34,7 @@ import { Maybe } from "../Maybe/index.js";
  *     mul(other: expression) => expression
  *     div(denominator: expression) => expression
  *
- *     flat() => poly | ratioPoly
+ *     flat() => poly | ratioPoly | vec | covec
  *     simplify() => poly | ratioPoly | expression
  *
  *     pullback() => covector of partial derivatives with respect to children
@@ -78,6 +78,7 @@ const TYPES = {
     poly: "poly",
     exp: "exp",
     log: "log",
+    ratioPoly: "ratioPoly",
 };
 
 // =============================================================================
@@ -188,26 +189,30 @@ function simplifyRatioPoly(numeratorPoly, denominatorPoly) {
 }
 
 function extractReal(expr) {
+    if (expr.type === TYPES.real) return Maybe.some(expr);
+    if (expr.type === TYPES.ratioPoly) {
+        return extractReal(expr.numeratorPoly)
+            .flatMap(num =>
+                extractReal(expr.denominatorPoly)
+                    .map(denom => real(num.value / denom.value))
+            );
+    }
     const flatExpr = expr.flat();
+    // constant poly with no variables,
     if (
         flatExpr.type === TYPES.poly &&
         flatExpr.varCombCoeffsMap.has("") &&
         flatExpr.varCombCoeffsMap.size === 1
-    )
-        return Maybe.some(flatExpr.varCombCoeffsMap.get(""));
+    ) {
+        const coeff = flatExpr.varCombCoeffsMap.get("");
+        if (coeff.type === TYPES.real) return Maybe.some(coeff);
+    }
     return Maybe.none();
-
 }
 
 function isPolyJustAReal(poly, value) {
-    // An empty varCombCoeffsMap means all terms cancelled out, representing zero
     if (poly.varCombCoeffsMap.size === 0 && value === 0) return true;
-    return (
-        poly.varCombCoeffsMap.size === 1 &&
-        poly.varCombCoeffsMap.has("") &&
-        poly.varCombCoeffsMap.get("").type === TYPES.real &&
-        poly.varCombCoeffsMap.get("").value === value
-    );
+    return extractReal(poly).map(r => r.value === value).orElse(() => false);
 }
 
 function isZero(expr) {
@@ -250,6 +255,8 @@ function atomicFieldSub(a, b) {
 function atomicFieldMul(a, b) {
     const [ar, ai] = toComplexPair(a);
     const [br, bi] = toComplexPair(b);
+    // Avoid NaN * 0 = NaN (IEEE 754): short-circuit for pure-real inputs
+    if (ai === 0 && bi === 0) return complex(real(ar * br), real(0));
     return complex(real(ar * br - ai * bi), real(ar * bi + ai * br));
 }
 
@@ -293,8 +300,8 @@ function real(value) {
     return ans;
 }
 
-function realVar(name) {
-    const ans = { type: TYPES.realVar, name };
+function realVar(name, isParam = false) {
+    const ans = { type: TYPES.realVar, name, isParam };
 
     ans.children = [];
     ans.vars = [ans];
@@ -391,15 +398,15 @@ function complex(realPart, imagPart) {
     };
 
     ans.toString = () => {
-        const imagStr = ans.imag.type === TYPES.real  && ans.imag.value === 1 ? "" : ans.imag.toString();
-        if(isZero(ans.real)) {
+        const imagStr = ans.imag.type === TYPES.real && ans.imag.value === 1 ? "" : ans.imag.toString();
+        if (isZero(ans.real)) {
             return `(${imagStr}i)`;
         }
         return `(${ans.real.toString()} + ${imagStr}i)`;
     };
     ans.toVisual = () => {
-        const imagStr = ans.imag.type === TYPES.real  && ans.imag.value === 1 ? "" : ans.imag.toString();
-        if(isZero(ans.real)) {
+        const imagStr = ans.imag.type === TYPES.real && ans.imag.value === 1 ? "" : ans.imag.toString();
+        if (isZero(ans.real)) {
             return { type: "latex", value: `${imagStr}\\imath ` };
         }
         return { type: "latex", value: `(${ans.real.toVisual().value} + ${imagStr}\\imath) ` };
@@ -560,7 +567,7 @@ function div(numerator, denominator) {
 // =============================================================================
 
 function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
-    // varCombCoeffsMap: Map<varComb: string, coeff>, varComb example: "x^2*y^3", "", coeff: field_expr
+    // varCombCoeffsMap: Map<varComb: string, coeff>, varComb example: "x*x*y*y*y", "", coeff: field_expr
     const ans = { type: TYPES.poly, varCombCoeffsMap };
     ans.children = [];
     ans.vars = vars;
@@ -570,7 +577,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         // always creates a poly.
         const flatExpr = expr.flat();
 
-        if (flatExpr.type === "ratioPoly") {
+        if (flatExpr.type === TYPES.ratioPoly) {
             // poly + num/denom = (poly * denom + num) / denom
             return ratioPoly(ans.mul(flatExpr.denominatorPoly).add(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
         }
@@ -600,7 +607,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         // always creates a poly.
         const flatExpr = expr.flat();
 
-        if (flatExpr.type === "ratioPoly") {
+        if (flatExpr.type === TYPES.ratioPoly) {
             // poly - num/denom = (poly * denom - num) / denom
             return ratioPoly(ans.mul(flatExpr.denominatorPoly).sub(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
         }
@@ -630,7 +637,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         // always creates a poly.
         const flatExpr = expr.flat();
 
-        if (flatExpr.type === "ratioPoly") {
+        if (flatExpr.type === TYPES.ratioPoly) {
             // poly * (num/denom) = (poly * num) / denom
             return ratioPoly(ans.mul(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
         }
@@ -664,7 +671,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     };
     ans.div = (denominator) => {
         const flatDenominator = denominator.flat();
-        if (flatDenominator.type === "ratioPoly") {
+        if (flatDenominator.type === TYPES.ratioPoly) {
             // poly / (n/d) = (poly * d) / n
             return ratioPoly(ans.mul(flatDenominator.denominatorPoly), flatDenominator.numeratorPoly);
         }
@@ -722,7 +729,7 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
         throw new Error("ratioPoly only accepts polynomials as numerator and denominator");
     }
     [numeratorPoly, denominatorPoly] = simplifyRatioPoly(numeratorPoly, denominatorPoly);
-    const ans = { type: "ratioPoly", numeratorPoly, denominatorPoly };
+    const ans = { type: TYPES.ratioPoly, numeratorPoly, denominatorPoly };
 
     ans.vars = mergeVars(numeratorPoly, denominatorPoly);
     ans.children = [numeratorPoly, denominatorPoly];
@@ -730,9 +737,9 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     // Normalize any flat expression to {numeratorPoly, denominatorPoly}
     function asRatio(expr) {
         const f = expr.flat();
-        if (f.type === "ratioPoly") return f;
+        if (f.type === TYPES.ratioPoly  ) return f;
         if (f.type === TYPES.poly) return ratioPoly(f, poly(new Map([["", real(1)]]), f.vars));
-        throw new Error(`Cannot convert ${f.type} to ratioPoly`);
+        throw new Error(`Cannot convert ${f.type} to ${TYPES.ratioPoly}`);
     }
 
     ans.add = (other) => {
@@ -790,7 +797,7 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     ans.toString = () => `(${numeratorPoly.toString()}) / (${denominatorPoly.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numeratorPoly.toVisual().value}}{${denominatorPoly.toVisual().value}}` });
     ans.equals = (other) => {
-        if (other?.type !== "ratioPoly") return false;
+        if (other?.type !== TYPES.ratioPoly) return false;
         if (!numeratorPoly.equals(other.numeratorPoly)) return false;
         if (!denominatorPoly.equals(other.denominatorPoly)) return false;
         return true;
@@ -874,6 +881,10 @@ function covec(...components) {
     }
     ans.map = (fn) => {
         const newComponents = components.map(c => fn(c));
+        return covec(...newComponents);
+    }
+    ans.flatMap = (fn) => {
+        const newComponents = components.flatMap(c => fn(c).components);
         return covec(...newComponents);
     }
 
@@ -961,6 +972,10 @@ function vec(...components) {
     }
     ans.map = (fn) => {
         const newComponents = components.map(c => fn(c));
+        return vec(...newComponents);
+    }
+    ans.flatMap = (fn) => {
+        const newComponents = components.flatMap(c => fn(c).components);
         return vec(...newComponents);
     }
 
@@ -1137,7 +1152,7 @@ function matrixVar(name, rows, cols) {
     for (let i = 0; i < rows; i++) {
         const rowComponents = [];
         for (let j = 0; j < cols; j++) {
-            rowComponents.push(realVar(`${name}_${i}^${j}`));
+            rowComponents.push(realVar(`${name}_{${i}}^{${j}}`));
         }
         components.push(covec(...rowComponents));
     }
@@ -1149,7 +1164,7 @@ function matrixVar(name, rows, cols) {
 // =============================================================================
 
 function partial(expression, variable) {
-    if (expression.type === TYPES.poly || expression.type === "ratioPoly") {
+    if (expression.type === TYPES.poly || expression.type === TYPES.ratioPoly) {
         return partial(expression.unFlat(), variable);
     }
     // partial of atomics like real and realVar.
@@ -1179,10 +1194,113 @@ function derivative(expression) {
     }
     // Capture the exact variables BEFORE differentiating collapses them
     const parentVars = [...expression.vars];
-    const partials = parentVars.map(v => partial(expression, v));
+    const partials = parentVars.filter(v => !v.isParam).map(v => partial(expression, v));
     let result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = parentVars;
     return result;
+}
+
+// =============================================================================
+// Compile
+// =============================================================================
+
+function compile(expression) {
+    const simplifiedExpr = expression.simplify();
+    const varIndexMap = new Map();
+    simplifiedExpr.vars.forEach((v, i) => varIndexMap.set(v.name, i));
+
+    function atomicToJsExpr(expr) {
+        switch (expr.type) {
+            case TYPES.real:
+                return Number(expr.value).toString();
+            case TYPES.realVar: {
+                if (!varIndexMap.has(expr.name)) {
+                    throw new Error(`Variable ${expr.name} not found in compile variable map`);
+                }
+                return `x[${JSON.stringify(expr.name)}]`;
+            }
+            case TYPES.add:
+                return `(${atomicToJsExpr(expr.left)} + ${atomicToJsExpr(expr.right)})`;
+            case TYPES.sub:
+                return `(${atomicToJsExpr(expr.left)} - ${atomicToJsExpr(expr.right)})`;
+            case TYPES.mul:
+                return `(${atomicToJsExpr(expr.left)} * ${atomicToJsExpr(expr.right)})`;
+            case TYPES.div:
+                return `(${atomicToJsExpr(expr.left)} / ${atomicToJsExpr(expr.right)})`;
+            case TYPES.exp:
+                return `Math.exp(${atomicToJsExpr(expr.value)})`;
+            case TYPES.log:
+                return `Math.log(${atomicToJsExpr(expr.value)})`;
+            case TYPES.poly:
+                return `${polyToJsExpr(expr)}`;
+            case TYPES.ratioPoly:
+                return `${ratioPolyToJsExpr(expr)}`;
+            case TYPES.covector:
+                return `[${expr.components.map(c => atomicToJsExpr(c)).join(", ")}]`;
+            case TYPES.vector:
+                return `[${expr.components.map(c => atomicToJsExpr(c)).join(", ")}]`;
+            default:
+                throw new Error(`Unsupported expression type in compile: ${expr.type}`);
+        }
+    }
+
+    function polyToJsExpr(polyExpr) {
+        const terms = [];
+
+        const isRealValue = (expr, value) => expr?.type === TYPES.real && expr.value === value;
+
+        if (polyExpr.varCombCoeffsMap.has("")) {
+            const constantCoeff = polyExpr.varCombCoeffsMap.get("");
+            if (!isRealValue(constantCoeff, 0)) {
+                terms.push(atomicToJsExpr(constantCoeff));
+            }
+        }
+
+        polyExpr.varCombCoeffsMap.forEach((coeff, varComb) => {
+            if (varComb === "") return;
+
+            const factors = [];
+            if (!isRealValue(coeff, 1)) {
+                factors.push(atomicToJsExpr(coeff));
+            }
+            const variablePowers = new Map();
+
+            varComb.split("*").forEach((varName) => {
+                variablePowers.set(varName, (variablePowers.get(varName) ?? 0) + 1);
+            });
+
+            variablePowers.forEach((pow, varName) => {
+                if (polyExpr.atomicExprMap.has(varName)) {
+                    const atomicExpr = atomicToJsExpr(polyExpr.atomicExprMap.get(varName));
+                    factors.push(pow === 1 ? `(${atomicExpr})` : `(${atomicExpr} ** ${pow})`);
+                    return;
+                }
+                if (!varIndexMap.has(varName)) {
+                    throw new Error(`Variable ${varName} not found in compile variable map`);
+                }
+                const varExpr = `x[${JSON.stringify(varName)}]`;
+                factors.push(pow === 1 ? varExpr : `(${varExpr} ** ${pow})`);
+            });
+
+            terms.push(factors.length === 1 ? factors[0] : factors.map(f => `(${f})`).join(" * "));
+        });
+
+        return terms.length > 0 ? terms.join(" + ") : "0";
+    }
+
+    function ratioPolyToJsExpr(ratioExpr) {
+        const numeratorJsExpr = polyToJsExpr(ratioExpr.numeratorPoly);
+        const denominatorJsExpr = polyToJsExpr(ratioExpr.denominatorPoly);
+        return `(${numeratorJsExpr}) / (${denominatorJsExpr})`;
+    }
+
+    const jsExpr = simplifiedExpr.type === TYPES.ratioPoly
+        ? ratioPolyToJsExpr(simplifiedExpr)
+        : simplifiedExpr.type === TYPES.poly
+            ? polyToJsExpr(simplifiedExpr)
+            : atomicToJsExpr(simplifiedExpr);
+
+    return new Function("x", `return ${jsExpr};`); // x: { [varName]: number }
 }
 
 // =============================================================================
@@ -1208,6 +1326,9 @@ const Symbolic = {
     vectorVar,
     covectorVar,
     matrixVar,
+    TYPES,
+    extractReal,
+    compile,
 };
 
 export { Symbolic };

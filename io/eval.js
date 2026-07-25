@@ -38,7 +38,7 @@ export async function codeEval(code) {
     return serializeEvaluation(evaluation);
 }
 
-function serializeEvaluation(evaluation) {
+export function serializeEvaluation(evaluation) {
     if (typeof evaluation !== "object") return String(evaluation);
     if (typeof evaluation?.toVisual === "function") {
         const visual = evaluation.toVisual();

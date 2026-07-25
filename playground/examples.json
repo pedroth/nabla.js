@@ -1,5 +1,9 @@
 [
     {
+        "title": "Regressions",
+        "path": "/playground/tests/regression.json"
+    },
+    {
         "title": "MNIST Neural Generator",
         "path": "/playground/tests/mnist_neural_generator.json"
     },

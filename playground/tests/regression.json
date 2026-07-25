@@ -1,0 +1,4 @@
+[
+    {"input": "IO.plotPointCloud(Array.range(0,1000).map(x => [2 * Math.random() - 1, 2 * Math.random() - 1]))"},
+    {"input": "IO.plotPointCloud(Array.range(0,1000).map(x => [2 * Math.random() - 1, 2 * Math.random() - 1, 2 * Math.random() - 1]))"}
+]
