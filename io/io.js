@@ -54,23 +54,34 @@ IO.paintMNIST = function (mnistSample, scale = 10) {
     };
 }
 
-function plot2d(points, width = 500, height = 500) {
+function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
     const vecs = points.map(p => Vec2(p[0], p[1]));
+    const radiuses = points.map(() => radius);
+    const colors = points.map(() => Color.ofRGB(...color));
+
+    scene = {
+        points: (scene.points || []).concat(vecs),
+        radiuses: (scene.radiuses || []).concat(radiuses),
+        colors: (scene.colors || []).concat(colors)
+    };
+
     let box = new Box();
-    for (let i = 0; i < vecs.length; i++) {
-        box = box.add(new Box(vecs[i], vecs[i]));
+    for (let i = 0; i < scene.points.length; i++) {
+        const radius_i = scene.radiuses[i] || 0.01;
+        const vec_radius = Vec2(radius_i, radius_i);
+        box = box.add(new Box(scene.points[i].sub(vec_radius), scene.points[i].add(vec_radius)));
     }
     const min = box.min;
     const diag = box.diagonal;
-    const normalizedVecs = vecs.map(v => {
+    const normalizedSceneVecs = scene.points.map(v => {
         return v.sub(min).div(diag).scale(2).map(x => x - 1); // Normalize to [-1, 1]
     });
 
     let canvas = Canvas.ofSize(width, height);
-    let scene = new NaiveScene();
-    scene.addList(normalizedVecs.map(v => {
-        return Sphere.builder().position(v).radius(0.01).color(Color.ofRGB(1, 0, 0)).build();
+    let sceneObj = new NaiveScene();
+    sceneObj.addList(normalizedSceneVecs.map((v, i) => {
+        return Sphere.builder().position(v).radius(scene.radiuses[i]).color(scene.colors[i]).build();
     }));
     let cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1));
     cameraBox = cameraBox.scale(1.2); // Add some padding
@@ -107,34 +118,45 @@ function plot2d(points, width = 500, height = 500) {
     const paint = () => {
         canvas.fill(Color.BLACK)
         return camera
-            .raster(scene)
+            .raster(sceneObj)
             .to(canvas)
             .paint();
     }
     return {
         toVisual: () => {
-            return { type: "canvas", value: paint() };
-        }
+            return { type: "canvas", value: () => paint() };
+        },
+        scene: scene,
     };
 }
 
-function plot3d(points, width = 500, height = 500) {
+function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
     const vecs = points.map(p => Vec3(p[0], p[1], p[2]));
+    const radiuses = points.map(() => radius);
+    const colors = points.map(() => Color.ofRGB(...color));
+
+    scene = {
+        points: (scene.points || []).concat(vecs),
+        radiuses: (scene.radiuses || []).concat(radiuses),
+        colors: (scene.colors || []).concat(colors)
+    };
     let box = new Box();
-    for (let i = 0; i < vecs.length; i++) {
-        box = box.add(new Box(vecs[i], vecs[i]));
+    for (let i = 0; i < scene.points.length; i++) {
+        const radius_i = scene.radiuses[i] || 0.01;
+        const vec_radius = Vec3(radius_i, radius_i, radius_i);
+        box = box.add(new Box(scene.points[i].sub(vec_radius), scene.points[i].add(vec_radius)));
     }
     const min = box.min;
     const diag = box.diagonal;
-    const normalizedVecs = vecs.map(v => {
+    const normalizedSceneVecs = scene.points.map(v => {
         return v.sub(min).div(diag).scale(2).map(x => x - 1); // Normalize to [-1, 1]
     });
 
     let canvas = Canvas.ofSize(width, height);
-    let scene = new NaiveScene();
-    scene.addList(normalizedVecs.map(v => {
-        return Sphere.builder().position(v).radius(0.01).color(Color.ofRGB(1, 0, 0)).build();
+    let sceneObj = new NaiveScene();
+    sceneObj.addList(normalizedSceneVecs.map((v, i) => {
+        return Sphere.builder().position(v).radius(scene.radiuses[i]).color(scene.colors[i]).build();
     }));
     const camera = new Camera().orbit(5, 0, 0);
     let mousedown = false;
@@ -168,26 +190,27 @@ function plot3d(points, width = 500, height = 500) {
         paint();
     });
     canvas.onMouseWheel((e) => {
-        event.preventDefault();
+        e.preventDefault();
         camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
         paint();
     });
     const paint = () => {
         canvas.fill(Color.BLACK)
         return camera
-            .raster(scene)
+            .raster(sceneObj)
             .to(canvas)
             .paint();
     }
     return {
         toVisual: () => {
-            return { type: "canvas", value: paint() };
-        }
+            return { type: "canvas", value: () => paint() };
+        },
+        scene: scene
     };
 }
 
 // points: array of [x, y] or [x, y, z]
-IO.plotPointCloud = function (points) {
+IO.plotPointCloud = function (points, options = {}) {
     if (points instanceof NablaArray.Array) {
         points = points.toArray();
     }
@@ -196,9 +219,9 @@ IO.plotPointCloud = function (points) {
         throw new Error("Points must be 2D or 3D");
     }
     if (dimensions === 2) {
-        return plot2d(points);
+        return plot2d(points, options);
     }
-    return plot3d(points);
+    return plot3d(points, options);
 }
 
 export default IO;

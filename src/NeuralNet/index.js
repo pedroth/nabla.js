@@ -1,5 +1,5 @@
 import { Symbolic } from "../Symbolic/index.js";
-const { vectorVar, matrixVar, div, real, add, exp, log, vec, extractReal } = Symbolic;
+const { vectorVar, matrixVar, div, real, add, exp, log } = Symbolic;
 
 export class NeuralNet {
     constructor(inputDim, hiddenLayers) {

@@ -23,6 +23,15 @@ export async function codeEval(code) {
     const declarations = Object.entries(nabla)
         .map(([name]) => `var ${name} = nabla["${name}"];`)
         .join("\n");
+    // Wrap object destructuring assignment statements in parens to avoid SyntaxError
+    // e.g.  {a, b} = expr  →  ({a, b} = expr)
+    code = code.split('\n').map(line => {
+        if (/^\s*\{[^{}]*\}\s*=(?!=)/.test(line)) {
+            const indent = line.match(/^\s*/)[0];
+            return indent + '(' + line.trimStart() + ')';
+        }
+        return line;
+    }).join('\n');
     code = `(async () => {
     var IO = await import("./io.js");
     IO = IO.default;
@@ -38,7 +47,19 @@ export async function codeEval(code) {
     return serializeEvaluation(evaluation);
 }
 
+function renderMaps(map) {
+    const entries = Array.from(map.entries());
+    const renderedEntries = entries.map(([key, value]) => {
+        const renderedValue = (typeof value?.toVisual === "function")
+            ? renderType(value.toVisual())
+            : String(value);
+        return `${key}: ${renderedValue}`;
+    });
+    return `{ ${renderedEntries.join(", ")} }`;
+}
+
 export function serializeEvaluation(evaluation) {
+    if (evaluation instanceof Map) return renderMaps(evaluation);
     if (typeof evaluation !== "object") return String(evaluation);
     if (typeof evaluation?.toVisual === "function") {
         const visual = evaluation.toVisual();
@@ -49,7 +70,7 @@ export function serializeEvaluation(evaluation) {
 
 const renderHandlers = {
     latex: (value) => render(parse(`$${value}$\n`)),
-    canvas: (value) => value.DOM,
+    canvas: (value) => value().DOM,
 };
 
 async function renderType(visualObj) {

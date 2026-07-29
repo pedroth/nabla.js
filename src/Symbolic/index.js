@@ -681,12 +681,13 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     ans.flat = () => ans;
     ans.unFlat = () => {
         const entries = [...ans.varCombCoeffsMap.entries()];
-        let acc = ans.varCombCoeffsMap.get("") || real(0);
+        let acc = real(0);
         entries.forEach(([varComb, coeff]) => {
             const varCombParts = varComb === "" ? [] : varComb.split("*");
             let mulAcc = coeff;
             varCombParts.forEach(v => {
-                const monoid = ans.atomicExprMap.has(v) ? ans.atomicExprMap.get(v) : realVar(v);
+                const originalVar = ans.vars.find(varObj => varObj.name === v);
+                const monoid = ans.atomicExprMap.has(v) ? ans.atomicExprMap.get(v) : realVar(v, originalVar?.isParam ?? false);
                 mulAcc = mulAcc.mul(monoid);
             });
             acc = acc.add(mulAcc);
@@ -1179,7 +1180,7 @@ function partial(expression, variable) {
     return dExprDChildren.prod(dChildrenDVariable);
 }
 
-function derivative(expression) {
+function derivative(expression, asMap = false) {
     if (expression.type === TYPES.complex) {
         const dreal = derivative(expression.real);
         const dimag = derivative(expression.imag);
@@ -1197,6 +1198,15 @@ function derivative(expression) {
     const partials = parentVars.filter(v => !v.isParam).map(v => partial(expression, v));
     let result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = parentVars;
+    if(asMap) {
+        const resultMap = new Map();
+        parentVars
+            .filter(v => !v.isParam)
+            .forEach((v, i) => {
+                resultMap.set(v.name, partials[i]);
+            });
+        return resultMap;
+    }
     return result;
 }
 
