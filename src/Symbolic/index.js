@@ -133,7 +133,7 @@ function polyToString(polyExpr, exprToStr) {
                     }
                     return finalVarName;
                 })
-                .join(" ");
+                .join("");
             const isRealCoeff = coeff.type === TYPES.real;
             const sign = isRealCoeff && coeff.value < 0 ? "-" : "+";
             const coeffStr = isRealCoeff
@@ -1190,8 +1190,11 @@ function derivative(expression, asMap = false) {
         });
         return covec(...components);
     }
-    if (expression.type === TYPES.vector || expression.type === TYPES.covector) {
+    if (expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
+    }
+    if(expression.type === TYPES.vector){
+        return vec(...expression.components.map(c => derivative(c)));
     }
     // Capture the exact variables BEFORE differentiating collapses them
     const parentVars = [...expression.vars];
@@ -1214,8 +1217,8 @@ function derivative(expression, asMap = false) {
 // Compile
 // =============================================================================
 
-function compile(expression) {
-    const simplifiedExpr = expression.simplify();
+function compile(expression, { doSimplify = true } = {}) {
+    const simplifiedExpr = doSimplify ? expression.simplify() : expression;
     const varIndexMap = new Map();
     simplifiedExpr.vars.forEach((v, i) => varIndexMap.set(v.name, i));
 

@@ -100,7 +100,7 @@ test("test setter", () => {
 });
 
 test("test dense creation", () => {
-  const d1 = new NDArray([2, 3], [1, 2, 3, 4, 5, 6]);
+  const d1 = new NDArray([3, 2], [1, 2, 3, 4, 5, 6]);
   const d2 = NDArray.of([[1, 2], [3, 4], [5, 6]]);
   expect(d1.equals(d2)).toBe(true);
   expect(d1.equals(NDArray.of(d1.toArray()))).toBe(true);
@@ -131,7 +131,7 @@ test("test for each", () => {
 test("test reshape", () => {
   const dense = NDArray.of([[1, 2, 3], [4, 5, 6]]);
   const denseReshape = NDArray.of([[1, 2], [3, 4], [5, 6]]);
-  expect(dense.reshape([2, 3]).equals(denseReshape)).toBe(true);
+  expect(dense.reshape([3, 2]).equals(denseReshape)).toBe(true);
 });
 
 test("test broadcast", () => {
@@ -141,7 +141,7 @@ test("test broadcast", () => {
     [[5, 6], [7, 8]],
     [[9, 10], [11, 12]]
   ]);
-  let out = dense.binaryOp(NDArray.of([1, 2, 3]), mult);
+  let out = dense.binaryOp(NDArray.of([1, 2, 3]).reshape([3, 1, 1]), mult);
 
   let denseExpected = NDArray.of([
     [[1, 2], [3, 4]],
@@ -149,12 +149,12 @@ test("test broadcast", () => {
     [[27, 30], [33, 36]]
   ]);
 
-  expect(out.shape()).toStrictEqual([2, 2, 3]);
+  expect(out.shape()).toStrictEqual([3, 2, 2]);
   expect(denseExpected.equals(out)).toBe(true);
 
   dense = NDArray.of([1, 1, 1]);
   out = dense.binaryOp(NDArray.of([1, 2, 3], [3, 1]), mult);
-  denseExpected = NDArray.of([[1, 2, 3], [1, 2, 3], [1, 2, 3]]);
+  denseExpected = NDArray.of([[1, 1, 1], [2, 2, 2], [3, 3, 3]]);
   expect(out.equals(denseExpected)).toBe(true);
 
   out = dense.binaryOp(1, (x, y) => x + y);
@@ -234,10 +234,10 @@ test("test prod: 2x2 matrix multiplication", () => {
   const C = A.prod(B);
   expect(C.shape()).toStrictEqual([2, 2]);
   // C[i,j] = sum_l A[i,l] * B[l,j]
-  expect(C.get([0, 0])).toBe(23); // 1*5 + 3*6
-  expect(C.get([1, 0])).toBe(34); // 2*5 + 4*6
-  expect(C.get([0, 1])).toBe(31); // 1*7 + 3*8
-  expect(C.get([1, 1])).toBe(46); // 2*7 + 4*8
+  expect(C.get([0, 0])).toBe(19); // 1*5 + 2*7
+  expect(C.get([1, 0])).toBe(43); // 3*5 + 4*7
+  expect(C.get([0, 1])).toBe(22); // 1*6 + 2*8
+  expect(C.get([1, 1])).toBe(50); // 3*6 + 4*8
 });
 
 test("test prod: non-square matrices [3,2] x [2,3]", () => {

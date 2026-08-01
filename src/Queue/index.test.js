@@ -32,19 +32,6 @@ test("dequeue on empty queue returns None", () => {
     expect(result.orElse(() => "empty")).toBe("empty");
 });
 
-test("head and tail track correctly", () => {
-    const q = new Queue();
-    q.enqueue(10);
-    expect(q.head).toBe(10);
-    expect(q.tail).toBe(10);
-    q.enqueue(20);
-    expect(q.head).toBe(10);
-    expect(q.tail).toBe(20);
-    q.dequeue();
-    expect(q.head).toBe(20);
-    expect(q.tail).toBe(20);
-});
-
 test("enqueue after full dequeue works", () => {
     const q = new Queue();
     q.enqueue(1);

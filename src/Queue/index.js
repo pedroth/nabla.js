@@ -1,53 +1,57 @@
-import { List } from "../List/index.js";
+import { Stack } from "../Stack/index.js";
 import { Maybe } from "../Maybe/index.js";
 
 export class Queue {
     constructor() {
-        this.head = null;
-        this.tail = null;
-        this.queue = new List();
+        this.inStack = new Stack();
+        this.outStack = new Stack();
     }
 
     // ========== Core State Operations ==========
 
     isEmpty() {
-        return this.queue.isEmpty();
+        return this.inStack.isEmpty() && this.outStack.isEmpty();
     }
 
     size() {
-        return this.queue.size();
+        return this.inStack.size() + this.outStack.size();
+    }
+
+    // ========== Private Helper ==========
+
+    transfer() {
+        if (!this.outStack.isEmpty()) return;
+
+        while (!this.inStack.isEmpty()) {
+            const value = this.inStack.pop().orElse();
+            this.outStack.push(value);
+        }
     }
 
     // ========== Queue Operations ==========
 
     enqueue(x) {
-        if (this.head == null) {
-            this.head = x;
-            this.tail = x;
-            this.queue.push(x);
-        } else {
-            this.tail = x;
-            this.queue.push(x);
-        }
+        this.inStack.push(x);
+        return this;
     }
 
     dequeue() {
-        if (this.isEmpty()) return Maybe.none();
-        const ans = this.head;
-        if (this.head === this.tail) {
-            this.head = null;
-            this.tail = null;
-            this.queue = new List();
-            return Maybe.some(ans);
+        this.transfer();
+
+        if (this.outStack.isEmpty()) {
+            return Maybe.none();
         }
-        // !! Mutation !!
-        this.queue = this.queue.tail;
-        this.head = this.queue.head;
-        return Maybe.some(ans);
+
+        return this.outStack.pop();
     }
 
     peek() {
-        if (this.isEmpty()) return Maybe.none();
-        return Maybe.some(this.head);
+        this.transfer();
+
+        if (this.outStack.isEmpty()) {
+            return Maybe.none();
+        }
+
+        return this.outStack.peek();
     }
 }
