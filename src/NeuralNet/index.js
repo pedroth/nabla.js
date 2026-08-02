@@ -16,13 +16,11 @@ export class NeuralNet {
             const inDim = index === 0 ? this.inputDim : hiddenLayers[index - 1].numberOfNeurons;
             const weights = matrixVar(`W${index}`, layer.numberOfNeurons, inDim);
             const biases = vectorVar(`b${index}`, layer.numberOfNeurons);
-            this.symbolicNN = weights.prod(this.symbolicNN).add(biases).map(layer.activation.symbolic).simplify();
+            this.symbolicNN = weights.prod(this.symbolicNN).add(biases).map(layer.activation.symbolic);
         });
         this.symbolicNN = this.symbolicNN.dim === 1 ? this.symbolicNN.components[0] : this.symbolicNN;
-        this.symbolicNN = this.symbolicNN.simplify();
         this.compiledNN = Symbolic.compile(this.symbolicNN);
         this.model = this.symbolicNN;
-
 
         this.weightsMap = {};
         this.symbolicNN.vars.forEach((v) => {

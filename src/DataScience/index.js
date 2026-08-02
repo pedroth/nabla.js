@@ -14,49 +14,73 @@ function createThetaMapIndex(model) {
 
 // X: array of input vectors, Y: array of output vectors
 function fitData(X, Y, model, params = {}) {
-    const { learningRate = 0.1, epochs = 1000, batch = 10 } = params;
+    const { learningRate = 0.01, epochs = 1000, batch = 10, finiteDiff = false, h = 1e-4 } = params;
     const Xarr = X?.toArray?.() ?? X;
     const Yarr = Y?.toArray?.() ?? Y;
+    const finalBatch = Math.min(batch || 1, Xarr.length);
     const thetaByIndex = createThetaMapIndex(model);
     const thetaValues = Object.keys(thetaByIndex)
         .reduce((acc, k) => {
-            acc[k] = (2 * Math.random() - 1) * 0.01;
+            acc[k] = (2 * Math.random() - 1) * 0.1;
             return acc;
         }, {});
-    const compiledModel = Symbolic.compile(model);
-    const compiledDerivativeModel = Symbolic.compile(model.derivative(), { doSimplify: false });
+    const compiledModel = Symbolic.compile(model, { doSimplify: true });
+    console.log("Compiled model:", compiledModel);
+    const thetaKeys = Object.keys(thetaByIndex);
+
+    // symbolic gradient — compiled once, reused every step
+    const compiledGrad = finiteDiff
+        ? null
+        : Symbolic.compile(model.derivative());
+    console.log("Compiled gradient:", compiledGrad);
     for (let epoch = 0; epoch < epochs; epoch++) {
         let lossSum = 0;
-        for (let i = 0; i < (batch || 1); i++) {
+
+        const gradAccumulator = {};
+        thetaKeys.forEach(k => gradAccumulator[k] = 0);
+
+        for (let i = 0; i < finalBatch; i++) {
             const index = Math.floor(Math.random() * Xarr.length);
             const input = buildInput(Xarr[index], model);
             const output = Yarr[index];
             const inputPlusWeights = { ...input, ...thetaValues };
-            const diff = compiledModel(inputPlusWeights) - output;
+
+            const val = compiledModel(inputPlusWeights);
+            const diff = val - output;
+
             if (!isFinite(diff)) continue;
             lossSum += diff * diff;
-            // Compute gradient and update thetaValues
-            const grad = compiledDerivativeModel(inputPlusWeights);
-            const gradEval = grad.map(v => v * diff);
-            // Clip global gradient norm to prevent exp() overflow in activations
-            const keys = Object.keys(thetaByIndex);
-            const gradNorm = Math.sqrt(
-                keys.reduce((s, k) => {
-                    const v = gradEval[thetaByIndex[k]];
-                    return s + (isFinite(v) ? v * v : 0);
-                }, 0)
-            );
-            const clipFactor = gradNorm > 1 ? 1 / gradNorm : 1;
-            keys.forEach((key) => {
-                const gradValue = gradEval[thetaByIndex[key]];
-                if (isFinite(gradValue)) {
-                    thetaValues[key] -= learningRate * gradValue * clipFactor;
-                }
-            });
+
+            if (finiteDiff) {
+                // finite-difference gradient: (f(θ+h) - f(θ)) / h * 2(y-ŷ)
+                thetaKeys.forEach((key) => {
+                    inputPlusWeights[key] += h;
+                    const gradVal = ((compiledModel(inputPlusWeights) - val) / h) * 2 * diff;
+                    inputPlusWeights[key] -= h; // reset input
+                    if (isFinite(gradVal)) gradAccumulator[key] += gradVal;
+                });
+            } else {
+                const grad = compiledGrad(inputPlusWeights);
+                thetaKeys.forEach((key) => {
+                    const gradVal = grad[thetaByIndex[key]] * 2 * diff;
+                    if (isFinite(gradVal)) gradAccumulator[key] += gradVal;
+                });
+            }
         }
-        console.log(`Epoch ${epoch + 1}/${epochs}, Loss: ${lossSum / (batch || 1)}`);
+
+        // Apply parameter update once after batch completion
+        Object.keys(thetaByIndex).forEach((key) => {
+            // Clamp gradient before subtracting
+            let gradVal = gradAccumulator[key] / finalBatch;
+            gradVal = Math.max(-1.0, Math.min(1.0, gradVal)); // Gradient Clipping
+            thetaValues[key] -= learningRate * gradVal;
+        });
+
+        if (epoch % 100 === 0) {
+            console.log(`Epoch ${epoch + 1}/${epochs}, Loss: ${lossSum / finalBatch}`);
+        }
     }
-    return {compiledModel, theta: thetaValues};
+    return { compiledModel, theta: thetaValues };
 }
 
 function buildInput(input, model) {

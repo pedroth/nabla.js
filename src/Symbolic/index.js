@@ -1217,7 +1217,7 @@ function derivative(expression, asMap = false) {
 // Compile
 // =============================================================================
 
-function compile(expression, { doSimplify = true } = {}) {
+function compile(expression, { doSimplify = false } = {}) {
     const simplifiedExpr = doSimplify ? expression.simplify() : expression;
     const varIndexMap = new Map();
     simplifiedExpr.vars.forEach((v, i) => varIndexMap.set(v.name, i));
