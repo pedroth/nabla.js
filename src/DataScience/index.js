@@ -24,15 +24,13 @@ function fitData(X, Y, model, params = {}) {
             acc[k] = (2 * Math.random() - 1) * 0.1;
             return acc;
         }, {});
-    const compiledModel = Symbolic.compile(model, { doSimplify: true });
-    console.log("Compiled model:", compiledModel);
+    const compiledModel = Symbolic.compile(model);
     const thetaKeys = Object.keys(thetaByIndex);
 
     // symbolic gradient — compiled once, reused every step
     const compiledGrad = finiteDiff
         ? null
         : Symbolic.compile(model.derivative());
-    console.log("Compiled gradient:", compiledGrad);
     for (let epoch = 0; epoch < epochs; epoch++) {
         let lossSum = 0;
 

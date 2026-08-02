@@ -1217,10 +1217,9 @@ function derivative(expression, asMap = false) {
 // Compile
 // =============================================================================
 
-function compile(expression, { doSimplify = false } = {}) {
-    const simplifiedExpr = doSimplify ? expression.simplify() : expression;
+function compile(expression) {
     const varIndexMap = new Map();
-    simplifiedExpr.vars.forEach((v, i) => varIndexMap.set(v.name, i));
+    expression.vars.forEach((v, i) => varIndexMap.set(v.name, i));
 
     function atomicToJsExpr(expr) {
         switch (expr.type) {
@@ -1307,11 +1306,11 @@ function compile(expression, { doSimplify = false } = {}) {
         return `(${numeratorJsExpr}) / (${denominatorJsExpr})`;
     }
 
-    const jsExpr = simplifiedExpr.type === TYPES.ratioPoly
-        ? ratioPolyToJsExpr(simplifiedExpr)
-        : simplifiedExpr.type === TYPES.poly
-            ? polyToJsExpr(simplifiedExpr)
-            : atomicToJsExpr(simplifiedExpr);
+    const jsExpr = expression.type === TYPES.ratioPoly
+        ? ratioPolyToJsExpr(expression)
+        : expression.type === TYPES.poly
+            ? polyToJsExpr(expression)
+            : atomicToJsExpr(expression);
 
     return new Function("x", `return ${jsExpr};`); // x: { [varName]: number }
 }
