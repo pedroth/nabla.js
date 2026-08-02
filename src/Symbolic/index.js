@@ -565,6 +565,25 @@ function div(numerator, denominator) {
 // =============================================================================
 // Polynomial expressions
 // =============================================================================
+function evaluatePoly(polyExpr, variableValues) {
+    let acc = real(0);
+
+    polyExpr.varCombCoeffsMap.forEach((coeff, varComb) => {
+        let term = coeff.eval(variableValues);
+        if (varComb !== "") {
+            varComb.split("*").forEach((varName) => {
+                const originalVar = polyExpr.vars.find(varObj => varObj.name === varName);
+                const factor = polyExpr.atomicExprMap.has(varName)
+                    ? polyExpr.atomicExprMap.get(varName)
+                    : realVar(varName, originalVar?.isParam ?? false);
+                term = term.mul(factor.eval(variableValues));
+            });
+        }
+        acc = acc.add(term).simplify();
+    });
+
+    return acc;
+}
 
 function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     // varCombCoeffsMap: Map<varComb: string, coeff>, varComb example: "x*x*y*y*y", "", coeff: field_expr
@@ -702,9 +721,7 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
     ans.derivative = () => {
         return ans.unFlat().derivative();
     };
-    ans.eval = (variableValues) => {
-        return ans.unFlat().eval(variableValues);
-    }
+    ans.eval = (variableValues) => evaluatePoly(ans, variableValues)
 
     ans.toString = () => polyToString(ans, coeff => coeff.toString());
     ans.toVisual = () => ({ type: "latex", value: polyToString(ans, coeff => coeff.toVisual().value) });
@@ -792,8 +809,12 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     ans.pullback = () => {
         throw new Error(`pullback not implemented for ratioPoly`);
     };
-    ans.derivative = () => ans.unFlat().derivative();
-    ans.eval = (variableValues) => ans.unFlat().eval(variableValues);
+    ans.derivative = () =>ans.unFlat().derivative();
+    ans.eval = (variableValues) => {
+        const evaluatedNumerator = evaluatePoly(numeratorPoly, variableValues);
+        const evaluatedDenominator = evaluatePoly(denominatorPoly, variableValues);
+        return evaluatedNumerator.div(evaluatedDenominator).simplify();
+    };
 
     ans.toString = () => `(${numeratorPoly.toString()}) / (${denominatorPoly.toString()})`;
     ans.toVisual = () => ({ type: "latex", value: `\\frac{${numeratorPoly.toVisual().value}}{${denominatorPoly.toVisual().value}}` });
