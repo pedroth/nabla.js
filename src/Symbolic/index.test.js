@@ -117,3 +117,23 @@ test("ratioPoly eval supports partial substitution with atomic denominator", () 
 	expect(expr.type).toBe("ratioPoly");
 	expect(expr.eval({ y: 2 }).simplify().toString()).toBe("(2) / (exp(x))");
 });
+
+test("complex product derivative does not crash and returns a covector", () => {
+	const x = Symbolic.realVar("x");
+	const y = Symbolic.realVar("y");
+	const z = Symbolic.realVar("z");
+	const w = Symbolic.realVar("w");
+	const expr = Symbolic.complex(x, y).mul(Symbolic.complex(z, w));
+
+	const grad = expr.derivative().simplify();
+	expect(grad.type).toBe("covector");
+	expect(grad.components.length).toBe(4);
+});
+
+test("single-variable complex derivative returns a complex scalar", () => {
+	const x = Symbolic.realVar("x");
+	const expr = Symbolic.complex(x.mul(x), x);
+
+	const grad = expr.derivative().simplify();
+	expect(grad.type).toBe("complex");
+});

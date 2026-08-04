@@ -104,18 +104,47 @@ function mergeAtomicExprMaps(...expressions) {
     return mergedMap;
 }
 
+// Generic sign/magnitude helpers for atomic field coefficients (real or complex)
+function coeffIsNegative(coeff) {
+    if (coeff.type === TYPES.real) return coeff.value < 0;
+    if (coeff.type === TYPES.complex) {
+        // Sign is driven by whichever component is non-zero (real takes priority),
+        // matching the convention that complex() collapses to real when imag is zero.
+        if (coeff.real.type === TYPES.real && coeff.real.value !== 0) {
+            return coeff.real.value < 0;
+        }
+        if (coeff.imag.type === TYPES.real) {
+            return coeff.imag.value < 0;
+        }
+    }
+    return false;
+}
+
+function coeffAbs(coeff) {
+    if (!coeffIsNegative(coeff)) return coeff;
+    if (coeff.type === TYPES.real) return real(Math.abs(coeff.value));
+    if (coeff.type === TYPES.complex) return atomicFieldMul(coeff, real(-1));
+    return coeff;
+}
+
 function polyToString(polyExpr, exprToStr) {
     if (polyExpr.varCombCoeffsMap.size === 0) {
         return exprToStr(real(0));
     }
-    return [...polyExpr.varCombCoeffsMap.entries()]
+    const nonZeroEntries = [...polyExpr.varCombCoeffsMap.entries()]
+        .filter(([, coeff]) => !isZero(coeff));
+
+    if (nonZeroEntries.length === 0) {
+        return exprToStr(real(0));
+    }
+
+    return nonZeroEntries
         .map(([varComb, coeff], i) => {
             const varCombStr = Array.fromArray(varComb.split("*"))
                 .groupBy(v => v)
                 .getEntries()
                 .toArray()
                 .sort((a, b) => {
-                    // regular variables before atomic expressions (e.g. exp(...)), then alphabetically
                     const aIsAtomic = a.left().startsWith("__atomic__");
                     const bIsAtomic = b.left().startsWith("__atomic__");
                     if (aIsAtomic !== bIsAtomic) return aIsAtomic - bIsAtomic;
@@ -133,14 +162,17 @@ function polyToString(polyExpr, exprToStr) {
                     }
                     return finalVarName;
                 })
-                .join("");
-            const isRealCoeff = coeff.type === TYPES.real;
-            const sign = isRealCoeff && coeff.value < 0 ? "-" : "+";
-            const coeffStr = isRealCoeff
-                ? (Math.abs(coeff.value) === 1 && varCombStr ? "" : exprToStr(real(Math.abs(coeff.value))))
-                : exprToStr(coeff);
+                .join(" ");
+
+            const isNegative = coeffIsNegative(coeff);
+            const absCoeff = coeffAbs(coeff);
+            const sign = isNegative ? "-" : "+";
+            const coeffStr = (absCoeff.type === TYPES.real && absCoeff.value === 1 && varCombStr)
+                ? ""
+                : exprToStr(absCoeff);
+
             return i === 0
-                ? `${sign === "-" ? "-" : ""}${coeffStr}${varCombStr}`
+                ? `${isNegative ? "-" : ""}${coeffStr}${varCombStr}`
                 : `${sign} ${coeffStr}${varCombStr}`;
         }).join(" ");
 }
@@ -216,16 +248,20 @@ function isPolyJustAReal(poly, value) {
 }
 
 function isZero(expr) {
-    if (expr.type === TYPES.real && expr.value === 0) return true;
+   return isReal(expr, 0);
+}
+
+function isReal(expr, value = 0) {
+    if (expr.type === TYPES.real && expr.value === value) return true;
     if (
         expr.type === TYPES.complex &&
         expr.vars.length === 0 &&
-        isZero(expr.real) &&
-        isZero(expr.imag)
+        isReal(expr.real, 0) &&
+        isReal(expr.imag, 0)
     ) return true;
     const flatExpr = expr.flat();
     if (flatExpr.type === TYPES.poly) {
-        return isPolyJustAReal(flatExpr, 0);
+        return isPolyJustAReal(flatExpr, value);
     }
     return false;
 }
@@ -266,6 +302,19 @@ function atomicFieldDiv(a, b) {
     const denom = br * br + bi * bi;
     if (denom === 0) throw new Error("division by zero");
     return complex(real((ar * br + ai * bi) / denom), real((ai * br - ar * bi) / denom));
+}
+
+// Determine sign and magnitude string for a complex number's imaginary component.
+// Only collapses "1"/"−1" to a bare sign when the imag part is a literal real;
+// for anything else (variables, expressions) we just print it with a leading "+".
+function formatImagPart(imagExpr, toStr) {
+    if (imagExpr.type === TYPES.real) {
+        const isNeg = imagExpr.value < 0;
+        const absVal = Math.abs(imagExpr.value);
+        const magStr = absVal === 1 ? "" : toStr(real(absVal));
+        return { sign: isNeg ? "-" : "+", magStr };
+    }
+    return { sign: "+", magStr: toStr(imagExpr) };
 }
 
 // =============================================================================
@@ -380,13 +429,8 @@ function complex(realPart, imagPart) {
         return ans.flat();
     };
     ans.pullback = () => {
-        const realPullback = ans.real.pullback();
-        const imagPullback = ans.imag.pullback();
-        const components = [];
-        realPullback.components.forEach((realComp, i) => {
-            components.push(complex(realComp, imagPullback.components[i]));
-        });
-        return covec(...components);
+        // d(real + i*imag)/d(real, imag) = [1, i]
+        return covec(real(1), complex(real(0), real(1)));
     };
     ans.derivative = () => {
         return derivative(ans);
@@ -398,18 +442,25 @@ function complex(realPart, imagPart) {
     };
 
     ans.toString = () => {
-        const imagStr = ans.imag.type === TYPES.real && ans.imag.value === 1 ? "" : ans.imag.toString();
+        const { sign, magStr } = formatImagPart(ans.imag, e => e.toString());
         if (isZero(ans.real)) {
-            return `(${imagStr}i)`;
+            return sign === "-" ? `(-${magStr}i)` : `(${magStr}i)`;
         }
-        return `(${ans.real.toString()} + ${imagStr}i)`;
+        return `(${ans.real.toString()} ${sign} ${magStr}i)`;
     };
+
     ans.toVisual = () => {
-        const imagStr = ans.imag.type === TYPES.real && ans.imag.value === 1 ? "" : ans.imag.toString();
+        const { sign, magStr } = formatImagPart(ans.imag, e => e.toVisual().value);
         if (isZero(ans.real)) {
-            return { type: "latex", value: `${imagStr}\\imath ` };
+            if (magStr === "") {
+                return { type: "latex", value: sign === "-" ? `-\\imath ` : `\\imath ` };
+            }
+            return { type: "latex", value: sign === "-" ? `-\\imath ${magStr}` : `\\imath ${magStr}` };
         }
-        return { type: "latex", value: `(${ans.real.toVisual().value} + ${imagStr}\\imath) ` };
+        if (magStr === "") {
+            return { type: "latex", value: `(${ans.real.toVisual().value} ${sign} \\imath)` };
+        }
+        return { type: "latex", value: `(${ans.real.toVisual().value} ${sign} \\imath ${magStr})` };
     }
     ans.equals = (other) => other?.type === TYPES.complex && other.real.equals(ans.real) && other.imag.equals(ans.imag);
     return ans;
@@ -755,7 +806,7 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     // Normalize any flat expression to {numeratorPoly, denominatorPoly}
     function asRatio(expr) {
         const f = expr.flat();
-        if (f.type === TYPES.ratioPoly  ) return f;
+        if (f.type === TYPES.ratioPoly) return f;
         if (f.type === TYPES.poly) return ratioPoly(f, poly(new Map([["", real(1)]]), f.vars));
         throw new Error(`Cannot convert ${f.type} to ${TYPES.ratioPoly}`);
     }
@@ -1080,7 +1131,11 @@ function singleArgFunc({ name }, arg) {
 }
 
 function exp(value) {
-    const ans = singleArgFunc({ name: "exp" }, value);
+    const ans = singleArgFunc({ name: TYPES.exp }, value);
+
+    if(isZero(value)) {
+        return real(1);
+    }
 
     ans.flat = () => {
         const flat = exp(value.flat());
@@ -1112,7 +1167,11 @@ function exp(value) {
 }
 
 function log(value) {
-    const ans = singleArgFunc({ name: "log" }, value);
+    const ans = singleArgFunc({ name: TYPES.log }, value);
+
+    if(isReal(value, 1)) {
+        return real(0);
+    }
 
     ans.flat = () => {
         const flat = log(value.flat());
@@ -1202,15 +1261,6 @@ function partial(expression, variable) {
 }
 
 function derivative(expression, asMap = false) {
-    if (expression.type === TYPES.complex) {
-        const dreal = derivative(expression.real);
-        const dimag = derivative(expression.imag);
-        const components = [];
-        dreal.components.forEach((realComp, i) => {
-            components.push(complex(realComp, dimag.components[i]));
-        });
-        return covec(...components);
-    }
     if (expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
@@ -1222,7 +1272,7 @@ function derivative(expression, asMap = false) {
     const partials = parentVars.filter(v => !v.isParam).map(v => partial(expression, v));
     let result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = parentVars;
-    if(asMap) {
+    if (asMap) {
         const resultMap = new Map();
         parentVars
             .filter(v => !v.isParam)
