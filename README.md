@@ -65,8 +65,45 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [x] Edit distance
 
 
-# TODO
+# Demos
 
-- Symbolic
-    - Complex coefficients poly
-    - Atomic add, multiply, divide, subtract, for atomic simple fields(real and complex)
+- Neural graphics
+    - Image generation: [0,1]^2 => Color
+    - SDF: [0,1]^3 => Distance
+- Spectral Images:
+    - Low pass
+    - High pass
+    - Image segmentation
+    - Metric PDEs: Wave & Heat
+- Fourier transform line drawing
+- Dimensionality reduction
+    - MNIST PCA
+    - Graph embedding
+    - Kernel PCA
+- Flow matching MNIST
+- Diffusion / Signed distance function MNIST
+- Spectral Point Clouds
+    - Laplacian eigen functions
+    - Clustering
+    - Harmonic vector fields
+        - Global surface parameterization
+    - Heat equation
+    - Wave equation
+    - Poisson equation
+    - Out-of-sample extension using ridge regression
+- Discrete exterior calculus
+    - Laplacian eigen functions on meshes
+    - Heat equation on meshes
+    - Wave equation on meshes
+    - Poisson equation on meshes
+    - Out-of-sample extension using ridge regression on meshes
+    - Harmonic vector fields on meshes
+        - Global surface parameterization on meshes
+- Gaussian splatting generation
+- Radiance fields
+- Nearest neighbor search
+- Soft body simulation
+  - 2d
+  - 3d
+- Mesh / point cloud smooth editing
+    

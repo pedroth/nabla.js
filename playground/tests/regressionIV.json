@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const {fitData} = DataScience;\nconst linear = NeuralNet.ACTIVATIONS.linear;\nconst nn = NeuralNet\n.builder()\n.input(2)\n.layer(10)\n.layer(10, NeuralNet.ACTIVATIONS.sigmoid)\n.layer(1, linear)\n.build();\n\nconst trainXs = NArray.range(0, 500).map(() => [3 * (2 * Math.random() - 1),3 * (2 * Math.random() - 1)]);\nconst testXs = NArray.range(0, 500).map(() => [3 * (2 * Math.random() - 1),3 * (2 * Math.random() - 1)]);\nconst sinc = (x,y) => Math.sin(x * x  + y * y) / (x * x + y * y);\nconst yf = ([x,y]) => sinc(x,y) + 0.1 * (2 * Math.random() - 1);\n\nlet {scene} = IO.plotPointCloud(trainXs.map(([x,y]) => [x, y, yf([x, y])]), {color:[1,0,0]});\nconst {theta} = fitData(trainXs, trainXs.map(yf), nn.model, {epochs: 10000, batch: 128, learningRate: 0.1, finiteDiff: true});\nnn.setWeights(theta);\nIO.plotPointCloud(testXs.map(([x,y]) => [x, y, nn.eval([x, y])]), {scene, color:[0,0,1]});"
+    }
+]

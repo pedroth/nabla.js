@@ -1,28 +1,41 @@
-import { Array } from "../Array/index.js";
 
+import { Maybe } from "../Maybe/index.js";
+
+// Immutable Stack Implementation
 export class Stack {
-    constructor() {
-        this.stack = new Array();
+    constructor(head, tail) {
+        this.head = head || null;
+        this.tail = tail || null;
+        this._size = head ? (tail ? tail._size + 1 : 1) : 0;
     }
 
     size() {
-        return this.stack.size();
+        return this._size;
     }
 
     isEmpty() {
-        return this.stack.isEmpty();
+        return this._size === 0;
     }
 
     push(x) {
-        this.stack.push(x);
+        const previousStack = new Stack(this.head, this.tail);
+        this.head = x;
+        this.tail = previousStack;
+        this._size = previousStack._size + 1;
         return this;
     }
 
     pop() {
-        return this.stack.pop();
+        if (this.isEmpty()) return Maybe.none();
+        const popValue = this.head;
+        const nextStack = this.tail;
+        this.head = nextStack.head;
+        this.tail = nextStack.tail;
+        this._size = nextStack._size;
+        return Maybe.of(popValue);
     }
 
     peek() {
-        return this.stack.get(this.stack.size() - 1);
+        return Maybe.of(this.head);
     }
 }

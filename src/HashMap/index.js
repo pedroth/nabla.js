@@ -1,4 +1,4 @@
-import { Array } from "../Array/index.js";
+import { NArray } from "../NArray/index.js";
 import { List } from "../List/index.js";
 import { Maybe } from "../Maybe/index.js";
 import { Pair } from "../Pair/index.js";
@@ -16,7 +16,7 @@ class DynamicArray {
     constructor() {
         this.capacity = 7;
         this.length = 0;
-        this.elements = new Array(this.capacity);
+        this.elements = new NArray(this.capacity);
     }
 
     size() {
@@ -28,7 +28,7 @@ class DynamicArray {
     }
 
     _resize(newCapacity) {
-        const newElements = new Array(newCapacity);
+        const newElements = new NArray(newCapacity);
         for (let i = 0; i < this.length; i++) {
             newElements[i] = this.elements[i];
         }
@@ -68,7 +68,7 @@ export class HashMap {
 
     constructor(hashFun = hash_str) {
         this.hashFun = hashFun;
-        this.map = new DynamicArray(); // Array of List<Pair(key, value)> for collision resolution
+        this.map = new DynamicArray(); // NArray of List<Pair(key, value)> for collision resolution
         this.length = 0;
     }
 
@@ -105,7 +105,7 @@ export class HashMap {
     }
 
     getEntries() {
-        const entries = new Array();
+        const entries = new NArray();
         for (let i = 0; i < this.map.capacity; i++) {
             const maybeList = this.map.get(i);
             maybeList.forEach(list => list.fold(null, (_, pair) => entries.push(pair)));

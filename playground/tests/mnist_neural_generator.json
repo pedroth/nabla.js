@@ -1,5 +1,5 @@
 [
     {
-        "input": "const samples = await IO.loadMNIST();\nIO.paintMNIST(samples[0]);"
+        "input": "const {fitData} = DataScience;\nconst linear = NeuralNet.ACTIVATIONS.linear;\nconst nn = NeuralNet.builder().input(2).layer(25).layer(1,\nNeuralNet.ACTIVATIONS.sigmoid).build();\nconst samples = await IO.loadMNIST();\nconst sample = samples[1]\n//MNIST is 28x28 = 784 1-array we want to map it into a [0,1]^2\nconst trainXs = Array.from(sample).map((_, i) => [(i % 28) / 27, 1.0 - Math.floor(i / 28) / 27])\nconst testXs = NArray.range(0,28).map(x => x / 27).prod(NArray.range(0,28).map(x => x / 27)).toArray().map(z => z.toArray());\n//IO.paintMNIST(sample);\nlet {scene} = IO.plotPointCloud(trainXs.map(([x,y], i) => [x, y, sample[i]]), {color:[1,0,0]});\nconst {theta} = fitData(trainXs, trainXs.map((_, i) => sample[i]), nn.model, {epochs: 2500, batch: 256, learningRate: 0.03, finiteDiff: true});\nconsole.log(theta)\nnn.setWeights(theta);\nIO.plotPointCloud(testXs.map(([x,y]) => [x, y, nn.eval([x, y])]), {scene, color:[0,0,1]})"
     }
 ]

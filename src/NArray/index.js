@@ -9,7 +9,7 @@ const INITIAL_CAPACITY = 7;
 /**
  *  Continuous array implementation with dynamic resizing.
  */
-export class Array {
+export class NArray {
     constructor(capacity = INITIAL_CAPACITY) {
         this.length = 0;
         this.capacity = capacity;
@@ -38,9 +38,9 @@ export class Array {
 
     // ========== Functional/Monadic ==========
 
-    // Array => (elem => elem) => Array
+    // NArray => (elem => elem) => NArray
     map(lambda) {
-        const newArray = new Array(this.capacity);
+        const newArray = new NArray(this.capacity);
         for (let i = 0; i < this.length; i++) {
             newArray.elements[i] = lambda(this.elements[i], i);
         }
@@ -55,7 +55,7 @@ export class Array {
     }
 
     filter(predicate) {
-        const newArray = new Array(this.capacity);
+        const newArray = new NArray(this.capacity);
         for (let i = 0; i < this.length; i++) {
             if (predicate(this.elements[i], i)) {
                 newArray.push(this.elements[i]);
@@ -65,7 +65,7 @@ export class Array {
     }
 
     flatMap(lambda = x => x) {
-        let newArray = new Array(this.capacity);
+        let newArray = new NArray(this.capacity);
         for (let i = 0; i < this.length; i++) {
             const mapped = lambda(this.elements[i]);
             newArray = newArray.union(mapped);
@@ -93,7 +93,7 @@ export class Array {
     // ========== Combination ==========
 
     union(otherArray) {
-        const newArray = new Array(this.length + otherArray.length);
+        const newArray = new NArray(this.length + otherArray.length);
         for (let i = 0; i < this.length; i++) {
             newArray.elements[i] = this.elements[i];
         }
@@ -104,9 +104,9 @@ export class Array {
         return newArray;
     }
 
-    // Array => (Array) => Array
+    // NArray => (NArray) => NArray
     zip(otherArray) {
-        const newArray = new Array(Math.min(this.length, otherArray.length));
+        const newArray = new NArray(Math.min(this.length, otherArray.length));
         for (let i = 0; i < newArray.capacity; i++) {
             newArray.elements[i] = Pair.of(this.elements[i], otherArray.get(i).orElse());
         }
@@ -115,7 +115,7 @@ export class Array {
     }
 
     prod(otherArray) {
-        if (this.isEmpty() || otherArray.isEmpty()) return new Array();
+        if (this.isEmpty() || otherArray.isEmpty()) return new NArray();
         return this.map(x => {
             return otherArray.map(y => {
                 if (x instanceof Tuple && y instanceof Tuple) {
@@ -130,10 +130,10 @@ export class Array {
         }).flatMap();
     }
 
-    // Slice: Array => (start: number, end: number) => Array
+    // Slice: NArray => (start: number, end: number) => NArray
     slice(start = 0, end = this.length) {
-        if(end <= start) return new Array();
-        const newArray = new Array(Math.max(0, end - start));
+        if (end <= start) return new NArray();
+        const newArray = new NArray(Math.max(0, end - start));
         for (let i = start; i < end && i < this.length; i++) {
             newArray.elements[i - start] = this.elements[i];
         }
@@ -144,7 +144,7 @@ export class Array {
     // ========== Transformation ==========
 
     reverse() {
-        const newArray = new Array(this.capacity);
+        const newArray = new NArray(this.capacity);
         for (let i = 0; i < this.length; i++) {
             newArray.elements[i] = this.elements[this.length - 1 - i];
         }
@@ -152,9 +152,9 @@ export class Array {
         return newArray;
     }
 
-    // () => Array
+    // () => NArray
     shuffle() {
-        const newArray = new Array(this.capacity);
+        const newArray = new NArray(this.capacity);
         for (let i = 0; i < this.length; i++) {
             newArray.elements[i] = this.elements[i];
         }
@@ -170,7 +170,7 @@ export class Array {
 
     // array => (permutation: array) => array
     permute(permutation) {
-        const ans = new Array(this.capacity);
+        const ans = new NArray(this.capacity);
         const len = Math.min(this.length, permutation.length);
         for (let i = 0; i < len; i++) {
             ans.elements[permutation[i]] = this.elements[i];
@@ -179,12 +179,12 @@ export class Array {
         return ans;
     }
 
-    // array => (groupFunction: elem => key) => HashMap<key, Array<elem>>
+    // array => (groupFunction: elem => key) => HashMap<key, NArray<elem>>
     groupBy(groupFunction) {
         const ans = new HashMap();
         this.forEach(x => {
             const key = groupFunction(x);
-            if (!ans.has(key)) ans.put(key, new Array());
+            if (!ans.has(key)) ans.put(key, new NArray());
             ans.get(key).map(array => array.push(x));
         });
         return ans;
@@ -235,7 +235,7 @@ export class Array {
         return this;
     }
 
-    // Array => elem => Array
+    // NArray => elem => NArray
     push(elem) {
         if (this.length >= this.capacity) {
             this._resize(this.capacity * 2);
@@ -245,7 +245,7 @@ export class Array {
         return this;
     }
 
-    // Array => () => Maybe(elem)
+    // NArray => () => Maybe(elem)
     pop() {
         if (this.isEmpty()) return Maybe.none();
         this.length--;
@@ -272,7 +272,7 @@ export class Array {
     sort(comparator = (a, b) => a - b) {
         const n = this.elements.length;
         const v = this.elements;
-        const stack = new Array();
+        const stack = new NArray();
         stack.push(0);
         stack.push(n - 1);
         while (stack.length > 0) {
@@ -328,7 +328,7 @@ export class Array {
     // ==========================================================
 
     static of(...elements) {
-        const array = new Array(elements.length);
+        const array = new NArray(elements.length);
         for (let i = 0; i < elements.length; i++) {
             array.elements[i] = elements[i];
         }
@@ -337,7 +337,7 @@ export class Array {
     }
 
     static fromArray(nativeArray) {
-        const array = new Array(nativeArray.length);
+        const array = new NArray(nativeArray.length);
         for (let i = 0; i < nativeArray.length; i++) {
             array.elements[i] = nativeArray[i];
         }
@@ -346,7 +346,7 @@ export class Array {
     }
 
     static range(init = 0, end = 0) {
-        const array = new Array(end - init);
+        const array = new NArray(end - init);
         for (let i = 0; i < end - init; i++) {
             array.elements[i] = init + i;
         }

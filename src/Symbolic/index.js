@@ -1,5 +1,5 @@
 import { Set } from "../Set/index.js";
-import { Array } from "../Array/index.js";
+import { NArray } from "../NArray/index.js";
 import { Maybe } from "../Maybe/index.js";
 
 /**
@@ -26,8 +26,8 @@ import { Maybe } from "../Maybe/index.js";
  *     type: string,
  *     value?: number | expression,
  *
- *     children: Array<expression>,
- *     vars: Array<variable>,
+ *     children: NArray<expression>,
+ *     vars: NArray<variable>,
  *
  *     add(other: expression) => expression
  *     sub(other: expression) => expression
@@ -48,7 +48,7 @@ import { Maybe } from "../Maybe/index.js";
  *
  * Additional properties/methods on vec and covec:
  *     dim: number
- *     components: Array<expression>
+ *     components: NArray<expression>
  *     transpose() => vec | covec
  *     prod(other: vec | covec | expression) => expression | vec | covec
  *     dot(other: vec | covec) => expression
@@ -140,7 +140,7 @@ function polyToString(polyExpr, exprToStr) {
 
     return nonZeroEntries
         .map(([varComb, coeff], i) => {
-            const varCombStr = Array.fromArray(varComb.split("*"))
+            const varCombStr = NArray.fromArray(varComb.split("*"))
                 .groupBy(v => v)
                 .getEntries()
                 .toArray()
@@ -162,7 +162,7 @@ function polyToString(polyExpr, exprToStr) {
                     }
                     return finalVarName;
                 })
-                .join(" ");
+                .join("");
 
             const isNegative = coeffIsNegative(coeff);
             const absCoeff = coeffAbs(coeff);

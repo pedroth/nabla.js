@@ -1,5 +1,5 @@
 import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
-import * as NablaArray from "../src/Array/index.js";
+import {NArray} from "../src/NArray/index.js";
 const IO = {}
 IO._cache = {}
 
@@ -49,7 +49,7 @@ IO.paintMNIST = function (mnistSample, scale = 10) {
     })
     return {
         toVisual: () => {
-            return { type: "canvas", value: outputCanvas.paint() };
+            return { type: "canvas", value: () => outputCanvas.paint() };
         }
     };
 }
@@ -211,7 +211,7 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
 
 // points: array of [x, y] or [x, y, z]
 IO.plotPointCloud = function (points, options = {}) {
-    if (points instanceof NablaArray.Array) {
+    if (points instanceof NArray) {
         points = points.toArray();
     }
     const dimensions = points[0].length;

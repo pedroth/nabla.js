@@ -60,12 +60,20 @@ function renderMaps(map) {
 
 export function serializeEvaluation(evaluation) {
     if (evaluation instanceof Map) return renderMaps(evaluation);
+    if (Array.isArray(evaluation)) return formatArray(evaluation);
     if (typeof evaluation !== "object") return String(evaluation);
     if (typeof evaluation?.toVisual === "function") {
         const visual = evaluation.toVisual();
         return renderType(visual);
     }
     return evaluation.toString();
+}
+
+function formatArray(array) {
+    const formatValue = value => Array.isArray(value)
+        ? `(${value.map(formatValue).join(",")})`
+        : String(value);
+    return array.map(formatValue).join(", ");
 }
 
 const renderHandlers = {

@@ -12,6 +12,10 @@
         "path": "/playground/tests/regressionIII.json"
     },
     {
+        "title": "Regressions IV",
+        "path": "/playground/tests/regressionIV.json"
+    },
+    {
         "title": "MNIST Neural Generator",
         "path": "/playground/tests/mnist_neural_generator.json"
     },
