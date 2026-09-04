@@ -36,10 +36,12 @@ import { Maybe } from "../Maybe/index.js";
  *
  *     flat() => poly | ratioPoly | vec | covec
  *     simplify() => poly | ratioPoly | expression
- *
+ *     
+ *  
  *     pullback() => covector of partial derivatives with respect to children
  *     derivative() => covector of partial derivatives with respect to vars
  *     eval(variableValues: { [variableName: string]: expression }) => expression
+ *     autoGrad(variableValues: { [variableName: string]: expression }) => array of numbers
  *
  *     toString() => string
  *     toVisual() => { type: "latex", value: string }
@@ -342,6 +344,7 @@ function real(value) {
         return derivative(ans);
     };
     ans.eval = () => ans;
+    ans.autoGrad = () => autoGrad(ans);
 
     ans.toString = () => ans.value.toString();
     ans.toVisual = () => ({ type: "latex", value: ans.value.toString() });
@@ -381,6 +384,7 @@ function realVar(name, isParam = false) {
         }
         return value;
     };
+
 
     ans.toString = () => name;
     ans.toVisual = () => ({ type: "latex", value: name });
@@ -1260,7 +1264,7 @@ function partial(expression, variable) {
     return dExprDChildren.prod(dChildrenDVariable);
 }
 
-function derivative(expression, asMap = false) {
+function derivative(expression) {
     if (expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
@@ -1272,17 +1276,11 @@ function derivative(expression, asMap = false) {
     const partials = parentVars.filter(v => !v.isParam).map(v => partial(expression, v));
     let result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = parentVars;
-    if (asMap) {
-        const resultMap = new Map();
-        parentVars
-            .filter(v => !v.isParam)
-            .forEach((v, i) => {
-                resultMap.set(v.name, partials[i]);
-            });
-        return resultMap;
-    }
     return result;
 }
+
+
+function autoGrad(expression, variableValues) {}
 
 // =============================================================================
 // Compile
