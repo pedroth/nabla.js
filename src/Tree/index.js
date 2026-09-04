@@ -1,4 +1,6 @@
 import { Maybe } from "../Maybe";
+import { NArray } from "../NArray";
+import { Pair } from "../Pair";
 
 // TreeNode :: () |
 //             { 
@@ -75,15 +77,13 @@ function put(treeNode, key, value, opts) {
       return newNode;
     }
 
+    // normal binary search tree insertion
     if (compareFunc(key, treeNode.key) < 0) {
         treeNode.left = put(treeNode.left, key, value, opts);
-        treeNode.size = computeSize(treeNode);
-    } else if (compareFunc(key, treeNode.key) > 0) {
-        treeNode.right = put(treeNode.right, key, value, opts);
-        treeNode.size = computeSize(treeNode);
     } else {
-        treeNode.value = value;
+        treeNode.right = put(treeNode.right, key, value, opts);
     }
+    treeNode.size = computeSize(treeNode);
     return treeNode;
 }
 
@@ -98,6 +98,18 @@ function get(treeNode, key, compareFunc) {
     } else {
         return Maybe.some(treeNode.value);
     }
+}
+
+function update(treeNode, key, value, compareFunc) {
+    const comparison = compareFunc(key, treeNode.key);
+    if (comparison < 0) {
+        treeNode.left = update(treeNode.left, key, value, compareFunc);
+    } else if (comparison > 0) {
+        treeNode.right = update(treeNode.right, key, value, compareFunc);
+    } else {
+        treeNode.value = value;
+    }
+    return treeNode;
 }
 
 export class Tree {
@@ -132,13 +144,30 @@ export class Tree {
     }
 
     getEntries() {
-        // TODO in future
+        const entries = new NArray();
+        function traverse(node) {
+            if (node === null || node.size === 0) {
+                return;
+            }
+            traverse(node.left);
+            entries.push(Pair.of(node.key, node.value));
+            traverse(node.right);
+        }
+        traverse(this.root);
+        return entries;
     }
 
     // ========== Write Operations ==========
 
     put(key, value) {
-        this.root = put(this.root, key, value, {compareFunc: this.compareFunc, random: this.random});
+        if (this.has(key)) {
+            this.root = update(this.root, key, value, this.compareFunc);
+        } else {
+            this.root = put(this.root, key, value, {
+                compareFunc: this.compareFunc,
+                random: this.random
+            });
+        }
         this._size = this.root ? this.root.size : 0;
         return this;
 

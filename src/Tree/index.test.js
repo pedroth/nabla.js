@@ -61,3 +61,14 @@ test("Tree uses its comparison function for nonnumeric keys", () => {
 	expect(tree.has("alpha")).toBe(true);
 	expect(tree.get("gamma").orElse(() => -1)).toBe(3);
 });
+
+test("getEntries returns key-value pairs in sorted key order", () => {
+	const tree = new Tree((a, b) => a - b, () => 1);
+
+	tree.put(2, "two").put(1, "one").put(3, "three");
+
+	expect(tree.getEntries().toArray().map(pair => pair.toArray()))
+		.toEqual([[1, "one"], [2, "two"], [3, "three"]]);
+});
+
+
