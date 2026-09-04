@@ -1,4 +1,3 @@
-import { Set } from "../Set/index.js";
 import { NArray } from "../NArray/index.js";
 import { Maybe } from "../Maybe/index.js";
 
@@ -87,12 +86,34 @@ const TYPES = {
 // Helpers
 // =============================================================================
 
-function sortVars(vars) {
-    return vars.sort((a, b) => a.name.localeCompare(b.name));
+function mergeSortedVars(leftVars, rightVars) {
+    const merged = [];
+    let leftIndex = 0;
+    let rightIndex = 0;
+    while (leftIndex < leftVars.length || rightIndex < rightVars.length) {
+        const left = leftVars[leftIndex];
+        const right = rightVars[rightIndex];
+        if (!right || (left && left.name < right.name)) {
+            merged.push(left);
+            leftIndex++;
+        } else if (!left || right.name < left.name) {
+            merged.push(right);
+            rightIndex++;
+        } else {
+            merged.push(left);
+            leftIndex++;
+            rightIndex++;
+        }
+    }
+    return merged;
 }
 
 function mergeVars(...expressions) {
-    return sortVars(Set.of(...expressions.flatMap(expression => expression.vars)).toArray());
+    let mergedVars = [];
+    for (const expression of expressions) {
+        mergedVars = mergeSortedVars(mergedVars, expression.vars);
+    }
+    return mergedVars;
 }
 
 function mergeAtomicExprMaps(...expressions) {
@@ -917,7 +938,7 @@ function covec(...components) {
     const ans = { type: TYPES.covector, components };
     ans.dim = components.length;
     ans.children = components;
-    ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
+    ans.vars = mergeVars(...components);
     components.forEach(c => c.vars = ans.vars);
 
 
@@ -1009,7 +1030,7 @@ function vec(...components) {
 
     ans.dim = components.length;
     ans.children = components;
-    ans.vars = sortVars(Set.of(...components.flatMap(c => c.vars)).toArray());
+    ans.vars = mergeVars(...components);
     components.forEach(c => c.vars = ans.vars);
 
     ans.add = (other) => {
@@ -1289,37 +1310,48 @@ function autoGrad(expression, variableValues) {}
 function compile(expression) {
     const varIndexMap = new Map();
     expression.vars.forEach((v, i) => varIndexMap.set(v.name, i));
+    const expressionsToNames = new Map();
+    const statements = [];
 
-    function atomicToJsExpr(expr) {
-        switch (expr.type) {
-            case TYPES.real:
-                return Number(expr.value).toString();
-            case TYPES.realVar: {
-                if (!varIndexMap.has(expr.name)) {
-                    throw new Error(`Variable ${expr.name} not found in compile variable map`);
-                }
-                return `x[${JSON.stringify(expr.name)}]`;
+    function emit(expr) {
+        if (expr.type === TYPES.real) return Number(expr.value).toString();
+        if (expr.type === TYPES.realVar) {
+            if (!varIndexMap.has(expr.name)) {
+                throw new Error(`Variable ${expr.name} not found in compile variable map`);
             }
+            return `x[${JSON.stringify(expr.name)}]`;
+        }
+        if (expressionsToNames.has(expr)) return expressionsToNames.get(expr);
+
+        const name = `t${expressionsToNames.size}`;
+        expressionsToNames.set(expr, name);
+        const jsExpr = emitExpression(expr);
+        statements.push(`const ${name} = ${jsExpr};`);
+        return name;
+    }
+
+    function emitExpression(expr) {
+        switch (expr.type) {
             case TYPES.add:
-                return `(${atomicToJsExpr(expr.left)} + ${atomicToJsExpr(expr.right)})`;
+                return `(${emit(expr.left)} + ${emit(expr.right)})`;
             case TYPES.sub:
-                return `(${atomicToJsExpr(expr.left)} - ${atomicToJsExpr(expr.right)})`;
+                return `(${emit(expr.left)} - ${emit(expr.right)})`;
             case TYPES.mul:
-                return `(${atomicToJsExpr(expr.left)} * ${atomicToJsExpr(expr.right)})`;
+                return `(${emit(expr.left)} * ${emit(expr.right)})`;
             case TYPES.div:
-                return `(${atomicToJsExpr(expr.left)} / ${atomicToJsExpr(expr.right)})`;
+                return `(${emit(expr.left)} / ${emit(expr.right)})`;
             case TYPES.exp:
-                return `Math.exp(${atomicToJsExpr(expr.value)})`;
+                return `Math.exp(${emit(expr.value)})`;
             case TYPES.log:
-                return `Math.log(${atomicToJsExpr(expr.value)})`;
+                return `Math.log(${emit(expr.value)})`;
             case TYPES.poly:
                 return `${polyToJsExpr(expr)}`;
             case TYPES.ratioPoly:
                 return `${ratioPolyToJsExpr(expr)}`;
             case TYPES.covector:
-                return `[${expr.components.map(c => atomicToJsExpr(c)).join(", ")}]`;
+                return `[${expr.components.map(emit).join(", ")}]`;
             case TYPES.vector:
-                return `[${expr.components.map(c => atomicToJsExpr(c)).join(", ")}]`;
+                return `[${expr.components.map(emit).join(", ")}]`;
             default:
                 throw new Error(`Unsupported expression type in compile: ${expr.type}`);
         }
@@ -1333,7 +1365,7 @@ function compile(expression) {
         if (polyExpr.varCombCoeffsMap.has("")) {
             const constantCoeff = polyExpr.varCombCoeffsMap.get("");
             if (!isRealValue(constantCoeff, 0)) {
-                terms.push(atomicToJsExpr(constantCoeff));
+                terms.push(emit(constantCoeff));
             }
         }
 
@@ -1342,7 +1374,7 @@ function compile(expression) {
 
             const factors = [];
             if (!isRealValue(coeff, 1)) {
-                factors.push(atomicToJsExpr(coeff));
+                factors.push(emit(coeff));
             }
             const variablePowers = new Map();
 
@@ -1352,7 +1384,7 @@ function compile(expression) {
 
             variablePowers.forEach((pow, varName) => {
                 if (polyExpr.atomicExprMap.has(varName)) {
-                    const atomicExpr = atomicToJsExpr(polyExpr.atomicExprMap.get(varName));
+                    const atomicExpr = emit(polyExpr.atomicExprMap.get(varName));
                     factors.push(pow === 1 ? `(${atomicExpr})` : `(${atomicExpr} ** ${pow})`);
                     return;
                 }
@@ -1375,13 +1407,9 @@ function compile(expression) {
         return `(${numeratorJsExpr}) / (${denominatorJsExpr})`;
     }
 
-    const jsExpr = expression.type === TYPES.ratioPoly
-        ? ratioPolyToJsExpr(expression)
-        : expression.type === TYPES.poly
-            ? polyToJsExpr(expression)
-            : atomicToJsExpr(expression);
+    const jsExpr = emit(expression);
 
-    return new Function("x", `return ${jsExpr};`); // x: { [varName]: number }
+    return new Function("x", `${statements.join("\n")}\nreturn ${jsExpr};`); // x: { [varName]: number }
 }
 
 // =============================================================================
