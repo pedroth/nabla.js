@@ -205,6 +205,13 @@ a:hover {
     display: none;
 }
 
+.canvas-output {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
 .cell-toolbar .iconBtn {
     width: 2rem;
     height: 2rem;

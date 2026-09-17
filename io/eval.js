@@ -79,6 +79,12 @@ function formatArray(array) {
 const renderHandlers = {
     latex: (value) => render(parse(`$${value}$\n`)),
     canvas: (value) => value().DOM,
+    canvases: (value) => {
+        const container = document.createElement("div");
+        container.className = "canvas-output";
+        container.append(...value().map(canvas => canvas.DOM));
+        return container;
+    },
 };
 
 async function renderType(visualObj) {

@@ -29,27 +29,26 @@ IO.loadMNIST = async function (samples = 1000) {
     return data;
 }
 
-IO.paintMNIST = function (mnistSample, scale = 10) {
-    const width = Math.sqrt(mnistSample.length);
+IO.paintMNIST = function (mnistSamples, scale = 10) {
+    const samples = Array.isArray(mnistSamples) ? mnistSamples : [mnistSamples];
+    const width = Math.sqrt(samples[0].length);
     const height = width;
-    let canvas = Canvas.ofSize(width, height);
-    for (let i = 0; i < height; i++) {
-        for (let j = 0; j < width; j++) {
-            const y = height - 1 - i;
-            const x = j;
-            const value = mnistSample[i * width + j];
-            canvas.setPxl(x, y, Color.ofRGB(value, value, value));
+    const canvases = samples.map(sample => {
+        const canvas = Canvas.ofSize(width, height);
+        for (let i = 0; i < height; i++) {
+            for (let j = 0; j < width; j++) {
+                const y = height - 1 - i;
+                const value = sample[i * width + j];
+                canvas.setPxl(j, y, Color.ofRGB(value, value, value));
+            }
         }
-    }
-    let outputCanvas = Canvas.ofSize(width * scale, height * scale);
-    outputCanvas = outputCanvas.map((x, y) => {
-        const px = x / (width * scale);
-        const py = y / (height * scale);
-        return canvas.getPxl(px * width, py * height);
-    })
+        return Canvas.ofSize(width * scale, height * scale).map((x, y) =>
+            canvas.getPxl(x / scale, y / scale)
+        );
+    });
     return {
         toVisual: () => {
-            return { type: "canvas", value: () => outputCanvas.paint() };
+            return { type: "canvases", value: () => canvases.map(canvas => canvas.paint()) };
         }
     };
 }

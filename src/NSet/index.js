@@ -6,7 +6,7 @@ import { Tuple } from "../Tuple/index.js";
  *
  * Immutable linked set with structural equality support.
  */
-export class Set {
+export class NSet {
     constructor(head, tail) {
         this.equality = (x, y) => x === y || (x?.equals && x.equals(y));
         this.head = head;
@@ -39,16 +39,16 @@ export class Set {
     }
 
     equals(set) {
-        if (!(set instanceof Set)) return false;
+        if (!(set instanceof NSet)) return false;
         return this.isSubSet(set) && set.isSubSet(this);
     }
 
     // ========== Combination ==========
 
     add(x) {
-        if (this.isEmpty()) return new Set(x, new Set())
+        if (this.isEmpty()) return new NSet(x, new NSet())
         if (this.equality(this.head, x)) return this;
-        return new Set(this.head, this.tail.add(x), this.equality);
+        return new NSet(this.head, this.tail.add(x), this.equality);
     }
 
     union(set) {
@@ -80,13 +80,13 @@ export class Set {
 
     filter(predicate) {
         if (this.isEmpty()) return this;
-        if (predicate(this.head)) return new Set(this.head, this.tail.filter(predicate))
+        if (predicate(this.head)) return new NSet(this.head, this.tail.filter(predicate))
         return this.tail.filter(predicate);
     }
 
     map(lambda) {
         if (this.isEmpty()) return this;
-        return new Set(lambda(this.head), this.tail.map(lambda));
+        return new NSet(lambda(this.head), this.tail.map(lambda));
     }
 
     forEach(lambda) {
@@ -139,7 +139,7 @@ export class Set {
     // ==========================================================
 
     static of(...args) {
-        let ans = Set.EMPTY;
+        let ans = NSet.EMPTY;
         for (let i = 0; i < args.length; i++) {
             ans = ans.add(args[i]);
         }
@@ -147,7 +147,7 @@ export class Set {
     }
 
     static fromArray(array) {
-        const ans = Set.EMPTY;
+        const ans = NSet.EMPTY;
         for (let i = 0; i < array.length; i++) {
             ans.add(array[i]);
         }
@@ -155,15 +155,15 @@ export class Set {
     }
 
     static range(init = 0, end = 0) {
-        if (init + 1 > end) return Set.EMPTY;
-        return (Set.EMPTY.add(init)).union(Set.range(init + 1, end));
+        if (init + 1 > end) return NSet.EMPTY;
+        return (NSet.EMPTY.add(init)).union(NSet.range(init + 1, end));
     }
 
     static powerSet(set) {
-        function powerSetAux(set, acc = Set.EMPTY) {
+        function powerSetAux(set, acc = NSet.EMPTY) {
             if (set.isEmpty()) return acc;
-            return Set.of(
-                powerSetAux(set.tail, Set.of(set.head).union(acc)),
+            return NSet.of(
+                powerSetAux(set.tail, NSet.of(set.head).union(acc)),
                 powerSetAux(set.tail, acc)
             )
         }
@@ -175,6 +175,6 @@ export class Set {
         return acc;
     }
 
-    static EMPTY = new Set()
+    static EMPTY = new NSet()
 
 }

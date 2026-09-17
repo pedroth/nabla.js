@@ -12,10 +12,14 @@
 </body>
 <script type="module">
     import * as Nabla from "../src/index.js";
-    const { NArray, NeuralNet } = Nabla;
+    const { NArray, NeuralNet, Symbolic } = Nabla;
+    const { real, add, sub, mul, div, realVar, exp, compile } = Symbolic;
     const data = NArray.range(0, 10).map((x, i) => -3 + 6 * Math.random()).map(x => [x, Math.sin(x)])
     const inData = data.map(x => x[0]).toArray()
     const outData = data.map(x => x[1]).toArray()
+
+    let x = realVar("x");
+    
 
     const nn = NeuralNet
         .builder()
@@ -24,7 +28,7 @@
         .layer(1)
         .build()
 
-    document.body.innerHTML = nn.fitData(inData, outData);
+    document.body.innerHTML = compile(exp(x.add(real(5))).derivative());
 </script>
 
 </html>

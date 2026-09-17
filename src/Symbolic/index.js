@@ -40,7 +40,6 @@ import { Maybe } from "../Maybe/index.js";
  *     pullback() => covector of partial derivatives with respect to children
  *     derivative() => covector of partial derivatives with respect to vars
  *     eval(variableValues: { [variableName: string]: expression }) => expression
- *     autoGrad(variableValues: { [variableName: string]: expression }) => array of numbers
  *
  *     toString() => string
  *     toVisual() => { type: "latex", value: string }
@@ -271,7 +270,11 @@ function isPolyJustAReal(poly, value) {
 }
 
 function isZero(expr) {
-   return isReal(expr, 0);
+    return isReal(expr, 0);
+}
+
+function isLiteralReal(expr, value) {
+    return expr.type === TYPES.real && expr.value === value;
 }
 
 function isReal(expr, value = 0) {
@@ -365,7 +368,6 @@ function real(value) {
         return derivative(ans);
     };
     ans.eval = () => ans;
-    ans.autoGrad = () => autoGrad(ans);
 
     ans.toString = () => ans.value.toString();
     ans.toVisual = () => ({ type: "latex", value: ans.value.toString() });
@@ -538,6 +540,9 @@ function binaryOp({ name, symbol }, left, right) {
 }
 
 function add(a, b) {
+    if(isLiteralReal(a, 0)) return b;
+    if(isLiteralReal(b, 0)) return a;
+
     const ans = binaryOp({ name: TYPES.add, symbol: "+" }, a, b);
 
     ans.flat = () => {
@@ -563,6 +568,8 @@ function add(a, b) {
 }
 
 function sub(a, b) {
+    if(isLiteralReal(b, 0)) return a;
+
     const ans = binaryOp({ name: TYPES.sub, symbol: "-" }, a, b);
 
     ans.flat = () => {
@@ -589,6 +596,8 @@ function sub(a, b) {
 }
 
 function mul(a, b) {
+    if(isLiteralReal(a, 0) || isLiteralReal(b, 0)) return real(0);
+    
     const ans = binaryOp({ name: TYPES.mul, symbol: "\\cdot" }, a, b);
 
     ans.flat = () => {
@@ -613,6 +622,8 @@ function mul(a, b) {
 }
 
 function div(numerator, denominator) {
+    if(isLiteralReal(denominator, 1)) return numerator;
+
     const ans = binaryOp({ name: TYPES.div, symbol: "/" }, numerator, denominator);
 
     ans.flat = () => {
@@ -677,6 +688,10 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
             return ratioPoly(ans.mul(flatExpr.denominatorPoly).add(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
         }
 
+        if (flatExpr.type === TYPES.vector || flatExpr.type === TYPES.covector) {
+            return flatExpr.add(ans);
+        }
+
         const newVars = mergeVars(ans, expr);
         const newAtomicExprMap = mergeAtomicExprMaps(ans, flatExpr);
         const newVarCombCoeffsMap = new Map(ans.varCombCoeffsMap);
@@ -707,6 +722,10 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
             return ratioPoly(ans.mul(flatExpr.denominatorPoly).sub(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
         }
 
+        if (flatExpr.type === TYPES.vector || flatExpr.type === TYPES.covector) {
+            return flatExpr.mul(real(-1)).add(ans);
+        }
+
         const newVars = mergeVars(ans, expr);
         const newAtomicExprMap = mergeAtomicExprMaps(ans, flatExpr);
         const newVarCombCoeffsMap = new Map(ans.varCombCoeffsMap);
@@ -735,6 +754,10 @@ function poly(varCombCoeffsMap, vars = [], atomicExprMap = new Map()) {
         if (flatExpr.type === TYPES.ratioPoly) {
             // poly * (num/denom) = (poly * num) / denom
             return ratioPoly(ans.mul(flatExpr.numeratorPoly), flatExpr.denominatorPoly);
+        }
+
+        if (flatExpr.type === TYPES.vector || flatExpr.type === TYPES.covector) {
+            return flatExpr.mul(ans);
         }
 
         const newVars = mergeVars(ans, expr);
@@ -885,7 +908,7 @@ function ratioPoly(numeratorPoly, denominatorPoly) {
     ans.pullback = () => {
         throw new Error(`pullback not implemented for ratioPoly`);
     };
-    ans.derivative = () =>ans.unFlat().derivative();
+    ans.derivative = () => ans.unFlat().derivative();
     ans.eval = (variableValues) => {
         const evaluatedNumerator = evaluatePoly(numeratorPoly, variableValues);
         const evaluatedDenominator = evaluatePoly(denominatorPoly, variableValues);
@@ -1158,7 +1181,7 @@ function singleArgFunc({ name }, arg) {
 function exp(value) {
     const ans = singleArgFunc({ name: TYPES.exp }, value);
 
-    if(isZero(value)) {
+    if (isLiteralReal(value, 0)) {
         return real(1);
     }
 
@@ -1194,7 +1217,7 @@ function exp(value) {
 function log(value) {
     const ans = singleArgFunc({ name: TYPES.log }, value);
 
-    if(isReal(value, 1)) {
+    if (isLiteralReal(value, 1)) {
         return real(0);
     }
 
@@ -1275,21 +1298,65 @@ function partial(expression, variable) {
     }
     // partial of atomics like real and realVar.
     if (expression.children.length === 0) {
-        if (expression.equals(variable)) {
-            return real(1);
-        }
-        return real(0);
+        return expression.equals(variable) ? real(1) : real(0);
     }
     const dExprDChildren = expression.pullback();
     const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable)));
     return dExprDChildren.prod(dChildrenDVariable);
 }
 
+// derivative in reverse mode (backpropagation), computing the gradient of the expression with respect to all nodes in the computational graph
+// returns 
+function backward(expression) {
+    if (
+        expression.type === TYPES.vector ||
+        expression.type === TYPES.covector ||
+        expression.type === TYPES.complex ||
+        expression.type === TYPES.poly ||
+        expression.type === TYPES.ratioPoly
+    ) {
+        return derivative(expression);
+    }
+
+    const nodes = [];
+    const visited = new Set();
+    function visit(node) {
+        if (visited.has(node)) return;
+        visited.add(node);
+        node.children.forEach(visit);
+        nodes.push(node);
+    }
+    // topological sorting of the computational graph nodes vars are the first in the order
+    visit(expression);
+
+    // start with dE/dE(expression) which is 1
+    const dExpressionDNode = new Map([[expression, real(1)]]);
+    for (let nodeIndex = nodes.length - 1; nodeIndex >= 0; nodeIndex--) {
+        const node = nodes[nodeIndex];
+        const cachedNode = dExpressionDNode.get(node);
+        if (!cachedNode || node.children.length === 0) continue;
+        const pullback = node.pullback(); // local derivatives, dNode / dChild
+        // Compute dE / dChild for each child
+        // dE / dChild = dE / dNode * dNode / dChild
+        node.children.forEach((child, childIndex) => {
+            const contribution = cachedNode.mul(pullback.components[childIndex]);
+            const current = dExpressionDNode.get(child);
+            dExpressionDNode.set(child, current ? current.add(contribution) : contribution);
+        });
+    }
+
+    const variables = expression.vars.filter(variable => !variable.isParam);
+    const partials = variables.map(variable => dExpressionDNode.get(variable) ?? real(0));
+    const result = partials.length === 1 ? partials[0] : covec(...partials);
+    result.vars = expression.vars;
+    return result;
+}
+
 function derivative(expression) {
     if (expression.type === TYPES.covector) {
         return covec(...expression.components.map(c => derivative(c)));
     }
-    if(expression.type === TYPES.vector){
+    if (expression.type === TYPES.vector) {
         return vec(...expression.components.map(c => derivative(c)));
     }
     // Capture the exact variables BEFORE differentiating collapses them
@@ -1300,8 +1367,6 @@ function derivative(expression) {
     return result;
 }
 
-
-function autoGrad(expression, variableValues) {}
 
 // =============================================================================
 // Compile
@@ -1431,6 +1496,7 @@ const Symbolic = {
     exp,
     log,
     derivative,
+    backward,
     simplify: (expr) => expr.simplify(),
     vectorVar,
     covectorVar,
