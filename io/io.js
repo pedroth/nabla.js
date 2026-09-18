@@ -1,4 +1,4 @@
-import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
+import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D, loop } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
 import {NArray} from "../src/NArray/index.js";
 const IO = {}
 IO._cache = {}
@@ -51,6 +51,12 @@ IO.paintMNIST = function (mnistSamples, scale = 10) {
             return { type: "canvases", value: () => canvases.map(canvas => canvas.paint()) };
         }
     };
+}
+
+// Loop utility function
+// loop: (fn: ({ time, dt }) => ()) => Loop
+IO.loop =  function (fn) {
+    return loop(fn);
 }
 
 function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {

@@ -1365,7 +1365,7 @@ function backward(expression) {
         node.children.forEach((child, childIndex) => {
             // Apply the chain rule:
             // dE/dChild_i = dE/dNode * dNode/dChild_i.
-            const dEdChild = dEdNode.prod(
+            const dEdChild = dEdNode.mul(
                 pullback.components[childIndex]
             );
 
