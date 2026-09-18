@@ -1,6 +1,39 @@
 import { expect, test } from "bun:test";
 import { Symbolic } from "./index.js";
 
+test("pullbacks are memoized per expression node", () => {
+	const x = Symbolic.realVar("x");
+	const y = Symbolic.realVar("y");
+	const nodes = [
+		Symbolic.real(2),
+		x,
+		Symbolic.complex(x, y),
+		x.add(y),
+		x.sub(y),
+		x.mul(y),
+		x.div(y),
+		Symbolic.vec(x, y),
+		Symbolic.covec(x, y),
+		Symbolic.exp(x),
+		Symbolic.log(x),
+	];
+
+	for (const node of nodes) {
+		const pullback = node.pullback();
+		expect(node._pullback).toBe(pullback);
+		expect(node.pullback()).toBe(pullback);
+	}
+});
+
+test("derivatives are memoized per expression node", () => {
+	const x = Symbolic.realVar("x");
+	const expression = Symbolic.exp(x.mul(x));
+	const derivative = expression.derivative();
+
+	expect(expression._derivative).toBe(derivative);
+	expect(expression.derivative()).toBe(derivative);
+});
+
 
 function gaussian2d() {
 	const x = Symbolic.realVar("x");

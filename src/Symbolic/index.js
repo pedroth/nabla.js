@@ -362,7 +362,9 @@ function real(value) {
     ans.simplify = () => ans;
 
     ans.pullback = () => {
-        return covec(real(0));
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(real(0));
+        return ans._pullback;
     };
     ans.derivative = () => {
         return derivative(ans);
@@ -390,7 +392,9 @@ function realVar(name, isParam = false) {
     ans.simplify = () => ans;
 
     ans.pullback = () => {
-        return real(1);
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = real(1);
+        return ans._pullback;
     };
     ans.derivative = () => {
         return derivative(ans);
@@ -456,8 +460,10 @@ function complex(realPart, imagPart) {
         return ans.flat();
     };
     ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
         // d(real + i*imag)/d(real, imag) = [1, i]
-        return covec(real(1), complex(real(0), real(1)));
+        ans._pullback = covec(real(1), complex(real(0), real(1)));
+        return ans._pullback;
     };
     ans.derivative = () => {
         return derivative(ans);
@@ -556,7 +562,9 @@ function add(a, b) {
     };
 
     ans.pullback = () => {
-        return covec(real(1), real(1));
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(real(1), real(1));
+        return ans._pullback;
     };
     ans.eval = (variableValues) => {
         const evalA = a.eval(variableValues);
@@ -583,7 +591,9 @@ function sub(a, b) {
     };
 
     ans.pullback = () => {
-        return covec(real(1), real(-1));
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(real(1), real(-1));
+        return ans._pullback;
     };
 
     ans.eval = (variableValues) => {
@@ -611,7 +621,9 @@ function mul(a, b) {
     };
 
     ans.pullback = () => {
-        return covec(b, a);
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(b, a);
+        return ans._pullback;
     };
     ans.eval = (variableValues) => {
         const evalA = a.eval(variableValues);
@@ -637,7 +649,9 @@ function div(numerator, denominator) {
     };
 
     ans.pullback = () => {
-        return covec(div(real(1), denominator), div(mul(real(-1), numerator), mul(denominator, denominator)));
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(div(real(1), denominator), div(mul(real(-1), numerator), mul(denominator, denominator)));
+        return ans._pullback;
     };
     ans.eval = (variableValues) => {
         const evalNumerator = numerator.eval(variableValues);
@@ -1021,8 +1035,10 @@ function covec(...components) {
     };
 
     ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
         const components = ans.components.map(c => c.pullback());
-        return covec(...components);
+        ans._pullback = covec(...components);
+        return ans._pullback;
     }
     ans.derivative = () => {
         return derivative(ans);
@@ -1113,8 +1129,10 @@ function vec(...components) {
     };
 
     ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
         const components = ans.components.map(c => c.pullback());
-        return covec(...components);
+        ans._pullback = covec(...components);
+        return ans._pullback;
     }
     ans.derivative = () => {
         return derivative(ans);
@@ -1197,8 +1215,10 @@ function exp(value) {
     };
 
     ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
         // d(e^value)/d(value) = e^value
-        return covec(ans);
+        ans._pullback = covec(ans);
+        return ans._pullback;
     };
     ans.eval = (variableValues) => {
         const evaluatedValue = value.eval(variableValues);
@@ -1233,8 +1253,10 @@ function log(value) {
     };
 
     ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
         // d(log(value))/d(value) = 1/value
-        return covec(div(real(1), value));
+        ans._pullback = covec(div(real(1), value));
+        return ans._pullback;
     };
     ans.eval = (variableValues) => {
         const evaluatedValue = value.eval(variableValues);
@@ -1342,32 +1364,46 @@ function backward(expression) {
     return result;
 }
 
-function partial(expression, variable) {
+function partial(expression, variable, cache = new Map()) {
+    if (cache.has(expression)) {
+        return cache.get(expression);
+    }
+    // variable is not included
+    if (!expression.vars.some(x => x.name === variable.name)) {
+        return real(0);
+    }
     if (expression.type === TYPES.poly || expression.type === TYPES.ratioPoly) {
-        return partial(expression.unFlat(), variable);
+        return partial(expression.unFlat(), variable, cache);
     }
     // partial of atomics like real and realVar.
     if (expression.children.length === 0) {
         return expression.equals(variable) ? real(1) : real(0);
     }
     const dExprDChildren = expression.pullback();
-    const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable)));
-    return dExprDChildren.prod(dChildrenDVariable);
+    const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable, cache)));
+    const result = dExprDChildren.prod(dChildrenDVariable);
+    cache.set(expression, result);
+    return result;
 }
 
 function derivative(expression) {
+    if (expression._derivative != null) return expression._derivative;
+
     if (expression.type === TYPES.covector) {
-        return covec(...expression.components.map(c => derivative(c)));
+        expression._derivative = covec(...expression.components.map(c => derivative(c)));
+        return expression._derivative;
     }
     if (expression.type === TYPES.vector) {
-        return vec(...expression.components.map(c => derivative(c)));
+        expression._derivative = vec(...expression.components.map(c => derivative(c)));
+        return expression._derivative;
     }
     // Capture the exact variables BEFORE differentiating collapses them
     const parentVars = [...expression.vars];
     const partials = parentVars.filter(v => !v.isParam).map(v => partial(expression, v));
     let result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = parentVars;
-    return result;
+    expression._derivative = result;
+    return expression._derivative;
 }
 
 
