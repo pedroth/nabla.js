@@ -606,6 +606,8 @@ function sub(a, b) {
 }
 
 function mul(a, b) {
+    if(isLiteralReal(a, 1)) return b;
+    if(isLiteralReal(b, 1)) return a;
     if(isLiteralReal(a, 0) || isLiteralReal(b, 0)) return real(0);
     
     const ans = binaryOp({ name: TYPES.mul, symbol: "\\cdot" }, a, b);
@@ -1314,8 +1316,9 @@ function matrixVar(name, rows, cols) {
 // Differentiation
 // =============================================================================
 
-// derivative in reverse mode (backpropagation), computing the gradient of the expression with respect to all nodes in the computational graph
-// Returns the gradient of the expression
+// Reverse-mode differentiation (backpropagation).
+// Computes dE/dNode for every node in the computational graph,
+// then returns the gradient with respect to the expression's non-parameter variables.
 function backward(expression) {
     if (
         expression.type === TYPES.vector ||
@@ -1327,42 +1330,65 @@ function backward(expression) {
         return derivative(expression);
     }
 
-    // topological sorting of the computational graph nodes. Vars are the first in the order
-    // without topological sorting, some variables might be processed before their parents
+    // Collect the computational graph nodes in topological order.
+    // DFS postorder visits children before their parents, so leaves/variables
+    // appear first. Processing this order in reverse propagates derivatives
+    // from the expression back toward the variables.
     const nodes = [];
     const visited = new Set();
+
     function visit(node) {
         if (visited.has(node)) return;
+
         visited.add(node);
         node.children.forEach(visit);
         nodes.push(node);
     }
+
     visit(expression);
 
-    // Start with dE/dE(expression) which is 1
-    // The purpose is to compute all dE/dNode for every node in the computational graph
-    const dExpressionDNode = new Map([[expression, real(1)]]);
+    // Initialize dE/dE = 1.
+    // derivatives maps each node to its reverse-mode derivative dE/dNode.
+    const derivatives = new Map([[expression, real(1)]]);
+
+    // Propagate derivatives backward through the graph
+    // in reverse topological order.
     for (let nodeIndex = nodes.length - 1; nodeIndex >= 0; nodeIndex--) {
         const node = nodes[nodeIndex];
-        const cachedNode = dExpressionDNode.get(node); // dE / dNode
-        if (!cachedNode || node.children.length === 0) continue;
-        const pullback = node.pullback(); // local derivatives, dE / dChild
-        // Compute dE / dNode for each child node
-        // dE / dNode = dE / dChild * dChild / dNode
-        node.children.forEach((child, childIndex) => {
 
-            const contribution = cachedNode.mul(pullback.components[childIndex]);
-            const current = dExpressionDNode.get(child);
-            dExpressionDNode.set(child, current ? current.add(contribution) : contribution);
+        const dEdNode = derivatives.get(node); // dE/dNode
+        if (!dEdNode || node.children.length === 0) continue;
+
+        // Covector of local derivatives dNode/dChild_i.
+        const pullback = node.pullback();
+
+        node.children.forEach((child, childIndex) => {
+            // Apply the chain rule:
+            // dE/dChild_i = dE/dNode * dNode/dChild_i.
+            const dEdChild = dEdNode.prod(
+                pullback.components[childIndex]
+            );
+
+            // A child can have multiple parents, so accumulate
+            // all contributions to dE/dChild.
+            const current = derivatives.get(child);
+
+            derivatives.set(
+                child,
+                current ? current.add(dEdChild) : dEdChild
+            );
         });
     }
 
     const variables = expression.vars.filter(variable => !variable.isParam);
-    const partials = variables.map(variable => dExpressionDNode.get(variable) ?? real(0));
-    const result = partials.length === 1 ? partials[0] : covec(...partials);
+    const partials = variables.map(variable => derivatives.get(variable) ?? real(0));
+    const result = partials.length === 1
+        ? partials[0]
+        : covec(...partials);
     result.vars = expression.vars;
     return result;
 }
+
 
 function partial(expression, variable, cache = new Map()) {
     if (cache.has(expression)) {
