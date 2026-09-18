@@ -1292,21 +1292,8 @@ function matrixVar(name, rows, cols) {
 // Differentiation
 // =============================================================================
 
-function partial(expression, variable) {
-    if (expression.type === TYPES.poly || expression.type === TYPES.ratioPoly) {
-        return partial(expression.unFlat(), variable);
-    }
-    // partial of atomics like real and realVar.
-    if (expression.children.length === 0) {
-        return expression.equals(variable) ? real(1) : real(0);
-    }
-    const dExprDChildren = expression.pullback();
-    const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable)));
-    return dExprDChildren.prod(dChildrenDVariable);
-}
-
 // derivative in reverse mode (backpropagation), computing the gradient of the expression with respect to all nodes in the computational graph
-// returns 
+// Returns the gradient of the expression
 function backward(expression) {
     if (
         expression.type === TYPES.vector ||
@@ -1318,6 +1305,8 @@ function backward(expression) {
         return derivative(expression);
     }
 
+    // topological sorting of the computational graph nodes. Vars are the first in the order
+    // without topological sorting, some variables might be processed before their parents
     const nodes = [];
     const visited = new Set();
     function visit(node) {
@@ -1326,19 +1315,20 @@ function backward(expression) {
         node.children.forEach(visit);
         nodes.push(node);
     }
-    // topological sorting of the computational graph nodes vars are the first in the order
     visit(expression);
 
-    // start with dE/dE(expression) which is 1
+    // Start with dE/dE(expression) which is 1
+    // The purpose is to compute all dE/dNode for every node in the computational graph
     const dExpressionDNode = new Map([[expression, real(1)]]);
     for (let nodeIndex = nodes.length - 1; nodeIndex >= 0; nodeIndex--) {
         const node = nodes[nodeIndex];
-        const cachedNode = dExpressionDNode.get(node);
+        const cachedNode = dExpressionDNode.get(node); // dE / dNode
         if (!cachedNode || node.children.length === 0) continue;
-        const pullback = node.pullback(); // local derivatives, dNode / dChild
-        // Compute dE / dChild for each child
-        // dE / dChild = dE / dNode * dNode / dChild
+        const pullback = node.pullback(); // local derivatives, dE / dChild
+        // Compute dE / dNode for each child node
+        // dE / dNode = dE / dChild * dChild / dNode
         node.children.forEach((child, childIndex) => {
+
             const contribution = cachedNode.mul(pullback.components[childIndex]);
             const current = dExpressionDNode.get(child);
             dExpressionDNode.set(child, current ? current.add(contribution) : contribution);
@@ -1350,6 +1340,19 @@ function backward(expression) {
     const result = partials.length === 1 ? partials[0] : covec(...partials);
     result.vars = expression.vars;
     return result;
+}
+
+function partial(expression, variable) {
+    if (expression.type === TYPES.poly || expression.type === TYPES.ratioPoly) {
+        return partial(expression.unFlat(), variable);
+    }
+    // partial of atomics like real and realVar.
+    if (expression.children.length === 0) {
+        return expression.equals(variable) ? real(1) : real(0);
+    }
+    const dExprDChildren = expression.pullback();
+    const dChildrenDVariable = vec(...expression.children.map(c => partial(c, variable)));
+    return dExprDChildren.prod(dChildrenDVariable);
 }
 
 function derivative(expression) {

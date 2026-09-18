@@ -10,15 +10,21 @@ import { Pair } from "../Pair";
 //                  right: TreeNode, 
 //                  size: number
 //             }
-function createNode(key, value) {
-    return {
+
+// empty tree node () is null
+
+
+function createNode(key, value, left = null, right = null) {
+    const node = {
         type: "TreeNode",
         key: key,
         value: value,
-        left: null,
-        right: null,
+        left: left,
+        right: right,
         size: 1
     };
+    node.size = computeSize(node);
+    return node;
 }
 
 function computeSize(treeNode) {
@@ -41,21 +47,15 @@ function split(T, x, compareFunc) {
         // need to split left subtree
         const [leftTree, middleTree] = split(T.left, x, compareFunc);
 
-        // T will be the right split, hence its T.left should be > x
-        T.left = middleTree;
-        T.size = computeSize(T);
-
-        return [leftTree, T];
+        // new Tree will be the right split, hence its T.left should be > x
+        return [leftTree, createNode(T.key, T.value, middleTree, T.right)];
     } else {
         // if x > T.key, then T.left keeps constant
         // need to split right subtree
         const [middleTree, rightTree] = split(T.right, x, compareFunc);
 
-        // T will be the left split, hence its T.right should be < x
-        T.right = middleTree;
-        T.size = computeSize(T);
-
-        return [T, rightTree];
+        // new Tree will be the left split, hence its T.right should be < x
+        return [createNode(T.key, T.value, T.left, middleTree), rightTree];
     }
 }
 
