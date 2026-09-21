@@ -1,7 +1,7 @@
 import { Symbolic } from "../Symbolic/index.js";
 import { DataScience } from "../DataScience/index.js";
 const { buildInput } = DataScience;
-const { vectorVar, matrixVar, div, real, add, exp, log } = Symbolic;
+const { vectorVar, matrixVar, div, real, add, exp, log, sin, cos, vec } = Symbolic;
 
 export class NeuralNet {
     constructor(inputDim, hiddenLayers) {
@@ -13,7 +13,20 @@ export class NeuralNet {
             realVar.isParam = true;
         });
         this.hiddenLayers.forEach((layer, index) => {
-            const inDim = index === 0 ? this.inputDim : hiddenLayers[index - 1].numberOfNeurons;
+            if (layer.type === "positionalEncoding") {
+                const components = this.symbolicNN.components.flatMap(value => {
+                    const encoding = [value];
+                    for (let frequencyIndex = 0; frequencyIndex <= layer.numberOfNeurons; frequencyIndex++) {
+                        const frequency = real((2 ** frequencyIndex) * Math.PI);
+                        encoding.push(sin(frequency.mul(value)), cos(frequency.mul(value)));
+                    }
+                    return encoding;
+                });
+                this.symbolicNN = vec(...components);
+                return;
+            }
+
+            const inDim = this.symbolicNN.dim;
             const weights = matrixVar(`W${index}`, layer.numberOfNeurons, inDim);
             const biases = vectorVar(`b${index}`, layer.numberOfNeurons);
             this.symbolicNN = weights.prod(this.symbolicNN).add(biases).map(layer.activation.symbolic);
@@ -93,6 +106,17 @@ class NeuralNetBuilder {
         this.hiddenLayers.push({
             numberOfNeurons,
             activation,
+        });
+        return this;
+    }
+
+    positionalEncoding(numberOfNeurons) {
+        if (!Number.isInteger(numberOfNeurons) || numberOfNeurons < 0) {
+            throw new Error("Number of positional encoding frequency bands must be a non-negative integer");
+        }
+        this.hiddenLayers.push({
+            type: "positionalEncoding",
+            numberOfNeurons,
         });
         return this;
     }

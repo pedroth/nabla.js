@@ -17,6 +17,9 @@ import { Maybe } from "../Maybe/index.js";
  *   - covec(...components: expression[])           — row covector
  *   - exp(value: expression)                       — e^value
  *   - log(value: expression)                       — natural logarithm
+ *   - cos(value: expression)                       — cosine
+ *   - sin(value: expression)                       — sine
+ *   - tan(value: expression)                       — tangent
  *   - vectorVar(name: string, dim: number)         — vec of realVars named `name_i`
  *   - covectorVar(name: string, dim: number)       — covec of realVars named `name_i`
  *   - matrixVar(name: string, rows: number, cols: number) — vec of covecs named `name_i^j`
@@ -58,7 +61,7 @@ import { Maybe } from "../Maybe/index.js";
  *     conj() => complex           — complex conjugate
  *
  * Public API: Symbolic.{ real, realVar, complex, vec, covec, add, sub, mul, div, poly,
- *                         exp, log, derivative, simplify, vectorVar, covectorVar, matrixVar }
+ *                         exp, log, cos, sin, tan, derivative, simplify, vectorVar, covectorVar, matrixVar }
  */
 
 // =============================================================================
@@ -78,6 +81,9 @@ const TYPES = {
     poly: "poly",
     exp: "exp",
     log: "log",
+    cos: "cos",
+    sin: "sin",
+    tan: "tan",
     ratioPoly: "ratioPoly",
 };
 
@@ -1274,6 +1280,62 @@ function log(value) {
     return ans;
 }
 
+function trigFunc({ name, mathFunc, pullback }, value) {
+    const ans = singleArgFunc({ name }, value);
+
+    if (isLiteralReal(value, 0)) {
+        return real(mathFunc(0));
+    }
+
+    ans.flat = () => {
+        const flat = trigFunc({ name, mathFunc, pullback }, value.flat());
+        const hash = hashAtomic(flat);
+        const atomicVarStr = `__atomic__${hash}`;
+        return poly(new Map([[atomicVarStr, real(1)]]), flat.vars, new Map([[atomicVarStr, flat]]));
+    };
+
+    ans.simplify = () => ans.flat();
+
+    ans.pullback = () => {
+        if (ans._pullback != null) return ans._pullback;
+        ans._pullback = covec(pullback(value));
+        return ans._pullback;
+    };
+    ans.eval = (variableValues) => {
+        const evaluatedValue = value.eval(variableValues);
+        return extractReal(evaluatedValue)
+            .map(realValue => real(mathFunc(realValue.value)))
+            .orElse(() => trigFunc({ name, mathFunc, pullback }, evaluatedValue));
+    };
+
+    ans.toVisual = () => ({ type: "latex", value: `\\${name}(${value.toVisual().value})` });
+    return ans;
+}
+
+function cos(value) {
+    return trigFunc({
+        name: TYPES.cos,
+        mathFunc: Math.cos,
+        pullback: input => mul(real(-1), sin(input)),
+    }, value);
+}
+
+function sin(value) {
+    return trigFunc({
+        name: TYPES.sin,
+        mathFunc: Math.sin,
+        pullback: cos,
+    }, value);
+}
+
+function tan(value) {
+    return trigFunc({
+        name: TYPES.tan,
+        mathFunc: Math.tan,
+        pullback: input => div(real(1), mul(cos(input), cos(input))),
+    }, value);
+}
+
 // =============================================================================
 // Vector and covector vars
 // =============================================================================
@@ -1337,15 +1399,15 @@ function backward(expression) {
     const nodes = [];
     const visited = new Set();
 
-    function visit(node) {
+    function buildTopo(node) {
         if (visited.has(node)) return;
 
         visited.add(node);
-        node.children.forEach(visit);
+        node.children.forEach(buildTopo);
         nodes.push(node);
     }
 
-    visit(expression);
+    buildTopo(expression);
 
     // Initialize dE/dE = 1.
     // derivatives maps each node to its reverse-mode derivative dE/dNode.
@@ -1474,6 +1536,12 @@ function compile(expression) {
                 return `Math.exp(${emit(expr.value)})`;
             case TYPES.log:
                 return `Math.log(${emit(expr.value)})`;
+            case TYPES.cos:
+                return `Math.cos(${emit(expr.value)})`;
+            case TYPES.sin:
+                return `Math.sin(${emit(expr.value)})`;
+            case TYPES.tan:
+                return `Math.tan(${emit(expr.value)})`;
             case TYPES.poly:
                 return `${polyToJsExpr(expr)}`;
             case TYPES.ratioPoly:
@@ -1560,6 +1628,9 @@ const Symbolic = {
     poly,
     exp,
     log,
+    cos,
+    sin,
+    tan,
     derivative,
     backward,
     simplify: (expr) => expr.simplify(),

@@ -30,64 +30,83 @@ IO.loadMNIST = async function (samples = 1000) {
 }
 
 IO.paintMNIST = function (mnistSamples, scale = 10) {
-    const samples = Array.isArray(mnistSamples) ? mnistSamples : [mnistSamples];
-    const width = Math.sqrt(samples[0].length);
+    const initialSamples = Array.isArray(mnistSamples) ? mnistSamples : [mnistSamples];
+    const width = Math.sqrt(initialSamples[0].length);
     const height = width;
-    const canvases = samples.map(sample => {
-        const canvas = Canvas.ofSize(width, height);
-        for (let i = 0; i < height; i++) {
-            for (let j = 0; j < width; j++) {
-                const y = height - 1 - i;
-                const value = sample[i * width + j];
-                canvas.setPxl(j, y, Color.ofRGB(value, value, value));
+    const canvases = initialSamples.map(() => Canvas.ofSize(width, height));
+    const update = nextSamples => {
+        const samples = Array.isArray(nextSamples) ? nextSamples : [nextSamples];
+        samples.forEach((sample, sampleIndex) => {
+            const canvas = canvases[sampleIndex];
+            if (!canvas) return;
+            for (let i = 0; i < height; i++) {
+                for (let j = 0; j < width; j++) {
+                    const y = height - 1 - i;
+                    const value = sample[i * width + j];
+                    canvas.setPxl(j, y, Color.ofRGB(value, value, value));
+                }
             }
-        }
-        return Canvas.ofSize(width * scale, height * scale).map((x, y) =>
-            canvas.getPxl(x / scale, y / scale)
-        );
-    });
+            canvas.paint();
+        });
+    };
+    update(initialSamples);
     return {
+        update,
         toVisual: () => {
-            return { type: "canvases", value: () => canvases.map(canvas => canvas.paint()) };
+            return {
+                type: "canvases",
+                value: () => canvases.map(canvas => {
+                    const painted = canvas.paint();
+                    painted.DOM.style.width = `${width * scale}px`;
+                    painted.DOM.style.height = `${height * scale}px`;
+                    painted.DOM.style.imageRendering = "pixelated";
+                    return painted;
+                })
+            };
         }
     };
 }
 
-// Loop utility function
-// loop: (fn: ({ time, dt }) => ()) => Loop
-IO.loop =  function (fn) {
-    return loop(fn);
+IO.UI = function (...children) {
+    return {
+        toVisual: () => ({
+            type: "ui",
+            value: () => children,
+        }),
+    };
+}
+
+function createLayer(points, { color = [1, 0, 0], radius = 0.01 } = {}, vector) {
+    const layer = { points: [], radiuses: [], colors: [] };
+    const update = nextPoints => {
+        const pointArray = nextPoints?.toArray?.() ?? nextPoints;
+        layer.points = pointArray.map(point => vector(...point));
+        layer.radiuses = pointArray.map(() => radius);
+        layer.colors = pointArray.map(() => Color.ofRGB(...color));
+    };
+    update(points);
+    return { layer, update };
+}
+
+function combineScenes(scenes) {
+    return scenes.reduce((combined, scene) => ({
+        points: combined.points.concat(scene.points),
+        radiuses: combined.radiuses.concat(scene.radiuses),
+        colors: combined.colors.concat(scene.colors),
+    }), { points: [], radiuses: [], colors: [] });
 }
 
 function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
-    const vecs = points.map(p => Vec2(p[0], p[1]));
-    const radiuses = points.map(() => radius);
-    const colors = points.map(() => Color.ofRGB(...color));
-
     scene = {
-        points: (scene.points || []).concat(vecs),
-        radiuses: (scene.radiuses || []).concat(radiuses),
-        colors: (scene.colors || []).concat(colors)
+        points: scene.points || [],
+        radiuses: scene.radiuses || [],
+        colors: scene.colors || [],
     };
-
-    let box = new Box();
-    for (let i = 0; i < scene.points.length; i++) {
-        const radius_i = scene.radiuses[i] || 0.01;
-        const vec_radius = Vec2(radius_i, radius_i);
-        box = box.add(new Box(scene.points[i].sub(vec_radius), scene.points[i].add(vec_radius)));
-    }
-    const min = box.min;
-    const diag = box.diagonal;
-    const normalizedSceneVecs = scene.points.map(v => {
-        return v.sub(min).div(diag).scale(2).map(x => x - 1); // Normalize to [-1, 1]
-    });
+    const baseLayer = createLayer(points, { color, radius }, Vec2).layer;
+    const layers = [baseLayer];
 
     let canvas = Canvas.ofSize(width, height);
-    let sceneObj = new NaiveScene();
-    sceneObj.addList(normalizedSceneVecs.map((v, i) => {
-        return Sphere.builder().position(v).radius(scene.radiuses[i]).color(scene.colors[i]).build();
-    }));
     let cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1));
     cameraBox = cameraBox.scale(1.2); // Add some padding
     const camera = new Camera2D(cameraBox);
@@ -121,6 +140,20 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         paint();
     })
     const paint = () => {
+        const renderedScene = combineScenes([scene, ...layers]);
+        let box = new Box();
+        for (let i = 0; i < renderedScene.points.length; i++) {
+            const radius_i = renderedScene.radiuses[i] || 0.01;
+            const vec_radius = Vec2(radius_i, radius_i);
+            box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
+        }
+        const normalizedSceneVecs = renderedScene.points.map(v =>
+            v.sub(box.min).div(box.diagonal).scale(2).map(x => x - 1)
+        );
+        const sceneObj = new NaiveScene();
+        sceneObj.addList(normalizedSceneVecs.map((v, i) =>
+            Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
+        ));
         canvas.fill(Color.BLACK)
         return camera
             .raster(sceneObj)
@@ -128,6 +161,13 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             .paint();
     }
     return {
+        add: (layerPoints, options) => {
+            const layer = createLayer(layerPoints, options, Vec2);
+            layers.push(layer.layer);
+            return { update: layer.update };
+        },
+        canvas,
+        render: paint,
         toVisual: () => {
             return { type: "canvas", value: () => paint() };
         },
@@ -137,32 +177,14 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
 
 function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
-    const vecs = points.map(p => Vec3(p[0], p[1], p[2]));
-    const radiuses = points.map(() => radius);
-    const colors = points.map(() => Color.ofRGB(...color));
-
     scene = {
-        points: (scene.points || []).concat(vecs),
-        radiuses: (scene.radiuses || []).concat(radiuses),
-        colors: (scene.colors || []).concat(colors)
+        points: scene.points || [],
+        radiuses: scene.radiuses || [],
+        colors: scene.colors || [],
     };
-    let box = new Box();
-    for (let i = 0; i < scene.points.length; i++) {
-        const radius_i = scene.radiuses[i] || 0.01;
-        const vec_radius = Vec3(radius_i, radius_i, radius_i);
-        box = box.add(new Box(scene.points[i].sub(vec_radius), scene.points[i].add(vec_radius)));
-    }
-    const min = box.min;
-    const diag = box.diagonal;
-    const normalizedSceneVecs = scene.points.map(v => {
-        return v.sub(min).div(diag).scale(2).map(x => x - 1); // Normalize to [-1, 1]
-    });
-
+    const baseLayer = createLayer(points, { color, radius }, Vec3).layer;
+    const layers = [baseLayer];
     let canvas = Canvas.ofSize(width, height);
-    let sceneObj = new NaiveScene();
-    sceneObj.addList(normalizedSceneVecs.map((v, i) => {
-        return Sphere.builder().position(v).radius(scene.radiuses[i]).color(scene.colors[i]).build();
-    }));
     const camera = new Camera().orbit(5, 0, 0);
     let mousedown = false;
     let mouse = Vec2();
@@ -200,6 +222,20 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         paint();
     });
     const paint = () => {
+        const renderedScene = combineScenes([scene, ...layers]);
+        let box = new Box();
+        for (let i = 0; i < renderedScene.points.length; i++) {
+            const radius_i = renderedScene.radiuses[i] || 0.01;
+            const vec_radius = Vec3(radius_i, radius_i, radius_i);
+            box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
+        }
+        const normalizedSceneVecs = renderedScene.points.map(v =>
+            v.sub(box.min).div(box.diagonal).scale(2).map(x => x - 1)
+        );
+        const sceneObj = new NaiveScene();
+        sceneObj.addList(normalizedSceneVecs.map((v, i) =>
+            Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
+        ));
         canvas.fill(Color.BLACK)
         return camera
             .raster(sceneObj)
@@ -207,6 +243,13 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             .paint();
     }
     return {
+        add: (layerPoints, options) => {
+            const layer = createLayer(layerPoints, options, Vec3);
+            layers.push(layer.layer);
+            return { update: layer.update };
+        },
+        canvas,
+        render: paint,
         toVisual: () => {
             return { type: "canvas", value: () => paint() };
         },

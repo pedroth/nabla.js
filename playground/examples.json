@@ -20,6 +20,10 @@
         "path": "/playground/tests/mnist_neural_generator.json"
     },
     {
+        "title": "MNIST Neural Interpolation",
+        "path": "/playground/tests/mnist_neural_interpolation.json"
+    },
+    {
         "title": "MNIST PCA data exploration",
         "path": "/playground/tests/mnist_pca_data_exploration.json"
     },

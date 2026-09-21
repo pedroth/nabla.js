@@ -1,6 +1,7 @@
 
 import * as nabla from "../src/index.js";
 import { parse, render } from "https://cdn.jsdelivr.net/npm/nabladown.js/dist/web/index.js";
+import DOM from "./DomBuilder.js";
 
 function returnLastExpression(code) {
     const lines = code.trimEnd().split("\n");
@@ -78,16 +79,42 @@ function formatArray(array) {
 
 const renderHandlers = {
     latex: (value) => render(parse(`$${value}$\n`)),
-    canvas: (value) => value().DOM,
+    canvas: (value) => {
+        const canvas = value();
+        if (canvas?.DOM) return canvas.DOM;
+        if (typeof canvas?.toVisual === "function") return renderType(canvas.toVisual());
+        return canvas;
+    },
     canvases: (value) => {
         const container = document.createElement("div");
         container.className = "canvas-output";
         container.append(...value().map(canvas => canvas.DOM));
         return container;
     },
+    ui: (value) => {
+        const container = DOM.of("div").addClass("ui-output");
+        value().forEach(control => {
+            if (control.type === "canvas") {
+                container.appendChild(renderHandlers.canvas(control.value));
+                return;
+            }
+            if (control.type === "slider") {
+                const options = control.value();
+                const slider = DOM.of("input")
+                    .attr("type", "range")
+                    .attr("min", options.min ?? 0)
+                    .attr("max", options.max ?? 1)
+                    .attr("step", options.step ?? 0.01)
+                    .event("input", event => options.onChange?.(Number(event.target.value)));
+                if (options.value != null) slider.attr("value", options.value);
+                container.appendChild(slider);
+            }
+        });
+        return container.build();
+    },
 };
 
-async function renderType(visualObj) {
+function renderType(visualObj) {
     const handler = renderHandlers[visualObj.type];
     if (handler) return handler(visualObj.value);
     return String(visualObj.value);

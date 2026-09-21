@@ -55,6 +55,36 @@ test("exp derivative simplifies to the original exponential", () => {
 	expect(Symbolic.exp(x).simplify().derivative().simplify().toString()).toBe("exp(x)");
 });
 
+test("trigonometric functions simplify zero and expose LaTeX", () => {
+	expect(Symbolic.cos(Symbolic.real(0)).toString()).toBe("1");
+	expect(Symbolic.sin(Symbolic.real(0)).toString()).toBe("0");
+	expect(Symbolic.tan(Symbolic.real(0)).toString()).toBe("0");
+	expect(Symbolic.sin(Symbolic.realVar("x")).toVisual().value).toBe("\\sin(x)");
+});
+
+test("trigonometric functions differentiate using the chain rule", () => {
+	const x = Symbolic.realVar("x");
+
+	expect(Symbolic.cos(x).derivative().simplify().toString()).toBe("-sin(x)");
+	expect(Symbolic.sin(x).derivative().simplify().toString()).toBe("cos(x)");
+	expect(Symbolic.tan(x).derivative().simplify().toString()).toBe("(1) / (\\left(cos(x)\\right)^{2})");
+});
+
+test("trigonometric functions evaluate and compile numerically", () => {
+	const x = Symbolic.realVar("x");
+	const input = Math.PI / 4;
+
+	for (const [func, nativeFunc] of [
+		[Symbolic.cos, Math.cos],
+		[Symbolic.sin, Math.sin],
+		[Symbolic.tan, Math.tan],
+	]) {
+		const expression = func(x);
+		expect(expression.eval({ x: input }).value).toBeCloseTo(nativeFunc(input));
+		expect(Symbolic.compile(expression)({ x: input })).toBeCloseTo(nativeFunc(input));
+	}
+});
+
 test("gaussian sum derivative simplifies without recursion errors", () => {
 	const { gaussian } = gaussian2d();
 
