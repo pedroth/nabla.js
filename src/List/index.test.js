@@ -176,4 +176,5 @@ test("List.fromArray", () => {
 test("List.range", () => {
     expect(List.range(0, 5).toArray()).toEqual([0, 1, 2, 3, 4]);
     expect(List.range(3, 3).isEmpty()).toBe(true);
+    expect(List.range(10).toArray()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });

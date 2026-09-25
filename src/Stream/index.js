@@ -14,12 +14,12 @@ export class Stream {
     head() { return this._head }
 
     tail() {
-        if(this.isEmpty()) return new Stream();
+        if (this.isEmpty()) return new Stream();
         return this._tail();
     }
 
     map(lambda) {
-        if(this.isEmpty()) return new Stream();
+        if (this.isEmpty()) return new Stream();
         return new Stream(lambda(this._head), () => this._tail().map(lambda));
     }
 
@@ -33,24 +33,25 @@ export class Stream {
     }
 
     flatMap(lambda) {
-        if(this.isEmpty()) return this;
+        if (this.isEmpty()) return this;
         const flatted = lambda(this._head);
-        if(flatted.isEmpty()) return this._tail().flatMap(lambda);
+        if (flatted.isEmpty()) return this._tail().flatMap(lambda);
         return new Stream(flatted._head, () => flatted._tail().union(this._tail().flatMap(lambda)))
     }
-    
+
     fold(initialValue = 0, folder = (e, x) => e + x) {
         if (this.isEmpty()) return initialValue;
         return this.tail().fold(folder(initialValue, this.head()), folder);
     }
 
     union(stream) {
-        if(this.isEmpty()) return stream;
+        if (this.isEmpty()) return stream;
         return new Stream(this._head, () => this._tail().union(stream));
     }
 
     take(n) {
-        if (n <= 0) return new Stream();
+        if (n <= 0 || this.isEmpty()) return new Stream();
+        if (n === 1) return new Stream(this._head, () => new Stream());
         return new Stream(this._head, () => this._tail().take(n - 1));
     }
 
@@ -70,8 +71,8 @@ export class Stream {
         return this._tail().equals(otherStream._tail());
     }
 
-    toString(radix=10) {
-        if(this.isEmpty()) return "";
+    toString(radix = 10) {
+        if (this.isEmpty()) return "";
         const string = [];
         let current = this;
         while (!current.isEmpty()) {
@@ -91,6 +92,9 @@ export class Stream {
     }
 
     static range(start = 0, end = undefined) {
+        if (end === undefined) {
+            return new Stream(start, () => Stream.range(start + 1));
+        }
         if (start >= end) return new Stream();
         return new Stream(start, () => Stream.range(start + 1, end));
     }

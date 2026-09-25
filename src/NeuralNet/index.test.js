@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { NeuralNet } from "./index.js";
+import { NMath } from "../NMath/index.js";
 
 test("positional encoding expands each coordinate with Fourier features", () => {
     const network = NeuralNet.builder()
@@ -25,4 +26,21 @@ test("positional encoding validates its frequency count", () => {
     expect(() => NeuralNet.builder().positionalEncoding(-1)).toThrow(
         "Number of positional encoding frequency bands must be a non-negative integer"
     );
+});
+
+test("evaluates NMath vectors as network inputs", () => {
+    const network = NeuralNet.builder()
+        .input(3)
+        .layer(1, NeuralNet.ACTIVATIONS.linear)
+        .build();
+    const weights = Object.fromEntries(
+        Object.keys(network.weightsMap).map(key => [key, 0])
+    );
+
+    weights["W0_{0}^{0}"] = 1;
+    weights["W0_{0}^{1}"] = 2;
+    weights["W0_{0}^{2}"] = 3;
+    network.setWeights(weights);
+
+    expect(network.eval(NMath.vec(1, 2, 3))).toBe(14);
 });

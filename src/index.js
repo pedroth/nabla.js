@@ -14,6 +14,6 @@ export * from "./Symbolic/index.js";
 export * from "./Parser/index.js";
 export * from "./EditDistance/index.js";
 export * from "./NDArray/index.js";
-export * from "./Math/index.js";
+export * from "./NMath/index.js";
 export * from "./NeuralNet/index.js";
 export * from "./DataScience/index.js";

@@ -15,6 +15,7 @@ test("NArray.fromArray", () => {
 test("NArray.range", () => {
     expect(NArray.range(0, 5).toArray()).toEqual([0, 1, 2, 3, 4]);
     expect(NArray.range(3, 3).isEmpty()).toBe(true);
+    expect(NArray.range(10).toArray()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
 test("isEmpty", () => {

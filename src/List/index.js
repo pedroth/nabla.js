@@ -102,8 +102,8 @@ export class List {
         if (this.isEmpty()) return this;
         if (start <= 0) return new List(this.head, this.tail.slice(0, end - 1));
         // need to change both index, because end is relative to the beginning of the list.
-        return this.tail.slice(start - 1, end - 1); 
-    } 
+        return this.tail.slice(start - 1, end - 1);
+    }
 
     // ========== Transformation ==========
 
@@ -215,9 +215,11 @@ export class List {
         return ans;
     }
 
-    static range(init = 0, end = 0) {
-        if (init + 1 > end) return new List();
-        return new List().push(init).union(List.range(init + 1, end));
+    static range(init = 0, end) {
+        const nInit = end === undefined ? 0 : init;
+        const nEnd = end === undefined ? init : end;
+        if (nInit + 1 > nEnd) return new List();
+        return new List().push(nInit).union(List.range(nInit + 1, nEnd));
     }
 }
 

@@ -12,7 +12,7 @@
 </body>
 <script type="module">
     import * as Nabla from "../src/index.js";
-    const { NArray, NeuralNet, Symbolic } = Nabla;
+    const { NArray, NeuralNet, Symbolic, Stream } = Nabla;
     const { real, add, sub, mul, div, realVar, exp, compile } = Symbolic;
     const data = NArray.range(0, 10).map((x, i) => -3 + 6 * Math.random()).map(x => [x, Math.sin(x)])
     const inData = data.map(x => x[0]).toArray()
@@ -28,7 +28,9 @@
         .layer(1)
         .build()
 
-    document.body.innerHTML = compile(exp(x.add(real(5))).derivative());
+    // document.body.innerHTML = compile(exp(x.add(real(5))).derivative());
+    const n = 1000;
+    document.body.innerHTML = Stream.range(n).map(x => Math.random()).map(x => 2 * x - 1).fold(0, (acc, x) => acc + x) / n;
 </script>
 
 </html>

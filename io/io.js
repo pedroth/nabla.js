@@ -1,5 +1,7 @@
-import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D, loop } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
-import {NArray} from "../src/NArray/index.js";
+import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
+import { NArray } from "../src/NArray/index.js";
+import { SOURCE } from "./utils.js";
+
 const IO = {}
 IO._cache = {}
 
@@ -75,6 +77,176 @@ IO.UI = function (...children) {
         }),
     };
 }
+
+// points: array of [x, y] or [x, y, z]
+IO.plotPointCloud = function (points, options = {}) {
+    if (points instanceof NArray) {
+        points = points.toArray();
+    }
+    const dimensions = points[0].length;
+    if (dimensions < 2 || dimensions > 3) {
+        throw new Error("Points must be 2D or 3D");
+    }
+    if (dimensions === 2) {
+        return plot2d(points, options);
+    }
+    return plot3d(points, options);
+}
+
+IO.loadMesh = async function (objPath) {
+    const objFile = await fetch(SOURCE + objPath)
+        .then(res => res.text());
+    const vertices = [];
+    const normals = [];
+    const textureCoords = [];
+    const faces = [];
+    const lines = objFile.split(/\n|\r/);
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const spaces = line.split(" ")
+            .filter(x => x !== "");
+        const type = spaces[0];
+        if (!type) continue;
+        if (type === "v") {
+            // 3 numbers
+            const v = spaces.slice(1, 4)
+                .map(x => Number.parseFloat(x));
+            vertices.push(v);
+            continue;
+        }
+        if (type === "vn") {
+            // 3 numbers
+            const v = spaces.slice(1, 4)
+                .map(x => Number.parseFloat(x));
+            normals.push(v);
+            continue;
+        }
+        if (type === "vt") {
+            // 2 numbers
+            const v = spaces
+                .slice(1, 3)
+                .map(x => Number.parseFloat(x));
+            textureCoords.push(v);
+            continue;
+        }
+        if (type === "f") {
+            triangulate(spaces.slice(1))
+                ?.forEach(triangleIdx => {
+                    faces.push(parseFace(triangleIdx))
+                })
+            continue;
+        }
+    }
+    return { vertices, normals, textureCoords, faces };
+};
+
+
+IO.sdfView = function (sdfFn, options = {}) {
+    const {
+        width = 100,
+        height = 100,
+        maxIterations = 100,
+        epsilon = 1e-3,
+        maxDistance = 10,
+        scale = 3,
+    } = options;
+    const canvas = Canvas.ofSize(width, height);
+
+    const camera = new Camera().orbit(5, 0, 0);
+    let mousedown = false;
+    let mouse = Vec2();
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) {
+            return;
+        }
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        camera.orbit(sphereCoords =>
+            sphereCoords.add(
+                Vec3(
+                    0,
+                    -2 * Math.PI * (dx / canvas.width),
+                    -2 * Math.PI * (dy / canvas.height)
+                )
+            )
+        );
+        mouse = newMouse;
+        paint();
+    });
+    canvas.onMouseWheel((e) => {
+        e.preventDefault();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        paint();
+    });
+
+    const renderSDF = (ray) => {
+        const gradient = (p) => {
+            const h = epsilon;
+            const dx = sdfFn([p.x + h, p.y, p.z]) - sdfFn([p.x - h, p.y, p.z]);
+            const dy = sdfFn([p.x, p.y + h, p.z]) - sdfFn([p.x, p.y - h, p.z]);
+            const dz = sdfFn([p.x, p.y, p.z + h]) - sdfFn([p.x, p.y, p.z - h]);
+            const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length === 0 || !Number.isFinite(length)) return Vec3(0, 0, 0);
+            return Vec3(dx / length, dy / length, dz / length);
+        };
+        let p = ray.init;
+        let t = 0;
+        for (let i = 0; i < maxIterations; i++) {
+            p = ray.trace(t);
+            const d = sdfFn([p.x, p.y, p.z]);
+            if (!Number.isFinite(d)) return Color.BLACK;
+            if (Math.abs(d) < epsilon) {
+                const normal = gradient(p);
+                return Color.ofRGB(
+                    (normal.x + 1) / 2,
+                    (normal.y + 1) / 2,
+                    (normal.z + 1) / 2
+                );
+            }
+            t += Math.max(d, epsilon);
+            if (t > maxDistance) {
+                return Color.ofRGB(0, 0, maxDistance * (i / maxIterations));
+            }
+        }
+        return Color.BLACK;
+    };
+
+    const paint = () => {
+        return (camera.rayMap(renderSDF).to(canvas)).paint();
+    };
+
+
+    return {
+        render: async () => await paint(),
+        toVisual: () => {
+            return {
+                type: "canvas",
+                value: async () => {
+                    const painted = await paint();
+                    painted.DOM.style.width = `${width * scale}px`;
+                    painted.DOM.style.height = `${height * scale}px`;
+                    return painted;
+                }
+            };
+        }
+    };
+}
+
+//========================================================================================
+/*                                                                                      *
+ *                                         UTILS                                        *
+ *                                                                                      */
+//========================================================================================
 
 function createLayer(points, { color = [1, 0, 0], radius = 0.01 } = {}, vector) {
     const layer = { points: [], radiuses: [], colors: [] };
@@ -257,19 +429,45 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     };
 }
 
-// points: array of [x, y] or [x, y, z]
-IO.plotPointCloud = function (points, options = {}) {
-    if (points instanceof NArray) {
-        points = points.toArray();
+function triangulate(polygon) {
+    if (polygon.length === 3) {
+        return [polygon];
     }
-    const dimensions = points[0].length;
-    if (dimensions < 2 || dimensions > 3) {
-        throw new Error("Points must be 2D or 3D");
+    if (polygon.length === 4) {
+        return [
+            [polygon[0], polygon[1], polygon[2]],
+            [polygon[2], polygon[3], polygon[0]]
+        ]
     }
-    if (dimensions === 2) {
-        return plot2d(points, options);
-    }
-    return plot3d(points, options);
+}
+
+function parseFace(vertexInfo) {
+    const facesInfo = vertexInfo
+        .flatMap(x => x.split("/"))
+        .map(x => Number.parseFloat(x));
+    const length = facesInfo.length;
+    const lengthDiv3 = Math.floor(length / 3);
+    // vertex_index/texture_index/normal_index
+    const group = groupBy(facesInfo, (_, i) => i % lengthDiv3);
+    const face = { vertices: [], textures: [], normals: [] }
+    Object.keys(group).map(k => {
+        k = Number.parseInt(k);
+        const indices = group[k].map(x => x - 1); // obj file is 1-indexed
+        if (k === 0) face.vertices = indices;
+        if (k === 1) face.textures = indices;
+        if (k === 2) face.normals = indices;
+    });
+    return face;
+}
+
+function groupBy(array, groupFunction) {
+    const ans = {};
+    array.forEach((x, i) => {
+        const key = groupFunction(x, i);
+        if (!ans[key]) ans[key] = [];
+        ans[key].push(x);
+    });
+    return ans;
 }
 
 export default IO;

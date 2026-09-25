@@ -345,12 +345,15 @@ export class NArray {
         return array;
     }
 
-    static range(init = 0, end = 0) {
-        const array = new NArray(end - init);
-        for (let i = 0; i < end - init; i++) {
-            array.elements[i] = init + i;
+    static range(init = 0, end) {
+        const nInit = end === undefined ? 0 : init;
+        const nEnd = end === undefined ? init : end;
+
+        const array = new NArray(nEnd - nInit);
+        for (let i = 0; i < nEnd - nInit; i++) {
+            array.elements[i] = nInit + i;
         }
-        array.length = end - init;
+        array.length = nEnd - nInit;
         return array;
     }
 }

@@ -24,8 +24,7 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
     - [x] Symbolic differentiation
     - [x] algebraic simplification
     - [ ] geometric calculus
-- [ ] Treaps
-- [ ] Skip lists
+- [ ] Randomized Tree Map
 - [ ] Graphs
 - [ ] Half-edge data structure
 - [ ] Simplicial complexes
@@ -38,6 +37,9 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [ ] Numerical Linear algebra
     - [ ] Eigenvalue decomposition
     - [ ] Singular value decomposition
+    - [ ] Solve linear systems
+    - [ ] LU decomposition
+    - [ ] QR decomposition
 - [ ] Ordinary differential equations solvers
 - [ ] Optimization algorithms
 - [ ] Automatic differentiation
@@ -60,7 +62,7 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
     - [ ] n-dim-Axis-aligned bounding box
     - [ ] n-dim-Ball
 - [ ] BVH trees
-- [ ] Locality-sensitive hashing DB
+- [ ] Locality-sensitive hashing DB with hierarchical structure
 - [ ] Foam Voronoi diagrams
 - [x] Edit distance
 
@@ -68,42 +70,56 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 # Demos
 
 - Neural graphics
-    - Image generation: [0,1]^2 => Color
+    - Image generation: [0,1]^2 => [0,1] | Color
     - SDF: [0,1]^3 => Distance
+- Dimensionality reduction
+    - MNIST PCA
+    - Graph embedding
+    - Kernel PCA
+- Spectral Point Clouds
+    - Laplacian eigen functions
+    - Clustering
+        - Global surface parameterization
+    - Heat equation
+    - Wave equation
+    - Poisson equation
+    - Out-of-sample extension
+        - Using ridge regression
+        - Monte Carlo
+        - Neural networks
+    - Harmonic vector fields
+        - Global space parameterization
+- Discrete exterior calculus
+    - Laplacian eigen functions on meshes
+    - Heat equation on meshes
+    - Wave equation on meshes
+    - Poisson equation on meshes
+    - Out-of-sample extension
+        - Using ridge regression
+        - Monte Carlo
+        - Neural networks
+    - Harmonic vector fields on meshes
+        - Global surface parameterization on meshes
+- Optimal transport point cloud interpolation
+- Flow matching MNIST
+- Diffusion / Signed distance function MNIST
+- Nearest neighbor search
+- Soft body simulation
+  - 2d
+  - 3d
 - Spectral Images:
     - Low pass
     - High pass
     - Image segmentation
     - Metric PDEs: Wave & Heat
 - Fourier transform line drawing
-- Dimensionality reduction
-    - MNIST PCA
-    - Graph embedding
-    - Kernel PCA
-- Flow matching MNIST
-- Diffusion / Signed distance function MNIST
-- Spectral Point Clouds
-    - Laplacian eigen functions
-    - Clustering
-    - Harmonic vector fields
-        - Global surface parameterization
-    - Heat equation
-    - Wave equation
-    - Poisson equation
-    - Out-of-sample extension using ridge regression
-- Discrete exterior calculus
-    - Laplacian eigen functions on meshes
-    - Heat equation on meshes
-    - Wave equation on meshes
-    - Poisson equation on meshes
-    - Out-of-sample extension using ridge regression on meshes
-    - Harmonic vector fields on meshes
-        - Global surface parameterization on meshes
+---
+- Fluid simulation
+    - 2d
+    - 2d Mesh / point cloud
+    - 3d
+- Mesh / point cloud smooth editing
+    - Robust Biharmonic Skinning Using Geometric Fields
+    - Laplacian Surface Editing
 - Gaussian splatting generation
 - Radiance fields
-- Nearest neighbor search
-- Soft body simulation
-  - 2d
-  - 3d
-- Mesh / point cloud smooth editing
-    

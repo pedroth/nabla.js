@@ -4,7 +4,7 @@ import { Pair } from "../Pair/index.js";
 /**
  * Top down parser combinator library for non-left recursive context free grammars.
  */
-export class Parser {
+class Parser {
     // parser is a collection of rules
     // a rule := (symbol, ruleExpression)
     // ruleExpression := or | dot | token | symbol | epsilon
@@ -60,7 +60,7 @@ class ParserBuilder {
 
 // ========== Rule Combinators ==========
 
-export function rule(symbol, ruleExpr) {
+function rule(symbol, ruleExpr) {
     if ("symbol" !== symbol.type) throw Error("left arg not a symbol");
     return {
         type: "rule",
@@ -78,7 +78,7 @@ export function rule(symbol, ruleExpr) {
     };
 }
 
-export function or(...rulesExpr) {
+function or(...rulesExpr) {
     const ans = {};
     ans.type = "or";
     ans.rulesExpr = rulesExpr;
@@ -93,7 +93,7 @@ export function or(...rulesExpr) {
     return ans;
 }
 
-export function dot(...rulesExpr) {
+function dot(...rulesExpr) {
     const ans = {};
     ans.type = "dot";
     ans.rulesExpr = rulesExpr;
@@ -115,7 +115,7 @@ export function dot(...rulesExpr) {
 
 // ========== Primitives ==========
 
-export function symbol(s) {
+function symbol(s) {
     const ans = {};
     ans.type = "symbol";
     ans.id = s;
@@ -133,7 +133,7 @@ export function symbol(s) {
     return ans;
 }
 
-export function token(s) {
+function token(s) {
     const ans = {}
     ans.type = "token";
     ans.id = s;
@@ -149,7 +149,7 @@ export function token(s) {
     return ans;
 }
 
-export function epsilon() {
+function epsilon() {
     return {
         type: "epsilon",
         parse: (parser, tokens) => {
@@ -160,7 +160,20 @@ export function epsilon() {
 
 // ========== Utilities ==========
 
-export function tokenize(inputString) {
+function tokenize(inputString) {
     return inputString.split("").map((s) => token(s));
 }
+
+
+const ParserExpObj = {
+    rule,
+    or,
+    dot,
+    symbol,
+    token,
+    epsilon,
+    tokenize,
+    builder: Parser.builder
+};
+export default ParserExpObj;
 

@@ -1,11 +1,17 @@
+import { Try } from "../Try/index.js";
+
 const TYPES = {
     real: "real",
     complex: "complex",
-    dual: "dual"
+    dual: "dual",
+    vector: "vector",
+    covector: "covector",
+    multivector: "multivector",
+    matrix: "matrix",
 };
 
 function real(value) {
-    const ans = { type: TYPES.real, value: value };
+    const ans = { type: TYPES.real, value: value, isField: true };
     ans.add = (other) => real(ans.value + other.value);
     ans.sub = (other) => real(ans.value - other.value);
     ans.mul = (other) => real(ans.value * other.value);
@@ -24,9 +30,10 @@ function real(value) {
     ans.toVisual = () => ({ type: "latex", value: ans.value });
     return ans;
 }
+real.random = () => real(Math.random());
 
 function complex(realPart, imagPart) {
-    const ans = { type: TYPES.complex, real: real(realPart), imag: real(imagPart) };
+    const ans = { type: TYPES.complex, real: real(realPart), imag: real(imagPart), isField: true };
     ans.add = (other) => complex(ans.real.value + other.real.value, ans.imag.value + other.imag.value);
     ans.sub = (other) => complex(ans.real.value - other.real.value, ans.imag.value - other.imag.value);
     ans.mul = (other) => complex(
@@ -50,10 +57,10 @@ function complex(realPart, imagPart) {
     ans.toVisual = () => ({ type: "latex", value: `${ans.real.value} + ${ans.imag.value}\\imath` });
     return ans;
 }
-
+complex.random = () => complex(Math.random(), Math.random());
 
 function dual(realPart, dualPart) {
-    const ans = { type: TYPES.dual, real: real(realPart), dual: real(dualPart) };
+    const ans = { type: TYPES.dual, real: real(realPart), dual: real(dualPart), isField: true };
     ans.add = (other) => dual(ans.real.value + other.real.value, ans.dual.value + other.dual.value);
     ans.sub = (other) => dual(ans.real.value - other.real.value, ans.dual.value - other.dual.value);
     ans.mul = (other) => dual(
@@ -77,6 +84,102 @@ function dual(realPart, dualPart) {
     ans.toVisual = () => ({ type: "latex", value: `${ans.real.value} + ${ans.dual.value}\\epsilon` });
     return ans;
 }
+dual.random = () => dual(Math.random(), Math.random());
+
+function vec(...components) {
+    const ans = { type: TYPES.vector, components: components.map(c => typeof c === "number" ? real(c) : c), isField: false };
+    ans.add = (other) => {
+        const newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(ans.components[i].add(other.components[i]));
+        }
+        return vec(...newVec);
+    };
+    ans.sub = (other) => {
+        const newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(ans.components[i].sub(other.components[i]));
+        }
+        return vec(...newVec);
+    };
+    ans.mul = (other) => {
+        const newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(ans.components[i].mul(other.components[i]));
+        }
+        return vec(...newVec);
+    };
+    ans.div = (other) => {
+        const newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(ans.components[i].div(other.components[i]));
+        }
+        return vec(...newVec);
+    };
+    ans.dot = (other) => {
+        let result = real(0);
+        for (let i = 0; i < ans.components.length; i++) {
+            result = result.add(ans.components[i].conj().mul(other.components[i]));
+        }
+        return result;
+    };
+    ans.scale = (field) => {
+        const normalizeField = typeof field === "number" ? real(field) : field;
+        if (normalizeField.isField) {
+            return vec(...ans.components.map(c => c.mul(normalizeField)));
+        } else {
+            Try.fail("Scaling requires a field element");
+        }
+    };
+
+    ans.length = () => {
+        return Math.sqrt(ans.dot(ans).value);
+    };
+    ans.normalize = () => {
+        const length = ans.dot(ans).value; // also works for complex
+        if (length === 0) {
+            Try.fail("Cannot normalize zero vector");
+        }
+        const invLength = real(1).div(real(Math.sqrt(length)));
+        return ans.scale(invLength);
+    };
+
+    ans.fold = (acc, fn) => {
+        let result = acc;
+        for (let i = 0; i < ans.components.length; i++) {
+            result = fn(result, ans.components[i], i);
+        }
+        return result;
+    };
+    ans.map = (fn) => {
+        let result = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            result.push(fn(ans.components[i], i));
+        }
+        return vec(...result);
+    };
+
+    ans.equals = (other) => other.type === TYPES.vector && ans.components.every((c, i) => c.equals(other.components[i]));
+    ans.toString = () => `(${ans.components.map(c => c.value).join(", ")})`;
+    ans.toVisual = () => ({ type: "latex", value: `(${ans.components.map(c => c.value).join(", ")})` });
+    return ans;
+}
+vec.zero = (dim, field = real) => {
+    const components = [];
+    for (let i = 0; i < dim; i++) {
+        components.push(field(0));
+    }
+    return vec(...components);
+};
+vec.random = (dim, field = real) => {
+    const components = [];
+    for (let i = 0; i < dim; i++) {
+        components.push(field.random());
+    }
+    return vec(...components);
+};
+
+
 
 function exp(x) {
     switch (x.type) {
@@ -119,10 +222,13 @@ function log(x) {
     }
 }
 
-export const NablaMath = {
+
+
+export const NMath = {
     real,
     complex,
     dual,
     exp,
-    log
+    log,
+    vec
 };

@@ -19,6 +19,7 @@ test("Stream.fromArray", () => {
 test("Stream.range with bounds", () => {
     expect(Stream.range(0, 5).toArray()).toEqual([0, 1, 2, 3, 4]);
     expect(Stream.range(3, 3).isEmpty()).toBe(true);
+    expect(Stream.range(0, 10).toArray()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
 test("head and tail", () => {

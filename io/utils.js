@@ -54,3 +54,6 @@ export function useState(defaultState) {
 
     return [getState, setState, onChange];
 }
+
+const isGithub = window.location.host === "pedroth.github.io";
+export const SOURCE = isGithub ? "/nabla.js" : "";

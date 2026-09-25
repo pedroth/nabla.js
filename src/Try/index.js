@@ -8,7 +8,7 @@ export class Try {
     }
 }
 
-export class Fail {
+class Fail {
     constructor(a) {
         this.value = a;
     }
@@ -38,7 +38,7 @@ export class Fail {
     }
 }
 
-export class Success {
+class Success {
     constructor(a) {
         this.value = a;
     }

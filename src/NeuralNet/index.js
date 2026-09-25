@@ -56,6 +56,14 @@ export class NeuralNet {
         return this.compiledNN({ ...argMap, ...this.weightsMap });
     }
 
+    df(input) {
+        if(this.dfSymbolicNN === undefined) {
+            this.dfSymbolicNN =  Symbolic.compile(Symbolic.backward(this.symbolicNN));
+        }
+        const argMap = buildInput(input, this.symbolicNN);
+        return this.dfSymbolicNN({ ...argMap, ...this.weightsMap });
+    }
+
     toString() {
         return `NeuralNet(inputDim=${this.inputDim}, hiddenLayers=${JSON.stringify(this.hiddenLayers)})`;
     }

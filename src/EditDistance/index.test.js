@@ -1,32 +1,34 @@
 import { expect, test } from "bun:test";
-import { editDistance, alignWords } from "./index.js";
+import EditDistance from "./index.js";
+
+const { distance, alignWords } = EditDistance;
 
 // editDistance
 
 test("editDistance: identical strings", () => {
-    expect(editDistance("hello", "hello")).toBe(0);
+    expect(distance("hello", "hello")).toBe(0);
 });
 
 test("editDistance: empty strings", () => {
-    expect(editDistance("", "abc")).toBe(3);
-    expect(editDistance("abc", "")).toBe(3);
-    expect(editDistance("", "")).toBe(0);
+    expect(distance("", "abc")).toBe(3);
+    expect(distance("abc", "")).toBe(3);
+    expect(distance("", "")).toBe(0);
 });
 
 test("editDistance: single substitution", () => {
-    expect(editDistance("cat", "bat")).toBe(1);
+    expect(distance("cat", "bat")).toBe(1);
 });
 
 test("editDistance: single insertion", () => {
-    expect(editDistance("car", "card")).toBe(1);
+    expect(distance("car", "card")).toBe(1);
 });
 
 test("editDistance: single deletion", () => {
-    expect(editDistance("card", "car")).toBe(1);
+    expect(distance("card", "car")).toBe(1);
 });
 
 test("editDistance: classic kitten/sitting", () => {
-    expect(editDistance("kitten", "sitting")).toBe(3);
+    expect(distance("kitten", "sitting")).toBe(3);
 });
 
 // alignWords
@@ -69,7 +71,7 @@ test("alignWords: output lengths match", () => {
 
 test("alignWords: cost matches editDistance", () => {
     for (const [a, b] of PAIRS) {
-        const expected = editDistance(a, b);
+        const expected = distance(a, b);
         const [w1, w2] = alignWords(a, b);
         let cost = 0;
         for (let i = 0; i < w1.length; i++) {

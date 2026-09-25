@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test";
-import { Parser, rule, symbol, or, dot, token, tokenize, epsilon } from "./index.js";
+import ParserExpObj from "./index.js";
+
+const { builder, rule, symbol, or, dot, token, tokenize, epsilon } = ParserExpObj;
 
 test("Parse S => bS | a", () => {
-    const parser = Parser.builder()
+    const parser = builder()
         .addRule(
             rule(
                 symbol("S"),
@@ -63,7 +65,7 @@ test("Parse S => bS | a", () => {
 });
 
 test("Parse S => (S)S| epsilon ", () => {
-    const parser = Parser.builder()
+    const parser = builder()
         .addRule(
             rule(
                 symbol("S"),
@@ -139,7 +141,7 @@ test("Calculator test", () => {
     // E -> (S) | N | Var
     // N -> D.D | -D.D | D | -D
     // D ->  0D | 1D | epsilon
-    const parser = Parser.builder()
+    const parser = builder()
         .addRule(
             rule(
                 symbol("S"),

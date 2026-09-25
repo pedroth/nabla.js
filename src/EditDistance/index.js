@@ -20,11 +20,11 @@ function editDistanceAux(word1, word2) {
     return [ed[n][m], ed];
 }
 
-export function editDistance(word1, word2) {
+function editDistance(word1, word2) {
     return editDistanceAux(word1, word2)[0];
 }
 
-export function alignWords(word1, word2) {
+function alignWords(word1, word2) {
     const n = word1.length;
     const m = word2.length;
     const [, ed] = editDistanceAux(word1, word2);
@@ -54,3 +54,10 @@ export function alignWords(word1, word2) {
     }
     return [w1.join(""), w2.join("")];
 }
+
+const EditDistance = {
+    distance: editDistance,
+    alignWords
+};
+
+export default EditDistance;

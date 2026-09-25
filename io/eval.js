@@ -79,16 +79,16 @@ function formatArray(array) {
 
 const renderHandlers = {
     latex: (value) => render(parse(`$${value}$\n`)),
-    canvas: (value) => {
-        const canvas = value();
+    canvas: async (value) => {
+        const canvas = await value();
         if (canvas?.DOM) return canvas.DOM;
         if (typeof canvas?.toVisual === "function") return renderType(canvas.toVisual());
         return canvas;
     },
-    canvases: (value) => {
+    canvases: async (value) => {
         const container = document.createElement("div");
         container.className = "canvas-output";
-        container.append(...value().map(canvas => canvas.DOM));
+        container.append(...(await value()).map(canvas => canvas.DOM));
         return container;
     },
     ui: (value) => {

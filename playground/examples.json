@@ -27,6 +27,10 @@
         "title": "MNIST PCA data exploration",
         "path": "/playground/tests/mnist_pca_data_exploration.json"
     },
+        {
+        "title": "Neural Point cloud SDFs",
+        "path": "/playground/tests/point_cloud_sdfs.json"
+    },
     {
         "title": "Point cloud clustering",
         "path": "/playground/tests/point_cloud_clustering.json"
@@ -46,10 +50,6 @@
     {
         "title": "Point cloud flow matching",
         "path": "/playground/tests/point_cloud_flow_matching.json"
-    },
-    {
-        "title": "Point cloud SDFs",
-        "path": "/playground/tests/point_cloud_sdfs.json"
     },
     {
         "title": "Pair (product)",
