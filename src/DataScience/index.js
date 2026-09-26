@@ -132,6 +132,9 @@ function defaultContinuationFn(epochs) {
 }
 
 function buildInput(input, model) {
+    if (input?.components) {
+        input = input.components.map(component => component.value ?? component);
+    }
     if (!Array.isArray(input)) input = [input];
     const argMap = {};
     let index = 0;

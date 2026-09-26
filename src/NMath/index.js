@@ -162,6 +162,7 @@ function vec(...components) {
     ans.equals = (other) => other.type === TYPES.vector && ans.components.every((c, i) => c.equals(other.components[i]));
     ans.toString = () => `(${ans.components.map(c => c.value).join(", ")})`;
     ans.toVisual = () => ({ type: "latex", value: `(${ans.components.map(c => c.value).join(", ")})` });
+    ans.toArray = () => ans.components.map(c => c.type === TYPES.real ? c.value : c);
     return ans;
 }
 vec.zero = (dim, field = real) => {
