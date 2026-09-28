@@ -142,6 +142,42 @@ IO.loadMesh = async function (objPath) {
 };
 
 
+function signedDistanceToAabb(point, aabbClip) {
+    const q = point.map((value, axis) =>
+        Math.abs(value - (aabbClip.min[axis] + aabbClip.max[axis]) / 2) -
+        (aabbClip.max[axis] - aabbClip.min[axis]) / 2
+    );
+    return Math.hypot(...q.map(value => Math.max(value, 0))) +
+        Math.min(Math.max(...q), 0);
+}
+
+function traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance) {
+    let t = 0;
+    let nearAabb = false;
+    for (let i = 0; i < maxIterations; i++) {
+        const point = ray.trace(t);
+        const boxDistance = signedDistanceToAabb(point.toArray(), aabbClip);
+        if (boxDistance <= 0) return t;
+        if (nearAabb && boxDistance > epsilon) return null;
+        nearAabb = boxDistance <= epsilon;
+        t += nearAabb ? epsilon : boxDistance;
+        if (t > maxDistance) return null;
+    }
+    return null;
+}
+
+function validateAabbClip(aabbClip) {
+    if (aabbClip == null) return;
+    for (const bounds of [aabbClip.min, aabbClip.max]) {
+        if (!Array.isArray(bounds) || bounds.length !== 3 || bounds.some(value => !Number.isFinite(value))) {
+            throw new Error("aabbClip min and max must each be arrays of three finite numbers");
+        }
+    }
+    if (aabbClip.min.some((value, axis) => value > aabbClip.max[axis])) {
+        throw new Error("aabbClip min values must not exceed max values");
+    }
+}
+
 IO.sdfView = function (sdfFn, options = {}) {
     const {
         width = 50,
@@ -149,8 +185,10 @@ IO.sdfView = function (sdfFn, options = {}) {
         maxIterations = 100,
         epsilon = 1e-3,
         maxDistance = 10,
-        scale = 5,
+        scale = 10,
+        aabbClip = null,
     } = options;
+    validateAabbClip(aabbClip);
     const canvas = Canvas.ofSize(width, height);
 
     const camera = new Camera().orbit(5, 0, 0);
@@ -201,12 +239,34 @@ IO.sdfView = function (sdfFn, options = {}) {
     };
 
     const renderSDF = (ray) => {
-        let p = ray.init;
-        let t = 0;
+        let t = aabbClip
+            ? traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance)
+            : 0;
+        if (t === null) return Color.BLACK;
+        let previousT = 0;
+        let previousD = 0;
+        let hasPreviousSample = false;
         for (let i = 0; i < maxIterations; i++) {
-            p = ray.trace(t);
+            const p = ray.trace(t);
+            if (aabbClip) {
+                const boxDistance = signedDistanceToAabb(p.toArray(), aabbClip);
+                if (boxDistance > 0) return Color.BLACK;
+            }
             const d = sdfFn([p.x, p.y, p.z]);
             if (!Number.isFinite(d)) return Color.BLACK;
+            if (hasPreviousSample && previousD * d < 0) {
+                const hitT = previousT + (t - previousT) * previousD / (previousD - d);
+                const hit = ray.trace(hitT);
+                const normal = gradient(hit);
+                return Color.ofRGB(
+                    (normal.x + 1) / 2,
+                    (normal.y + 1) / 2,
+                    (normal.z + 1) / 2
+                );
+            }
+            previousT = t;
+            previousD = d;
+            hasPreviousSample = true;
             if (Math.abs(d) < epsilon) {
                 const normal = gradient(p);
                 return Color.ofRGB(
@@ -217,7 +277,7 @@ IO.sdfView = function (sdfFn, options = {}) {
             }
             t += Math.max(d, epsilon);
             if (t > maxDistance) {
-                return Color.ofRGB(0, 0, (i / maxIterations));
+                return aabbClip ? Color.BLACK : Color.ofRGB(0, 0, (i / maxIterations));
             }
         }
         return Color.BLACK;
@@ -244,16 +304,167 @@ IO.sdfView = function (sdfFn, options = {}) {
     };
 }
 
+IO.sdfViewSym = function (expressionOrNN, options = {}) {
+    const {
+        width = 50,
+        height = 50,
+        maxIterations = 100,
+        epsilon = 1e-3,
+        maxDistance = 10,
+        scale = 10,
+        aabbClip = null,
+    } = options;
+    validateAabbClip(aabbClip);
+    const expression = expressionOrNN?.symbolicNN ?? expressionOrNN;
+    const inputVariables = expression.vars.filter(variable =>
+        variable.isParam || /^x_[0-2]$/.test(variable.name)
+    );
+    const sdfInputVariables = inputVariables.map(variable => {
+        const match = /^x_([0-2])$/.exec(variable.name);
+        if (!match) throw new Error(`SDF input variable must be named x_0, x_1, or x_2: ${variable.name}`);
+        return { name: variable.name, axis: Number(match[1]) };
+    });
+    const inputNames = new Set(sdfInputVariables.map(variable => variable.name));
+    const weightsMap = expressionOrNN?.symbolicNN ? expressionOrNN.weightsMap : {};
+    const missingWeight = expression.vars.find(variable =>
+        !inputNames.has(variable.name) && weightsMap[variable.name] === undefined
+    );
+    if (missingWeight) throw new Error(`Missing weight value for "${missingWeight.name}"`);
+
+    const sdfEval = Symbolic.compile(expression);
+    const evaluatorDependency = `const sdfEval = (${sdfEval.toString()});`;
+    const canvas = Canvas.ofSize(width, height);
+    const camera = new Camera().orbit(5, 0, 0);
+    let mousedown = false;
+    let mouse = Vec2();
+
+    const renderSDF = (ray, { sdfWeights, sdfInputVariables, maxIterations, epsilon, maxDistance, aabbClip }) => {
+        const evaluate = point => {
+            const coordinates = [point.x, point.y, point.z];
+            const inputs = { ...sdfWeights };
+            for (let i = 0; i < sdfInputVariables.length; i++) {
+                const { name, axis } = sdfInputVariables[i];
+                inputs[name] = coordinates[axis];
+            }
+            return sdfEval(inputs);
+        };
+        const gradient = point => {
+            const dx = evaluate({ x: point.x + epsilon, y: point.y, z: point.z }) -
+                evaluate({ x: point.x - epsilon, y: point.y, z: point.z });
+            const dy = evaluate({ x: point.x, y: point.y + epsilon, z: point.z }) -
+                evaluate({ x: point.x, y: point.y - epsilon, z: point.z });
+            const dz = evaluate({ x: point.x, y: point.y, z: point.z + epsilon }) -
+                evaluate({ x: point.x, y: point.y, z: point.z - epsilon });
+            const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (length === 0 || !Number.isFinite(length)) return { x: 0, y: 0, z: 0 };
+            return { x: dx / length, y: dy / length, z: dz / length };
+        };
+        const hitColor = point => {
+            const normal = gradient(point);
+            return Color.ofRGB(
+                (normal.x + 1) / 2,
+                (normal.y + 1) / 2,
+                (normal.z + 1) / 2
+            );
+        };
+
+        let t = aabbClip
+            ? traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance)
+            : 0;
+        if (t === null) return Color.BLACK;
+        let previousT = 0;
+        let previousDistance = 0;
+        let hasPreviousSample = false;
+        for (let i = 0; i < maxIterations; i++) {
+            const point = ray.trace(t);
+            if (aabbClip) {
+                const boxDistance = signedDistanceToAabb(point.toArray(), aabbClip);
+                if (boxDistance > 0) return Color.BLACK;
+            }
+            const distance = evaluate(point);
+            if (!Number.isFinite(distance)) return Color.BLACK;
+            if (hasPreviousSample && previousDistance * distance < 0) {
+                const hitT = previousT + (t - previousT) * previousDistance / (previousDistance - distance);
+                return hitColor(ray.trace(hitT));
+            }
+            previousT = t;
+            previousDistance = distance;
+            hasPreviousSample = true;
+            if (Math.abs(distance) < epsilon) return hitColor(point);
+            t += Math.max(distance, epsilon);
+            if (t > maxDistance) return aabbClip ? Color.BLACK : Color.ofRGB(0, 0, i / maxIterations);
+        }
+        return Color.BLACK;
+    };
+
+    const paint = async () => {
+        await camera.rayMapParallel(renderSDF, [
+            evaluatorDependency,
+            signedDistanceToAabb.toString(),
+            traceToAabb.toString(),
+        ]).to(canvas, {
+            sdfWeights: { ...(expressionOrNN?.weightsMap ?? {}) },
+            sdfInputVariables,
+            maxIterations,
+            epsilon,
+            maxDistance,
+            aabbClip,
+        });
+        return canvas.paint();
+    };
+
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(
+            0,
+            -2 * Math.PI * (dx / canvas.width),
+            -2 * Math.PI * (dy / canvas.height)
+        )));
+        mouse = newMouse;
+        paint();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        paint();
+    });
+
+    return {
+        render: () => paint(),
+        toVisual: () => ({
+            type: "canvas",
+            value: async () => {
+                const painted = await paint();
+                painted.DOM.style.width = `${width * scale}px`;
+                painted.DOM.style.height = `${height * scale}px`;
+                return painted;
+            }
+        })
+    };
+}
+
 // Compiles a Symbolic expression (or a NeuralNet's symbolicNN) to GLSL and raymarches it in a WebGL fragment shader.
 IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     const {
         width = 200,
         height = 200,
         maxIterations = 300,
-        epsilon = 0.005,
+        epsilon = 1e-3,
         maxDistance = 10,
         scale = 3,
+        aabbClip = null,
     } = options;
+    validateAabbClip(aabbClip);
     const expression = expressionOrNN?.symbolicNN ?? expressionOrNN;
     const weightsMap = expressionOrNN?.symbolicNN
         ? expressionOrNN.weightsMap
@@ -287,6 +498,9 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
             basis0: gl.getUniformLocation(program, "uBasis0"),
             basis1: gl.getUniformLocation(program, "uBasis1"),
             basis2: gl.getUniformLocation(program, "uBasis2"),
+            aabbMin: gl.getUniformLocation(program, "uAabbMin"),
+            aabbMax: gl.getUniformLocation(program, "uAabbMax"),
+            useAabbClip: gl.getUniformLocation(program, "uUseAabbClip"),
         };
     };
     buildProgram();
@@ -300,6 +514,9 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
         gl.uniform3f(glProgram.uniforms.basis0, ...basis0);
         gl.uniform3f(glProgram.uniforms.basis1, ...basis1);
         gl.uniform3f(glProgram.uniforms.basis2, ...basis2);
+        gl.uniform3f(glProgram.uniforms.aabbMin, ...(aabbClip?.min ?? [0, 0, 0]));
+        gl.uniform3f(glProgram.uniforms.aabbMax, ...(aabbClip?.max ?? [0, 0, 0]));
+        gl.uniform1i(glProgram.uniforms.useAabbClip, aabbClip ? 1 : 0);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         return canvasDOM;
     };
@@ -448,6 +665,9 @@ uniform vec3 uCamPos;
 uniform vec3 uBasis0;
 uniform vec3 uBasis1;
 uniform vec3 uBasis2;
+uniform vec3 uAabbMin;
+uniform vec3 uAabbMax;
+uniform bool uUseAabbClip;
 
 ${sdfFunction}
 
@@ -461,18 +681,56 @@ vec3 sdfGradient(vec3 p) {
     return len > 0.0 ? n / len : vec3(0.0);
 }
 
+float sdfAabb(vec3 p) {
+    vec3 center = 0.5 * (uAabbMin + uAabbMax);
+    vec3 halfSize = 0.5 * (uAabbMax - uAabbMin);
+    vec3 q = abs(p - center) - halfSize;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+bool traceAabb(vec3 ro, vec3 rd, inout float t) {
+    if (sdfAabb(ro) <= 0.0) return true;
+    bool nearAabb = false;
+    for (int i = 0; i < ${maxIterations}; i++) {
+        float boxDistance = sdfAabb(ro + rd * t);
+        if (boxDistance <= 0.0) return true;
+        if (nearAabb && boxDistance > ${glslFloat(epsilon)}) return false;
+        nearAabb = boxDistance <= ${glslFloat(epsilon)};
+        t += nearAabb ? ${glslFloat(epsilon)} : boxDistance;
+        if (t > ${glslFloat(maxDistance)}) return false;
+    }
+    return false;
+}
+
 vec3 renderSDF(vec3 ro, vec3 rd) {
     float t = 0.0;
+    if (uUseAabbClip && !traceAabb(ro, rd, t)) return vec3(0.0);
+    float previousT = 0.0;
+    float previousD = 0.0;
+    bool hasPreviousSample = false;
     for (int i = 0; i < ${maxIterations}; i++) {
         vec3 p = ro + rd * t;
+        if (uUseAabbClip) {
+            float boxDistance = sdfAabb(p);
+            if (boxDistance > 0.0) return vec3(0.0);
+        }
         float d = sdfEval(p);
         if (d != d) return vec3(0.0);
+        if (hasPreviousSample && previousD * d < 0.0) {
+            float hitT = previousT + (t - previousT) * previousD / (previousD - d);
+            vec3 n = sdfGradient(ro + rd * hitT);
+            return (n + 1.0) / 2.0;
+        }
+        previousT = t;
+        previousD = d;
+        hasPreviousSample = true;
         if (abs(d) < ${glslFloat(epsilon)}) {
             vec3 n = sdfGradient(p);
             return (n + 1.0) / 2.0;
         }
         t += max(d, ${glslFloat(epsilon)});
         if (t > ${glslFloat(maxDistance)}) {
+            if (uUseAabbClip) return vec3(0.0);
             return vec3(0.0, 0.0, float(i) / float(${maxIterations}));
         }
     }
