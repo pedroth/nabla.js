@@ -91,15 +91,17 @@ const renderHandlers = {
         container.append(...(await value()).map(canvas => canvas.DOM));
         return container;
     },
-    ui: (value) => {
+    ui: async (value) => {
         const container = DOM.of("div").addClass("ui-output");
-        value().forEach(control => {
+        for (const control of value()) {
             if (control.type === "canvas") {
-                container.appendChild(renderHandlers.canvas(control.value));
-                return;
+                container.appendChild(await renderHandlers.canvas(control.value));
+                continue;
             }
             if (control.type === "slider") {
                 const options = control.value();
+                const controlRow = DOM.of("div").addClass("ui-slider-control");
+                const title = DOM.of("span").inner(options.title ?? "");
                 const slider = DOM.of("input")
                     .attr("type", "range")
                     .attr("min", options.min ?? 0)
@@ -107,9 +109,10 @@ const renderHandlers = {
                     .attr("step", options.step ?? 0.01)
                     .event("input", event => options.onChange?.(Number(event.target.value)));
                 if (options.value != null) slider.attr("value", options.value);
-                container.appendChild(slider);
+                controlRow.appendChild(title, slider);
+                container.appendChild(controlRow.build());
             }
-        });
+        }
         return container.build();
     },
 };

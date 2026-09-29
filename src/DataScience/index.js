@@ -1,4 +1,7 @@
 import { Symbolic } from "../Symbolic/index.js";
+import { NMath } from "../NMath/index.js";
+
+const { vec } = NMath;
 
 function createThetaMapIndex(model) {
     const ans = {};
@@ -199,12 +202,45 @@ function adamw(params = {}) {
     };
 }
 
-
-
 const OPTIMIZERS = {
     SGD: (params) => sgd(params),
     ADAMW: (params) => adamw(params),
 }
+
+//========================================================================================
+/*                                                                                      *
+ *                                          PCA                                         *
+ *                                                                                      */
+//========================================================================================
+
+const PCA = {}
+// data: array<array[size: D]<number>>, numComponents: number of principal components to keep
+PCA.fit = function (data, numComponents) {
+    // Center the data
+    let mean = vec.zero(data[0].length);
+    let originalData = [...data];
+    for(let i = 0; i < data.length; i++) {
+        originalData[i] = vec(...data[i]);
+        mean = mean.add(originalData[i]);
+    }
+    mean = mean.scale(1 / data.length);
+    let centeredData = []
+    for(let i = 0; i < data.length; i++) {
+        centeredData.push(originalData[i].sub(mean));
+    }
+    
+    const covarianceMatrix = centeredData[0].map((_, i) => centeredData.map(row => row[i])).map(col => col.reduce((acc, val) => acc + val * val, 0) / (data.length - 1));
+
+    const eigenvalues = covarianceMatrix.map((_, i) => covarianceMatrix[i][i]);
+    const eigenvectors = covarianceMatrix.map((_, i) => covarianceMatrix.map(row => row[i]));
+    const sortedIndices = eigenvalues.map((val, i) => [val, i]).sort((a, b) => b[0] - a[0]).map(pair => pair[1]);
+    const selectedEigenvectors = sortedIndices.slice(0, numComponents).map(i => eigenvectors[i]);
+    return {
+        mean,
+        components: selectedEigenvectors,
+    };
+}
+
 
 export const DataScience = {
     fitData,

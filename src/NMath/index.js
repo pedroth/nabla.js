@@ -116,13 +116,6 @@ function vec(...components) {
         }
         return vec(...newVec);
     };
-    ans.dot = (other) => {
-        let result = real(0);
-        for (let i = 0; i < ans.components.length; i++) {
-            result = result.add(ans.components[i].conj().mul(other.components[i]));
-        }
-        return result;
-    };
     ans.scale = (field) => {
         const normalizeField = typeof field === "number" ? real(field) : field;
         if (normalizeField.isField) {
@@ -131,6 +124,30 @@ function vec(...components) {
             Try.fail("Scaling requires a field element");
         }
     };
+
+
+    // Dot product of two vectors, returns a field element
+    ans.dot = (other) => {
+        let result = real(0);
+        for (let i = 0; i < ans.components.length; i++) {
+            result = result.add(ans.components[i].conj().mul(other.components[i]));
+        }
+        return result;
+    };
+
+    // Outer product of two vectors, returns a matrix, C_ij = A_i * B_j
+    ans.outer = (other) => {
+        const matrix = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            const column = [];
+            for (let j = 0; j < other.components.length; j++) {
+                column.push(ans.components[i].mul(other.components[j]));
+            }
+            matrix.push(column);
+        }
+        return mat(matrix);
+    }
+
 
     ans.length = () => {
         return Math.sqrt(ans.dot(ans).value);
@@ -180,6 +197,38 @@ vec.random = (dim, field = real) => {
     return vec(...components);
 };
 
+
+// Matrix is represented as an array of vectors (column-major order), i.e., mat.vectors[j] is the j-th column vector of the matrix
+function mat(vectors) {
+    const ans = { type: TYPES.matrix, vectors: vectors, isField: false };
+    return ans;
+}
+
+mat.id = (size, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < size; j++) {
+        const v = vec.zero(size, field);
+        v.components[j] = field(1);
+        vectors.push(v);
+    }
+    return mat(vectors);
+}
+
+mat.zero = (rows, cols, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < cols; j++) {
+        vectors.push(vec.zero(rows, field));
+    }
+    return mat(vectors);
+};
+
+mat.random = (rows, cols, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < cols; j++) {
+        vectors.push(vec.random(rows, field));
+    }
+    return mat(vectors);
+}
 
 
 function exp(x) {
@@ -231,5 +280,7 @@ export const NMath = {
     dual,
     exp,
     log,
-    vec
+    vec, 
+    mat,
+    TYPES,
 };
