@@ -66,11 +66,11 @@ test("getEntries returns all key-value pairs", () => {
     map.put("b", 2);
     map.put("c", 3);
     const entries = map.getEntries();
-    const plain = entries.toArray().map(p => [p.left(), p.right()]).sort((a, b) => a[0].localeCompare(b[0]));
+    const plain = entries.map(p => [p.left(), p.right()]).sort((a, b) => a[0].localeCompare(b[0]));
     expect(plain).toEqual([["a", 1], ["b", 2], ["c", 3]]);
 });
 
 test("getEntries is empty for empty map", () => {
     const map = new HashMap();
-    expect(map.getEntries().isEmpty()).toBe(true);
+    expect(map.getEntries()).toEqual([]);
 });

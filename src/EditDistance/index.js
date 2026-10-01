@@ -60,4 +60,4 @@ const EditDistance = {
     alignWords
 };
 
-export default EditDistance;
+export { EditDistance };

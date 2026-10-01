@@ -171,7 +171,6 @@ function polyToString(polyExpr, exprToStr) {
             const varCombStr = NArray.fromArray(varComb.split("*"))
                 .groupBy(v => v)
                 .getEntries()
-                .toArray()
                 .sort((a, b) => {
                     const aIsAtomic = a.left().startsWith("__atomic__");
                     const bIsAtomic = b.left().startsWith("__atomic__");
@@ -552,8 +551,8 @@ function binaryOp({ name, symbol }, left, right) {
 }
 
 function add(a, b) {
-    if(isLiteralReal(a, 0)) return b;
-    if(isLiteralReal(b, 0)) return a;
+    if (isLiteralReal(a, 0)) return b;
+    if (isLiteralReal(b, 0)) return a;
 
     const ans = binaryOp({ name: TYPES.add, symbol: "+" }, a, b);
 
@@ -582,7 +581,7 @@ function add(a, b) {
 }
 
 function sub(a, b) {
-    if(isLiteralReal(b, 0)) return a;
+    if (isLiteralReal(b, 0)) return a;
 
     const ans = binaryOp({ name: TYPES.sub, symbol: "-" }, a, b);
 
@@ -612,10 +611,10 @@ function sub(a, b) {
 }
 
 function mul(a, b) {
-    if(isLiteralReal(a, 1)) return b;
-    if(isLiteralReal(b, 1)) return a;
-    if(isLiteralReal(a, 0) || isLiteralReal(b, 0)) return real(0);
-    
+    if (isLiteralReal(a, 1)) return b;
+    if (isLiteralReal(b, 1)) return a;
+    if (isLiteralReal(a, 0) || isLiteralReal(b, 0)) return real(0);
+
     const ans = binaryOp({ name: TYPES.mul, symbol: "\\cdot" }, a, b);
 
     ans.flat = () => {
@@ -642,7 +641,7 @@ function mul(a, b) {
 }
 
 function div(numerator, denominator) {
-    if(isLiteralReal(denominator, 1)) return numerator;
+    if (isLiteralReal(denominator, 1)) return numerator;
 
     const ans = binaryOp({ name: TYPES.div, symbol: "/" }, numerator, denominator);
 
@@ -986,6 +985,15 @@ function covec(...components) {
     ans.vars = mergeVars(...components);
     components.forEach(c => c.vars = ans.vars);
 
+    ans.shape = () => {
+        const shapeAns = [];
+        let current = ans;
+        while (current && typeof current.dim === "number") {
+            shapeAns.push(current.dim);
+            current = current.components[0];
+        }
+        return shapeAns;
+    };
 
     ans.add = (other) => {
         if (components?.length === other?.components?.length) {
@@ -1079,6 +1087,16 @@ function vec(...components) {
     ans.children = components;
     ans.vars = mergeVars(...components);
     components.forEach(c => c.vars = ans.vars);
+
+    ans.shape = () => {
+        const shapeAns = [];
+        let current = ans;
+        while (current && typeof current.dim === "number") {
+            shapeAns.push(current.dim);
+            current = current.components[0];
+        }
+        return shapeAns;
+    };
 
     ans.add = (other) => {
         if (components?.length === other?.components?.length) {

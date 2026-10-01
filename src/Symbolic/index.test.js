@@ -99,6 +99,17 @@ test("identical gaussian expressions simplify to zero", () => {
 	expect(gaussian.sub(gaussian).simplify().toString()).toBe("0");
 });
 
+test("simplified covector outer products render repeated variables as powers", () => {
+	const x = Symbolic.covectorVar("x", 3);
+	const result = x.prod(x).simplify();
+
+	expect(result.components.map(row => row.components.map(entry => entry.toString()))).toEqual([
+		["x_0^{2}", "x_0x_1", "x_0x_2"],
+		["x_0x_1", "x_1^{2}", "x_1x_2"],
+		["x_0x_2", "x_1x_2", "x_2^{2}"],
+	]);
+});
+
 test("exp derivative keeps atomic visual metadata after simplification", () => {
 	const x = Symbolic.realVar("x");
 

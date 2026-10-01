@@ -17,3 +17,4 @@ export * from "./NDArray/index.js";
 export * from "./NMath/index.js";
 export * from "./NeuralNet/index.js";
 export * from "./DataScience/index.js";
+export * from "./Pca/index.js";

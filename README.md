@@ -4,6 +4,8 @@ A Mathematics and Computer Science educational library.
 
 The purpose is to make a bug-free, concise, no dependencies, clear implementation of mathematical/computer science concepts.
 
+The focus is on clarity, correctness, and educational value rather than performance. Although performance is considered, it is secondary to the educational goals.
+
 # nabla.js programs
 - [x] Pairs (products)
 - [x] Either (co-products)
@@ -22,20 +24,20 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
 - [x] Parser combinator builder (recursive descent parsers)
 - [x] Symbolic mathematics
     - [x] Symbolic differentiation
-    - [x] algebraic simplification
-    - [ ] geometric calculus
-- [ ] Randomized Tree Map
+    - [x] Algebraic simplification
+    - [ ] Geometric calculus
+- [x] Randomized Tree Map
 - [ ] Graphs
 - [ ] Half-edge data structure
 - [ ] Simplicial complexes
-- [ ] Real numbers
-- [ ] Complex numbers
-- [ ] Vectors
-- [ ] Matrices
+- [x] Real numbers
+- [x] Complex numbers
+- [x] Vectors
+- [x] Matrices
 - [ ] Tensors
 - [ ] Multivectors (Geometric algebra)
 - [ ] Numerical Linear algebra
-    - [ ] Eigenvalue decomposition
+    - [x] Eigenvalue decomposition
     - [ ] Singular value decomposition
     - [ ] Solve linear systems
     - [ ] LU decomposition
@@ -78,8 +80,10 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
     - Kernel PCA
 - Spectral Point Clouds
     - Laplacian eigen functions
+    - Point cloud compression
     - Clustering
-        - Global surface parameterization
+    - Global surface parameterization
+    - Resampling
     - Heat equation
     - Wave equation
     - Poisson equation
@@ -87,10 +91,13 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
         - Using ridge regression
         - Monte Carlo
         - Neural networks
-    - Harmonic vector fields
-        - Global space parameterization
+    - Harmonic vector fields (?)
+        - Global surface space parameterization
+    - Curvature flow
 - Discrete exterior calculus
     - Laplacian eigen functions on meshes
+    - Mesh compression
+    - Mesh resampling
     - Heat equation on meshes
     - Wave equation on meshes
     - Poisson equation on meshes
@@ -100,19 +107,16 @@ The purpose is to make a bug-free, concise, no dependencies, clear implementatio
         - Neural networks
     - Harmonic vector fields on meshes
         - Global surface parameterization on meshes
+    - Curvature flow on meshes
 - Optimal transport point cloud interpolation
 - Flow matching MNIST
 - Diffusion / Signed distance function MNIST
 - Nearest neighbor search
+    - Hierarchical K-means
 - Soft body simulation
   - 2d
   - 3d
-- Spectral Images:
-    - Low pass
-    - High pass
-    - Image segmentation
-    - Metric PDEs: Wave & Heat
-- Fourier transform line drawing
+- Fourier transform paths
 ---
 - Fluid simulation
     - 2d

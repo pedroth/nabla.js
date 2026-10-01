@@ -1,4 +1,3 @@
-import { Try } from "../Try/index.js";
 
 const TYPES = {
     real: "real",
@@ -88,6 +87,15 @@ dual.random = () => dual(Math.random(), Math.random());
 
 function vec(...components) {
     const ans = { type: TYPES.vector, components: components.map(c => typeof c === "number" ? real(c) : c), isField: false };
+
+    ans.dim = ans.components.length;
+    ans.get = (index) => {
+        if (index < 0 || index >= ans.components.length) {
+            throw Error("Index out of bounds");
+        }
+        return ans.components[index];
+    };
+
     ans.add = (other) => {
         const newVec = [];
         for (let i = 0; i < ans.components.length; i++) {
@@ -121,7 +129,7 @@ function vec(...components) {
         if (normalizeField.isField) {
             return vec(...ans.components.map(c => c.mul(normalizeField)));
         } else {
-            Try.fail("Scaling requires a field element");
+            throw Error("Scaling requires a field element");
         }
     };
 
@@ -137,15 +145,13 @@ function vec(...components) {
 
     // Outer product of two vectors, returns a matrix, C_ij = A_i * B_j
     ans.outer = (other) => {
-        const matrix = [];
+        const data = [];
         for (let i = 0; i < ans.components.length; i++) {
-            const column = [];
             for (let j = 0; j < other.components.length; j++) {
-                column.push(ans.components[i].mul(other.components[j]));
+                data.push(ans.components[i].mul(other.components[j]));
             }
-            matrix.push(column);
         }
-        return mat(matrix);
+        return mat(data, [ans.components.length, other.components.length]);
     }
 
 
@@ -155,7 +161,7 @@ function vec(...components) {
     ans.normalize = () => {
         const length = ans.dot(ans).value; // also works for complex
         if (length === 0) {
-            Try.fail("Cannot normalize zero vector");
+            throw Error("Cannot normalize zero vector");
         }
         const invLength = real(1).div(real(Math.sqrt(length)));
         return ans.scale(invLength);
@@ -198,11 +204,173 @@ vec.random = (dim, field = real) => {
 };
 
 
-// Matrix is represented as an array of vectors (column-major order), i.e., mat.vectors[j] is the j-th column vector of the matrix
-function mat(vectors) {
-    const ans = { type: TYPES.matrix, vectors: vectors, isField: false };
+
+// data: array of matrix elements in row-major order
+// shape: [rows: number of rows, cols: number of columns]
+function mat(data, shape) {
+    const ans = { type: TYPES.matrix, data, shape, isField: false };
+
+    if (!shape) {
+        throw Error("Shape must be provided for the matrix");
+    }
+
+    ans.rows = shape[0];
+    ans.cols = shape[1];
+
+    ans.get = (row, col) => {
+        if (row < 0 || row >= ans.rows || col < 0 || col >= ans.cols) {
+            throw Error("Index out of bounds");
+        }
+        return ans.data[row * ans.cols + col];
+    };
+
+    ans.add = (other) => {
+        if (other.rows !== ans.rows || other.cols !== ans.cols) {
+            throw Error("Matrix dimensions must match for addition");
+        }
+        const resultData = [];
+        for (let i = 0; i < ans.data.length; i++) {
+            resultData.push(ans.data[i].add(other.data[i]));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
+    };
+    ans.sub = (other) => {
+        if (other.rows !== ans.rows || other.cols !== ans.cols) {
+            throw Error("Matrix dimensions must match for subtraction");
+        }
+        const resultData = [];
+        for (let i = 0; i < ans.data.length; i++) {
+            resultData.push(ans.data[i].sub(other.data[i]));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
+    };
+    ans.mul = (other) => {
+        if (other.rows !== ans.rows || other.cols !== ans.cols) {
+            throw Error("Matrix dimensions must match for multiplication");
+        }
+        const resultData = [];
+        for (let i = 0; i < ans.data.length; i++) {
+            resultData.push(ans.data[i].mul(other.data[i]));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
+    };
+    ans.div = (other) => {
+        if (other.rows !== ans.rows || other.cols !== ans.cols) {
+            throw Error("Matrix dimensions must match for division");
+        }
+        const resultData = [];
+        for (let i = 0; i < ans.data.length; i++) {
+            resultData.push(ans.data[i].div(other.data[i]));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
+    };
+    ans.scale = (field) => {
+        const normalizeField = typeof field === "number" ? real(field) : field;
+        const resultData = [];
+        for (let i = 0; i < ans.data.length; i++) {
+            resultData.push(ans.data[i].mul(normalizeField));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
+    };
+
+    ans.prod = (other) => {
+        if (ans.cols !== other.rows) {
+            throw Error("Matrix dimensions must match for matrix product");
+        }
+
+        const resultData = new Array(ans.rows * other.cols);
+        for (let i = 0; i < ans.rows; i++) {
+            for (let j = 0; j < other.cols; j++) {
+                let sum = ans.data[i * ans.cols].mul(other.data[j]);
+                for (let k = 1; k < ans.cols; k++) {
+                    sum = sum.add(ans.data[i * ans.cols + k].mul(other.data[k * other.cols + j]));
+                }
+                resultData[i * other.cols + j] = sum;
+            }
+        }
+        return mat(resultData, [ans.rows, other.cols]);
+    };
+
+    ans.prodVec = (vector) => {
+        if (ans.cols !== vector.dim) {
+            throw Error("Matrix and vector dimensions must match for matrix-vector product");
+        }
+        const resultData = new Array(ans.rows);
+        for (let i = 0; i < ans.rows; i++) {
+            let sum = ans.data[i * ans.cols].mul(vector.components[0]);
+            for (let j = 1; j < ans.cols; j++) {
+                sum = sum.add(ans.data[i * ans.cols + j].mul(vector.components[j]));
+            }
+            resultData[i] = sum;
+        }
+        return vec(...resultData);
+    };
+
+    ans.eigen = (options = {}) => {
+        const { maxIterations = 1000, tolerance = 1e-10, k = ans.cols, maxFirst = true } = options;
+        if (maxFirst) {
+            return eigenMax(ans, options);
+        }
+        return eigenMin(ans, options);
+    };
+
     return ans;
 }
+
+function eigenMax(symMatrix, options = {}) {
+    const { k = symMatrix.cols } = options;
+    const eigenvalues = [];
+    const eigenvectors = [];
+    for (let i = 0; i < k; i++) {
+        const v = powerMethod(symMatrix, options, eigenvectors);
+        eigenvectors.push(v);
+        const lambda = v.dot(symMatrix.prodVec(v)); // v is normalized, no need to divide by v.dot(v)
+        eigenvalues.push(lambda);
+    }
+    return { eigenvalues, eigenvectors };
+}
+
+function powerMethod(symMatrix, options = {}, basis = []) {
+    const { maxIterations = 1000, tolerance = 1e-10 } = options;
+    let v = gramSchmidt(vec.random(symMatrix.rows), basis);
+    v = v.normalize();
+    let prevV = vec.zero(symMatrix.rows);
+    let i = maxIterations;
+    while (i > 0 && v.sub(prevV).length() > tolerance) {
+        prevV = v;
+        const w = symMatrix.prodVec(v);
+        v = w.normalize();
+        v = gramSchmidt(v, basis);
+        i--;
+    }
+    return v;
+}
+
+function gramSchmidt(v, basis) {
+    let u = v;
+    for (let i = 0; i < basis.length; i++) {
+        const b = basis[i];
+        const proj = b.scale(u.dot(b) / b.dot(b));
+        u = u.sub(proj);
+    }
+    return u;
+}
+
+function eigenMin(symMatrix, options = {}) {
+    throw Error("Eigen decomposition for smallest eigenvalues not implemented");
+}
+
+mat.ofVectors = (vectors) => {
+    const d = vectors[0].components.length;
+    const n = vectors.length;
+    const matrix = new Array(d * n);
+    for (let i = 0; i < d; i++) {
+        for (let j = 0; j < n; j++) {
+            matrix[i * d + j] = vectors[j].components[i];
+        }
+    }
+    return mat(matrix, [d, n]);
+};
 
 mat.id = (size, field = real) => {
     const vectors = [];
@@ -211,7 +379,7 @@ mat.id = (size, field = real) => {
         v.components[j] = field(1);
         vectors.push(v);
     }
-    return mat(vectors);
+    return mat.ofVectors(vectors);
 }
 
 mat.zero = (rows, cols, field = real) => {
@@ -219,7 +387,7 @@ mat.zero = (rows, cols, field = real) => {
     for (let j = 0; j < cols; j++) {
         vectors.push(vec.zero(rows, field));
     }
-    return mat(vectors);
+    return mat.ofVectors(vectors);
 };
 
 mat.random = (rows, cols, field = real) => {
@@ -227,8 +395,8 @@ mat.random = (rows, cols, field = real) => {
     for (let j = 0; j < cols; j++) {
         vectors.push(vec.random(rows, field));
     }
-    return mat(vectors);
-}
+    return mat.ofVectors(vectors);
+};
 
 
 function exp(x) {
@@ -274,13 +442,14 @@ function log(x) {
 
 
 
-export const NMath = {
+const NMath = {
     real,
     complex,
     dual,
     exp,
     log,
-    vec, 
+    vec,
     mat,
     TYPES,
 };
+export { NMath };

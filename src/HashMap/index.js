@@ -57,8 +57,8 @@ export class HashMap {
     }
 
     getEntries() {
-        const entries = new Array(this.length);
-        for (let i = 0; i < this.length; i++) {
+        const entries = [];
+        for (let i = 0; i < this.map.length; i++) {
             const maybeList = Maybe.of(this.map[i]);
             maybeList.forEach(list => list.fold(null, (_, pair) => entries.push(pair)));
         }

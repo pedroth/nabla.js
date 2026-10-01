@@ -1,9 +1,9 @@
 [
-    {"input": "editDistance(\"kitten\", \"sitting\");"},
-    {"input": "editDistance(\"sunday\", \"saturday\");"},
-    {"input": "editDistance(\"abc\", \"abc\");"},
-    {"input": "editDistance(\"\", \"hello\");"},
-    {"input": "alignWords(\"kitten\", \"sitting\");"},
-    {"input": "alignWords(\"sunday\", \"saturday\");"},
-    {"input": "alignWords(\"cat\", \"bat\");"}
+    {"input": "EditDistance.distance(\"kitten\", \"sitting\");"},
+    {"input": "EditDistance.distance(\"sunday\", \"saturday\");"},
+    {"input": "EditDistance.distance(\"abc\", \"abc\");"},
+    {"input": "EditDistance.distance(\"\", \"hello\");"},
+    {"input": "EditDistance.alignWords(\"kitten\", \"sitting\");"},
+    {"input": "EditDistance.alignWords(\"sunday\", \"saturday\");"},
+    {"input": "EditDistance.alignWords(\"cat\", \"bat\");"}
 ]
