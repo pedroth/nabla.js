@@ -233,6 +233,23 @@ a:hover {
     min-width: 0;
 }
 
+.ui-button {
+    margin: 0.25rem 0.25rem 0 0;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+}
+
+.ui-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+
+
 .cell-toolbar .iconBtn {
     width: 2rem;
     height: 2rem;

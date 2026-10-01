@@ -94,28 +94,53 @@ const renderHandlers = {
     ui: async (value) => {
         const container = DOM.of("div").addClass("ui-output");
         for (const control of value()) {
-            if (control.type === "canvas") {
-                container.appendChild(await renderHandlers.canvas(control.value));
-                continue;
-            }
-            if (control.type === "slider") {
-                const options = control.value();
-                const controlRow = DOM.of("div").addClass("ui-slider-control");
-                const title = DOM.of("span").inner(options.title ?? "");
-                const slider = DOM.of("input")
-                    .attr("type", "range")
-                    .attr("min", options.min ?? 0)
-                    .attr("max", options.max ?? 1)
-                    .attr("step", options.step ?? 0.01)
-                    .event("input", event => options.onChange?.(Number(event.target.value)));
-                if (options.value != null) slider.attr("value", options.value);
-                controlRow.appendChild(title, slider);
-                container.appendChild(controlRow.build());
-            }
+            container.appendChild(await renderControl(control));
         }
         return container.build();
     },
 };
+
+async function renderControl(control) {
+    if (control.type === "canvas") {
+        return renderHandlers.canvas(control.value);
+    }
+    if (control.type === "button") {
+        const options = control.value();
+        const button = DOM.of("button")
+            .addClass("ui-button")
+            .inner(options.title ?? "Button")
+            .event("click", () => options.onClick?.());
+        return button.build();
+    }
+    if (control.type === "group") {
+        const group = DOM.of("div").addClass("ui-group");
+        for (const childControl of control.value()) {
+            group.appendChild(await renderControl(childControl));
+        }
+        return group.build();
+    }
+    if (control.type === "slider") {
+        const options = control.value();
+        const controlRow = DOM.of("div").addClass("ui-slider-control");
+        const title = DOM.of("span").inner(options.title ?? "");
+        const value = DOM.of("span").addClass("ui-slider-value");
+        const formatValue = value => Number(value).toFixed(2);
+        const slider = DOM.of("input")
+            .attr("type", "range")
+            .attr("min", options.min ?? 0)
+            .attr("max", options.max ?? 1)
+            .attr("step", options.step ?? 0.01)
+            .event("input", event => {
+                value.inner(formatValue(event.target.value));
+                options.onChange?.(Number(event.target.value));
+            });
+        if (options.value != null) slider.attr("value", options.value);
+        value.inner(formatValue(slider.build().value));
+        controlRow.appendChild(title, slider, value);
+        return controlRow.build();
+    }
+    return document.createComment(`unknown ui control type: ${control.type}`);
+}
 
 function renderType(visualObj) {
     const handler = renderHandlers[visualObj.type];

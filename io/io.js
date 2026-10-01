@@ -5,6 +5,17 @@ import { SOURCE } from "./utils.js";
 
 const IO = {}
 IO._cache = {}
+IO._store = {}
+
+// Persists a value across cells/re-evaluations (the io.js module instance is shared for the whole session)
+IO.store = function (key, value) {
+    IO._store[key] = value;
+    return value;
+}
+
+IO.recall = function (key) {
+    return IO._store[key];
+}
 
 IO.measureTime = async function (fn) {
     const start = performance.now();
@@ -65,6 +76,101 @@ IO.paintMNIST = function (mnistSamples, scale = 10) {
                     painted.DOM.style.imageRendering = "pixelated";
                     return painted;
                 })
+            };
+        }
+    };
+}
+
+IO.drawMNIST = function (options = {}) {
+    const {
+        width = 28,
+        height = 28,
+        scale = 10,
+        brushRadius = 1.2,
+        onSubmit = null,
+    } = options;
+    // row-major, row 0 = top, matching paintMNIST/loadMNIST sample layout
+    const density = new Float32Array(width * height);
+    const canvas = Canvas.ofSize(width, height);
+    let drawing = false;
+
+    const setDensity = (row, col, value) => {
+        if (row < 0 || row >= height || col < 0 || col >= width) return;
+        const index = row * width + col;
+        density[index] = Math.min(1, Math.max(density[index], value));
+    };
+
+    const paintBrush = (x, y) => {
+        const row = height - 1 - y;
+        const col = x;
+        const r = Math.ceil(brushRadius);
+        for (let dr = -r; dr <= r; dr++) {
+            for (let dc = -r; dc <= r; dc++) {
+                const dist = Math.hypot(dr, dc);
+                if (dist > brushRadius) continue;
+                setDensity(row + dr, col + dc, 1 - dist / brushRadius);
+            }
+        }
+    };
+
+    const render = () => {
+        canvas.map((x, y) => {
+            const value = density[(height - 1 - y) * width + x];
+            return Color.ofRGB(value, value, value);
+        });
+        canvas.paint();
+    };
+
+    const stopDrawing = () => { drawing = false; };
+    canvas.onMouseDown((x, y) => {
+        drawing = true;
+        paintBrush(x, y);
+        render();
+    });
+    canvas.onMouseMove((x, y) => {
+        if (!drawing) return;
+        paintBrush(x, y);
+        render();
+    });
+    canvas.onMouseUp(stopDrawing);
+
+    const clear = () => {
+        density.fill(0);
+        render();
+    };
+
+    const submit = () => {
+        onSubmit?.(density);
+    };
+
+    render();
+
+    return {
+        clear,
+        submit,
+        getData: () => Float32Array.from(density),
+        toVisual: () => {
+            return {
+                type: "ui",
+                value: () => [
+                    {
+                        type: "canvas",
+                        value: () => {
+                            const painted = canvas.paint();
+                            painted.DOM.style.width = `${width * scale}px`;
+                            painted.DOM.style.height = `${height * scale}px`;
+                            painted.DOM.style.imageRendering = "pixelated";
+                            return painted;
+                        }
+                    },
+                    {
+                        type: "group",
+                        value: () => [
+                            { type: "button", value: () => ({ title: "Clear", onClick: clear }) },
+                            { type: "button", value: () => ({ title: "Submit", onClick: submit }) },
+                        ]
+                    },
+                ]
             };
         }
     };

@@ -113,6 +113,10 @@ The focus is on clarity, correctness, and educational value rather than performa
 - Diffusion / Signed distance function MNIST
 - Nearest neighbor search
     - Hierarchical K-means
+- Spiral and Moon datasets classification
+    - Using neural networks
+    - Using Kernel methods
+    - Using 1-nearest neighbor
 - Soft body simulation
   - 2d
   - 3d
