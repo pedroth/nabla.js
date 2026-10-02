@@ -10,7 +10,7 @@ const TYPES = {
 };
 
 function real(value) {
-    const ans = { type: TYPES.real, value: value, isField: true };
+    const ans = { type: TYPES.real, value: value };
     ans.add = (other) => real(ans.value + other.value);
     ans.sub = (other) => real(ans.value - other.value);
     ans.mul = (other) => real(ans.value * other.value);
@@ -32,7 +32,7 @@ function real(value) {
 real.random = () => real(Math.random());
 
 function complex(realPart, imagPart) {
-    const ans = { type: TYPES.complex, real: real(realPart), imag: real(imagPart), isField: true };
+    const ans = { type: TYPES.complex, real: real(realPart), imag: real(imagPart) };
     ans.add = (other) => complex(ans.real.value + other.real.value, ans.imag.value + other.imag.value);
     ans.sub = (other) => complex(ans.real.value - other.real.value, ans.imag.value - other.imag.value);
     ans.mul = (other) => complex(
@@ -59,7 +59,7 @@ function complex(realPart, imagPart) {
 complex.random = () => complex(Math.random(), Math.random());
 
 function dual(realPart, dualPart) {
-    const ans = { type: TYPES.dual, real: real(realPart), dual: real(dualPart), isField: true };
+    const ans = { type: TYPES.dual, real: real(realPart), dual: real(dualPart) };
     ans.add = (other) => dual(ans.real.value + other.real.value, ans.dual.value + other.dual.value);
     ans.sub = (other) => dual(ans.real.value - other.real.value, ans.dual.value - other.dual.value);
     ans.mul = (other) => dual(
@@ -86,59 +86,61 @@ function dual(realPart, dualPart) {
 dual.random = () => dual(Math.random(), Math.random());
 
 function vec(...components) {
-    const ans = { type: TYPES.vector, components: components.map(c => typeof c === "number" ? real(c) : c), isField: false };
+    const ans = { type: TYPES.vector, components: components };
 
     ans.dim = ans.components.length;
-    ans.get = (index) => {
-        if (index < 0 || index >= ans.components.length) {
-            throw Error("Index out of bounds");
-        }
-        return ans.components[index];
-    };
-
     ans.add = (other) => {
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for addition");
         const newVec = [];
         for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i].add(other.components[i]));
+            newVec.push(ans.components[i] + other.components[i]);
         }
         return vec(...newVec);
     };
     ans.sub = (other) => {
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for subtraction");
         const newVec = [];
         for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i].sub(other.components[i]));
+            newVec.push(ans.components[i] - other.components[i]);
         }
         return vec(...newVec);
     };
     ans.mul = (other) => {
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for multiplication");
         const newVec = [];
         for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i].mul(other.components[i]));
+            newVec.push(ans.components[i] * other.components[i]);
         }
         return vec(...newVec);
     };
     ans.div = (other) => {
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for division");
         const newVec = [];
         for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i].div(other.components[i]));
+            newVec.push(ans.components[i] / other.components[i]);
         }
         return vec(...newVec);
     };
     ans.scale = (field) => {
-        const normalizeField = typeof field === "number" ? real(field) : field;
-        if (normalizeField.isField) {
-            return vec(...ans.components.map(c => c.mul(normalizeField)));
-        } else {
-            throw Error("Scaling requires a field element");
+        if (typeof field !== "number") throw Error("Scaling requires a field element");
+        let newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(ans.components[i] * field);
         }
+        return vec(...newVec);
     };
-
 
     // Dot product of two vectors, returns a field element
     ans.dot = (other) => {
-        let result = real(0);
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for dot product");
+        let result = 0;
         for (let i = 0; i < ans.components.length; i++) {
-            result = result.add(ans.components[i].conj().mul(other.components[i]));
+            result += ans.components[i] * other.components[i];
         }
         return result;
     };
@@ -148,7 +150,7 @@ function vec(...components) {
         const data = [];
         for (let i = 0; i < ans.components.length; i++) {
             for (let j = 0; j < other.components.length; j++) {
-                data.push(ans.components[i].mul(other.components[j]));
+                data.push(ans.components[i] * other.components[j]);
             }
         }
         return mat(data, [ans.components.length, other.components.length]);
@@ -156,14 +158,14 @@ function vec(...components) {
 
 
     ans.length = () => {
-        return Math.sqrt(ans.dot(ans).value);
+        return Math.sqrt(ans.dot(ans));
     };
     ans.normalize = () => {
-        const length = ans.dot(ans).value; // also works for complex
+        const length = ans.dot(ans);
         if (length === 0) {
             throw Error("Cannot normalize zero vector");
         }
-        const invLength = real(1).div(real(Math.sqrt(length)));
+        const invLength = 1 / Math.sqrt(length);
         return ans.scale(invLength);
     };
 
@@ -182,23 +184,29 @@ function vec(...components) {
         return vec(...result);
     };
 
-    ans.equals = (other) => other.type === TYPES.vector && ans.components.every((c, i) => c.equals(other.components[i]));
+    ans.equals = (other) => {
+        if (!other || other.type !== TYPES.vector) return false;
+        for (let i = 0; i < ans.components.length; i++) {
+            if (!ans.components[i].equals(other.components[i])) return false;
+        }
+        return true;
+    };
     ans.toString = () => `(${ans.components.map(c => c.value).join(", ")})`;
-    ans.toVisual = () => ({ type: "latex", value: `(${ans.components.map(c => c.value).join(", ")})` });
-    ans.toArray = () => ans.components.map(c => c.type === TYPES.real ? c.value : c);
+    ans.toVisual = () => ({ type: "latex", value: `(${ans.components.join(", ")})` });
+    ans.toArray = () => ans.components;
     return ans;
 }
-vec.zero = (dim, field = real) => {
+vec.zero = (dim) => {
     const components = [];
     for (let i = 0; i < dim; i++) {
-        components.push(field(0));
+        components.push(0);
     }
     return vec(...components);
 };
-vec.random = (dim, field = real) => {
+vec.random = (dim) => {
     const components = [];
     for (let i = 0; i < dim; i++) {
-        components.push(field.random());
+        components.push(Math.random());
     }
     return vec(...components);
 };
@@ -208,7 +216,7 @@ vec.random = (dim, field = real) => {
 // data: array of matrix elements in row-major order
 // shape: [rows: number of rows, cols: number of columns]
 function mat(data, shape) {
-    const ans = { type: TYPES.matrix, data, shape, isField: false };
+    const ans = { type: TYPES.matrix, data, shape };
 
     if (!shape) {
         throw Error("Shape must be provided for the matrix");
@@ -225,55 +233,60 @@ function mat(data, shape) {
     };
 
     ans.add = (other) => {
+        if (!other || other.type !== TYPES.matrix) throw Error("Invalid matrix for addition");
         if (other.rows !== ans.rows || other.cols !== ans.cols) {
             throw Error("Matrix dimensions must match for addition");
         }
         const resultData = [];
         for (let i = 0; i < ans.data.length; i++) {
-            resultData.push(ans.data[i].add(other.data[i]));
+            resultData.push(ans.data[i] + other.data[i]);
         }
         return mat(resultData, [ans.rows, ans.cols]);
     };
     ans.sub = (other) => {
+        if (!other || other.type !== TYPES.matrix) throw Error("Invalid matrix for subtraction");
         if (other.rows !== ans.rows || other.cols !== ans.cols) {
             throw Error("Matrix dimensions must match for subtraction");
         }
         const resultData = [];
         for (let i = 0; i < ans.data.length; i++) {
-            resultData.push(ans.data[i].sub(other.data[i]));
+            resultData.push(ans.data[i] - other.data[i]);
         }
         return mat(resultData, [ans.rows, ans.cols]);
     };
     ans.mul = (other) => {
+        if (!other || other.type !== TYPES.matrix) throw Error("Invalid matrix for multiplication");
         if (other.rows !== ans.rows || other.cols !== ans.cols) {
             throw Error("Matrix dimensions must match for multiplication");
         }
         const resultData = [];
         for (let i = 0; i < ans.data.length; i++) {
-            resultData.push(ans.data[i].mul(other.data[i]));
+            resultData.push(ans.data[i] * other.data[i]);
         }
         return mat(resultData, [ans.rows, ans.cols]);
     };
     ans.div = (other) => {
+        if (!other || other.type !== TYPES.matrix) throw Error("Invalid matrix for division");
         if (other.rows !== ans.rows || other.cols !== ans.cols) {
             throw Error("Matrix dimensions must match for division");
         }
         const resultData = [];
         for (let i = 0; i < ans.data.length; i++) {
-            resultData.push(ans.data[i].div(other.data[i]));
+            resultData.push(ans.data[i] / other.data[i]);
         }
         return mat(resultData, [ans.rows, ans.cols]);
     };
     ans.scale = (field) => {
-        const normalizeField = typeof field === "number" ? real(field) : field;
+        if (typeof field !== "number") throw Error("Invalid field for scaling");
         const resultData = [];
         for (let i = 0; i < ans.data.length; i++) {
-            resultData.push(ans.data[i].mul(normalizeField));
+            resultData.push(ans.data[i] * field);
         }
         return mat(resultData, [ans.rows, ans.cols]);
     };
 
     ans.prod = (other) => {
+        if (!other || other.type !== TYPES.matrix) throw Error("Invalid matrix for product");
         if (ans.cols !== other.rows) {
             throw Error("Matrix dimensions must match for matrix product");
         }
@@ -281,9 +294,9 @@ function mat(data, shape) {
         const resultData = new Array(ans.rows * other.cols);
         for (let i = 0; i < ans.rows; i++) {
             for (let j = 0; j < other.cols; j++) {
-                let sum = ans.data[i * ans.cols].mul(other.data[j]);
+                let sum = ans.data[i * ans.cols] * other.data[j];
                 for (let k = 1; k < ans.cols; k++) {
-                    sum = sum.add(ans.data[i * ans.cols + k].mul(other.data[k * other.cols + j]));
+                    sum = sum + ans.data[i * ans.cols + k] * other.data[k * other.cols + j];
                 }
                 resultData[i * other.cols + j] = sum;
             }
@@ -292,22 +305,25 @@ function mat(data, shape) {
     };
 
     ans.prodVec = (vector) => {
+        if (!vector || vector.type !== TYPES.vector) throw Error("Invalid vector for matrix-vector product");
         if (ans.cols !== vector.dim) {
             throw Error("Matrix and vector dimensions must match for matrix-vector product");
         }
         const resultData = new Array(ans.rows);
         for (let i = 0; i < ans.rows; i++) {
-            let sum = ans.data[i * ans.cols].mul(vector.components[0]);
+            let sum = ans.data[i * ans.cols] * vector.components[0];
             for (let j = 1; j < ans.cols; j++) {
-                sum = sum.add(ans.data[i * ans.cols + j].mul(vector.components[j]));
+                sum = sum + ans.data[i * ans.cols + j] * vector.components[j];
             }
             resultData[i] = sum;
         }
         return vec(...resultData);
     };
 
+    // Eigen decomposition for symmetric matrices (max and min eigenvalues)
+    // options: maxIterations, tolerance, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
-        const { maxIterations = 1000, tolerance = 1e-10, k = ans.cols, maxFirst = true } = options;
+        const {maxFirst = true } = options;
         if (maxFirst) {
             return eigenMax(ans, options);
         }
