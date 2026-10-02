@@ -191,7 +191,7 @@ function vec(...components) {
         }
         return true;
     };
-    ans.toString = () => `(${ans.components.map(c => c.value).join(", ")})`;
+    ans.toString = () => `(${ans.components.join(", ")})`;
     ans.toVisual = () => ({ type: "latex", value: `(${ans.components.join(", ")})` });
     ans.toArray = () => ans.components;
     return ans;
@@ -328,6 +328,39 @@ function mat(data, shape) {
             return eigenMax(ans, options);
         }
         return eigenMin(ans, options);
+    };
+
+    ans.equals = (other) => {
+        if (!other || other.type !== TYPES.matrix) return false;
+        if (ans.rows !== other.rows || ans.cols !== other.cols) return false;
+        for (let i = 0; i < ans.data.length; i++) {
+            if (ans.data[i] !== other.data[i]) return false;
+        }
+        return true;
+    };
+
+    ans.toString = () => {
+        let rows = [];
+        for (let i = 0; i < ans.rows; i++) {
+            let row = [];
+            for (let j = 0; j < ans.cols; j++) {
+                row.push(ans.data[i * ans.cols + j]);
+            }
+            rows.push(`[${row.join(", ")}]`);
+        }
+        return `[${rows.join(", ")}]`;
+    };
+
+    ans.toVisual = () => {
+        let rows = [];
+        for (let i = 0; i < ans.rows; i++) {
+            let row = [];
+            for (let j = 0; j < ans.cols; j++) {
+                row.push(ans.data[i * ans.cols + j]);
+            }
+            rows.push(row.join(" & "));
+        }
+        return { type: "latex", value: `\\begin{bmatrix}${rows.join("\\\\")}\\end{bmatrix}` };
     };
 
     return ans;

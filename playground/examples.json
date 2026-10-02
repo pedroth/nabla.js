@@ -27,7 +27,11 @@
         "title": "MNIST PCA data exploration",
         "path": "/playground/tests/mnist_pca_data_exploration.json"
     },
-        {
+    {
+        "title": "MNIST PCA data compression",
+        "path": "/playground/tests/mnist_pca_data_compression.json"
+    },
+    {
         "title": "Neural Point cloud SDFs",
         "path": "/playground/tests/point_cloud_sdfs.json"
     },

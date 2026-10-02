@@ -1,0 +1,8 @@
+[
+    {
+        "input": "const samples = await IO.loadMNIST();\nconst pca = PCA.new(samples, 50)\nIO.drawMNIST({onSubmit: (data) => IO.store(\"digit\", data)})"
+    },
+    {
+        "input": "console.log(\"update this to run cell again\")\nconst digit = IO.recall(\"digit\")\nlet pcaCoords = pca.proj(digit);\nIO.paintMNIST(new Float32Array(pca.gen(pcaCoords).toArray()))"
+    }
+]

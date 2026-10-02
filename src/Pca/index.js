@@ -45,6 +45,15 @@ PCA.new = function (data, numComponents, options = {}) {
             }
             return sample;
         },
+        proj: (sample) => {
+            let sampleVec = vec(...sample);
+            let n = numComponents;
+            let coordinates = new Array(n);
+            for (let i = 0; i < n; i++) {
+                coordinates[i] = sampleVec.sub(mean).dot(eigenvectors[i]) / Math.sqrt(Math.max(0, eigenvalues[i]));
+            }
+            return coordinates;
+        }
     };
 }
 
