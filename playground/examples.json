@@ -32,8 +32,16 @@
         "path": "/playground/tests/mnist_pca_data_compression.json"
     },
     {
+        "title": "MNIST PCA data projection",
+        "path": "/playground/tests/mnist_pca_data_projection.json"
+    },
+    {
         "title": "Neural Point cloud SDFs",
         "path": "/playground/tests/point_cloud_sdfs.json"
+    },
+    {
+        "title": "Point cloud laplacian eigen functions",
+        "path": "/playground/tests/point_cloud_laplacian_eigen.json"
     },
     {
         "title": "Point cloud clustering",

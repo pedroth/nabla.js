@@ -1,4 +1,4 @@
-import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
+import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Triangle, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
 import { NArray } from "../src/NArray/index.js";
 import { Symbolic } from "../src/Symbolic/index.js";
 import { SOURCE } from "./utils.js";
@@ -175,6 +175,122 @@ IO.drawMNIST = function (options = {}) {
         }
     };
 }
+
+// samples: array of MNIST images
+// projections: array of vecs (each vec corresponds to a projection of an MNIST image into 3d)
+// samples and projections should have the same length
+IO.projectMNIST = function (samples, projections, options = {}) {
+    const { width = 500, height = 500, quadSize = 0.06, scale = 1, lowResFactor = 2 } = options;
+    if (samples.length !== projections.length) {
+        throw new Error("samples and projections must have the same length");
+    }
+    const points = (projections.toArray?.() ?? projections).map(p => p.toArray?.() ?? p);
+    const side = Math.sqrt(samples[0].length);
+
+    const textures = samples.map(sample => {
+        return Canvas.ofSize(side, side).map((x, y) => {
+            const value = sample[(side - 1 - y) * side + x];
+            return Color.ofRGB(value, value, value);
+        });
+    });
+
+    // normalize positions to [-1, 1]^3, like plot3d
+    const min = [0, 1, 2].map(k => Math.min(...points.map(p => p[k])));
+    const max = [0, 1, 2].map(k => Math.max(...points.map(p => p[k])));
+    const extent = max.map((m, k) => m - min[k] || 1);
+    const positions = points.map(p => Vec3(...p.map((x, k) => 2 * (x - min[k]) / extent[k] - 1)));
+
+    const canvas = Canvas.ofSize(width, height);
+    const lowCanvas = Canvas.ofSize(Math.ceil(width / lowResFactor), Math.ceil(height / lowResFactor));
+    const camera = new Camera().orbit(5, 0, 0);
+    let mousedown = false;
+    let mouse = Vec2();
+    let fullRenderTimeout = null;
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+        paint();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(
+            0,
+            -2 * Math.PI * (dx / canvas.width),
+            -2 * Math.PI * (dy / canvas.height)
+        )));
+        mouse = newMouse;
+        paintLowRes();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        paintLowRes();
+        // wheel has no end event, so refine after it goes idle
+        clearTimeout(fullRenderTimeout);
+        fullRenderTimeout = setTimeout(paint, 150);
+    });
+
+    // 0.999 keeps texture lookups inside the image
+    const uvs = [Vec2(0, 0), Vec2(0.999, 0), Vec2(0.999, 0.999), Vec2(0, 0.999)];
+    const paintTo = target => {
+        const right = camera.basis[0].scale(quadSize);
+        const up = camera.basis[1].scale(quadSize);
+        const scene = new NaiveScene();
+        const triangles = [];
+        for (let i = 0; i < positions.length; i++) {
+            const p = positions[i];
+            const corners = [
+                p.sub(right).sub(up),
+                p.add(right).sub(up),
+                p.add(right).add(up),
+                p.sub(right).add(up),
+            ];
+            for (const [a, b, c] of [[0, 1, 2], [0, 2, 3]]) {
+                triangles.push(
+                    Triangle.builder()
+                        .positions(corners[a], corners[b], corners[c])
+                        .texCoords(uvs[a], uvs[b], uvs[c])
+                        .texture(textures[i])
+                        .build()
+                );
+            }
+        }
+        scene.addList(triangles);
+        return camera
+            .raster(scene, { cullBackFaces: false })
+            .to(target)
+            .paint();
+    };
+
+    const paint = () => paintTo(canvas);
+
+    const paintLowRes = () => {
+        const low = paintTo(lowCanvas);
+        const painted = canvas.paint();
+        painted.DOM.getContext("2d").drawImage(low.DOM, 0, 0, canvas.width, canvas.height);
+        return painted;
+    };
+
+    return {
+        canvas,
+        render: paint,
+        toVisual: () => ({
+            type: "canvas",
+            value: () => {
+                const painted = paint();
+                painted.DOM.style.width = `${width * scale}px`;
+                painted.DOM.style.height = `${height * scale}px`;
+                return painted;
+            }
+        }),
+    };
+};
 
 IO.UI = function (...children) {
     return {

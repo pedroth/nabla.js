@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const samples = await IO.loadMNIST();\nconst pca = PCA.new(samples, 3)\nconst pcaCoords = [];\nfor(let i = 0; i < samples.length; i++){\n  pcaCoords.push(pca.proj(samples[i]))\n}\nIO.projectMNIST(samples, pcaCoords);"
+    }
+]
