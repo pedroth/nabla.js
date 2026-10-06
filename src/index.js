@@ -18,3 +18,5 @@ export * from "./NMath/index.js";
 export * from "./NeuralNet/index.js";
 export * from "./DataScience/index.js";
 export * from "./Pca/index.js";
+export * from "./Graph/index.js";
+

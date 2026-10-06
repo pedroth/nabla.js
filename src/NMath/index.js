@@ -1,4 +1,5 @@
 
+// Type tags
 const TYPES = {
     real: "real",
     complex: "complex",
@@ -7,8 +8,10 @@ const TYPES = {
     covector: "covector",
     multivector: "multivector",
     matrix: "matrix",
+    smatrix: "smatrix",
 };
 
+// Scalar types
 function real(value) {
     const ans = { type: TYPES.real, value: value };
     ans.add = (other) => real(ans.value + other.value);
@@ -85,6 +88,7 @@ function dual(realPart, dualPart) {
 }
 dual.random = () => dual(Math.random(), Math.random());
 
+// Vectors
 function vec(...components) {
     const ans = { type: TYPES.vector, components: components };
 
@@ -213,6 +217,7 @@ vec.random = (dim) => {
 
 
 
+// Dense matrices
 // data: array of matrix elements in row-major order
 // shape: [rows: number of rows, cols: number of columns]
 function mat(data, shape) {
@@ -323,7 +328,7 @@ function mat(data, shape) {
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
     // options: maxIterations, tolerance, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
-        const {maxFirst = true } = options;
+        const { maxFirst = true } = options;
         if (maxFirst) {
             return eigenMax(ans, options);
         }
@@ -366,6 +371,264 @@ function mat(data, shape) {
     return ans;
 }
 
+mat.ofVectors = (vectors) => {
+    const d = vectors[0].components.length;
+    const n = vectors.length;
+    const matrix = new Array(d * n);
+    for (let i = 0; i < d; i++) {
+        for (let j = 0; j < n; j++) {
+            matrix[i * d + j] = vectors[j].components[i];
+        }
+    }
+    return mat(matrix, [d, n]);
+};
+
+mat.id = (size, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < size; j++) {
+        const v = vec.zero(size, field);
+        v.components[j] = field(1);
+        vectors.push(v);
+    }
+    return mat.ofVectors(vectors);
+}
+
+mat.zero = (rows, cols, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < cols; j++) {
+        vectors.push(vec.zero(rows, field));
+    }
+    return mat.ofVectors(vectors);
+};
+
+mat.random = (rows, cols, field = real) => {
+    const vectors = [];
+    for (let j = 0; j < cols; j++) {
+        vectors.push(vec.random(rows, field));
+    }
+    return mat.ofVectors(vectors);
+};
+
+mat.builder = (rows, cols) => {
+    const matrix = new Array(rows * cols).fill(0);
+    const builder = {
+        build: () => {
+            return mat(matrix, [rows, cols]);
+        },
+        set: (i, j, x) => {
+            if (i >= 0 && i < rows && j >= 0 && j < cols) {
+                matrix[i + j * cols] = x;
+                return builder;
+            }
+            return builder;
+        }
+    }
+    return builder;
+}
+
+// Sparse matrices
+function smat(nzvalues, indices, shape) {
+    const ans = { type: TYPES.smatrix, nzvalues, indices, shape };
+
+    if (!shape) {
+        throw Error("Shape must be provided for the matrix");
+    }
+
+    ans.rows = shape[0];
+    ans.cols = shape[1];
+
+    ans.get = (i, j) => {
+        if (i < 0 || i >= ans.shape[0] || j < 0 || j >= ans.shape[1]) return 0;
+        const index = j + i * ans.shape[1];
+        let low = 0;
+        let high = ans.indices.length - 1;
+        while (low <= high) {
+            const mid = (low + high) >> 1;
+            if (ans.indices[mid] === index) return ans.nzvalues[mid];
+            if (ans.indices[mid] < index) low = mid + 1;
+            else high = mid - 1;
+        }
+        return 0;
+    };
+
+    ans.add = (other) => {
+        if (!other || other.type !== TYPES.smatrix) throw Error("Incompatible matrix");
+        if (ans.shape[0] !== other.shape[0] || ans.shape[1] !== other.shape[1]) throw Error("Incompatible matrix shape");
+        const n = ans.rows * ans.cols;
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let k = 0; k < n; k++) {
+            const i = Math.floor(k / ans.cols);
+            const j = k % ans.cols;
+            builder.set(i, j, ans.get(i, j) + other.get(i, j));
+        }
+        return builder.build();
+    };
+
+    ans.sub = (other) => {
+        if (!other || other.type !== TYPES.smatrix) throw Error("Incompatible matrix");
+        if (ans.shape[0] !== other.shape[0] || ans.shape[1] !== other.shape[1]) throw Error("Incompatible matrix shape");
+        const n = ans.rows * ans.cols;
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let k = 0; k < n; k++) {
+            const i = Math.floor(k / ans.cols);
+            const j = k % ans.cols;
+            builder.set(i, j, ans.get(i, j) - other.get(i, j));
+        }
+        return builder.build();
+    };
+
+    ans.mul = (other) => {
+        if (!other || other.type !== TYPES.smatrix) throw Error("Incompatible matrix");
+        if (ans.shape[0] !== other.shape[0] || ans.shape[1] !== other.shape[1]) throw Error("Incompatible matrix shape");
+        const n = ans.rows * ans.cols;
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let k = 0; k < n; k++) {
+            const i = Math.floor(k / ans.cols);
+            const j = k % ans.cols;
+            builder.set(i, j, ans.get(i, j) * other.get(i, j));
+        }
+        return builder.build();
+    };
+
+    ans.div = (other) => {
+        if (!other || other.type !== TYPES.smatrix) throw Error("Incompatible matrix");
+        if (ans.shape[0] !== other.shape[0] || ans.shape[1] !== other.shape[1]) throw Error("Incompatible matrix shape");
+        const n = ans.rows * ans.cols;
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let k = 0; k < n; k++) {
+            const i = Math.floor(k / ans.cols);
+            const j = k % ans.cols;
+            builder.set(i, j, ans.get(i, j) / other.get(i, j));
+        }
+        return builder.build();
+    };
+
+    ans.scale = (field) => {
+        if (typeof field !== "number") throw Error("Invalid field for scaling");
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let i = 0; i < ans.rows; i++) {
+            for (let j = 0; j < ans.cols; j++) {
+                builder.set(i, j, ans.get(i, j) * field);
+            }
+        }
+        return builder.build();
+    };
+
+
+    ans.prod = (other) => {
+        if (!other || other.type !== TYPES.smatrix) throw Error("Invalid matrix for product");
+        if (ans.cols !== other.rows) {
+            throw Error("Matrix dimensions must match for matrix product");
+        }
+
+        const builder = smat.builder(ans.rows, other.cols);
+        for (let i = 0; i < ans.rows; i++) {
+            for (let j = 0; j < other.cols; j++) {
+                let sum = ans.get(i, 0) * other.get(0, j);
+                for (let k = 1; k < ans.cols; k++) {
+                    sum = sum + ans.get(i, k) * other.get(k, j);
+                }
+                builder.set(i, j, sum);
+            }
+        }
+        return builder.build();
+    };
+
+    ans.prodVec = (vector) => {
+        if (!vector || vector.type !== TYPES.vector) throw Error("Invalid vector for matrix-vector product");
+        if (ans.cols !== vector.dim) {
+            throw Error("Matrix and vector dimensions must match for matrix-vector product");
+        }
+        const resultData = new Array(ans.rows).fill(0);
+        for (let k = 0; k < ans.indices.length; k++) {
+            const index = ans.indices[k];
+            const i = Math.floor(index / ans.cols);
+            const j = index % ans.cols;
+            resultData[i] += ans.nzvalues[k] * vector.components[j];
+        }
+        return vec(...resultData);
+    };
+
+    // Eigen decomposition for symmetric matrices (max and min eigenvalues)
+    // options: maxIterations, tolerance, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
+    ans.eigen = (options = {}) => {
+        const { maxFirst = true } = options;
+        if (maxFirst) {
+            return eigenMax(ans, options);
+        }
+        return eigenMin(ans, options);
+    };
+
+    ans.equals = (other) => {
+        if (!other || other.type !== TYPES.smatrix) return false;
+        if (ans.shape[0] !== other.shape[0] || ans.shape[1] !== other.shape[1]) return false;
+        if (ans.nzvalues.length !== other.nzvalues.length) return false;
+        for (let i = 0; i < ans.nzvalues.length; i++) {
+            if (ans.nzvalues[i] !== other.nzvalues[i]) return false;
+            if (ans.indices[i] !== other.indices[i]) return false;
+        }
+        return true;
+    };
+
+    ans.toString = () => {
+        let rows = [];
+        for (let i = 0; i < ans.rows; i++) {
+            let row = [];
+            for (let j = 0; j < ans.cols; j++) {
+                row.push(ans.get(i, j));
+            }
+            rows.push(`[${row.join(", ")}]`);
+        }
+        return `[${rows.join(", ")}]`;
+    };
+
+    ans.toVisual = () => {
+        let rows = [];
+        for (let i = 0; i < ans.rows; i++) {
+            let row = [];
+            for (let j = 0; j < ans.cols; j++) {
+                row.push(ans.get(i, j));
+            }
+            rows.push(row.join(" & "));
+        }
+        return { type: "latex", value: `\\begin{bmatrix}${rows.join("\\\\")}\\end{bmatrix}` };
+    };
+
+    return ans;
+}
+
+smat.builder = (rows, cols) => {
+    const nzvalues = [];
+    const indices = [];
+    const shape = [rows, cols];
+    const auxMap = new Map();
+    const builder = {
+        build: () => {
+            const entries = [...auxMap.entries()].sort(([left], [right]) => left - right);
+            for (const [index, value] of entries) {
+                nzvalues.push(value);
+                indices.push(index);
+            }
+            return smat(nzvalues, indices, shape);
+
+        },
+        set: (i, j, x) => {
+            if (i < 0 || i >= rows || j < 0 || j >= cols) {
+                return builder;
+            }
+            const index = j + i * cols;
+            if (x === 0) {
+                auxMap.delete(index);
+            } else {
+                auxMap.set(index, x);
+            }
+            return builder;
+        }
+    };
+    return builder;
+};
+
+// Eigenvalue algorithms
 function eigenMax(symMatrix, options = {}) {
     const { k = symMatrix.cols } = options;
     const eigenvalues = [];
@@ -405,49 +668,41 @@ function gramSchmidt(v, basis) {
     return u;
 }
 
+function eigenGradientDescent(symMatrix, options = {}, basis = []) {
+    const { maxIterations = 1000, tolerance = 1e-10 } = options;
+    let v = gramSchmidt(vec.random(symMatrix.rows), basis);
+    v = v.normalize();
+    let prevV = vec.zero(symMatrix.rows);
+    let i = maxIterations;
+    while (i > 0 && v.sub(prevV).length() > tolerance) {
+        prevV = v;
+        const grad = symMatrix.prodVec(v); // gradient of 0.5 * v^T A v
+        const alpha = grad.dot(grad) / grad.dot(symMatrix.prodVec(grad));
+        v = v.sub(grad.scale(alpha));
+        v = v.normalize();
+        v = gramSchmidt(v, basis);
+        i--;
+    }
+    return v;
+}
+
 function eigenMin(symMatrix, options = {}) {
-    throw Error("Eigen decomposition for smallest eigenvalues not implemented");
+    const { k = symMatrix.cols } = options;
+    const eigenvalues = [];
+    const eigenvectors = [];
+    for (let i = 0; i < k; i++) {
+        const v = eigenGradientDescent(symMatrix, options, eigenvectors);
+        eigenvectors.push(v);
+        const lambda = v.dot(symMatrix.prodVec(v)); // v is normalized, no need to divide by v.dot(v)
+        eigenvalues.push(lambda);
+    }
+    return { eigenvalues, eigenvectors };
 }
 
-mat.ofVectors = (vectors) => {
-    const d = vectors[0].components.length;
-    const n = vectors.length;
-    const matrix = new Array(d * n);
-    for (let i = 0; i < d; i++) {
-        for (let j = 0; j < n; j++) {
-            matrix[i * d + j] = vectors[j].components[i];
-        }
-    }
-    return mat(matrix, [d, n]);
-};
-
-mat.id = (size, field = real) => {
-    const vectors = [];
-    for (let j = 0; j < size; j++) {
-        const v = vec.zero(size, field);
-        v.components[j] = field(1);
-        vectors.push(v);
-    }
-    return mat.ofVectors(vectors);
-}
-
-mat.zero = (rows, cols, field = real) => {
-    const vectors = [];
-    for (let j = 0; j < cols; j++) {
-        vectors.push(vec.zero(rows, field));
-    }
-    return mat.ofVectors(vectors);
-};
-
-mat.random = (rows, cols, field = real) => {
-    const vectors = [];
-    for (let j = 0; j < cols; j++) {
-        vectors.push(vec.random(rows, field));
-    }
-    return mat.ofVectors(vectors);
-};
 
 
+
+// Scalar functions
 function exp(x) {
     switch (x.type) {
         case TYPES.real:
@@ -491,6 +746,7 @@ function log(x) {
 
 
 
+// Public API
 const NMath = {
     real,
     complex,
@@ -499,6 +755,7 @@ const NMath = {
     log,
     vec,
     mat,
+    smat,
     TYPES,
 };
 export { NMath };

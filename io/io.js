@@ -306,7 +306,7 @@ IO.plotPointCloud = function (points, options = {}) {
     if (points instanceof NArray) {
         points = points.toArray();
     }
-    const dimensions = points[0].length;
+    const dimensions = points[0]?.dim ?? points[0].length;
     if (dimensions < 2 || dimensions > 3) {
         throw new Error("Points must be 2D or 3D");
     }
@@ -979,13 +979,27 @@ function orbitBasis({ radius, theta, phi }) {
     return { basis0, basis1, basis2, position };
 }
 
+// Creates a layer of points with associated colors and radiuses.
+// points: array of points, each an array [x, y, z] or a vec (or an NArray of them)
+// color: [r, g, b] or array of such colors, one per point
+// radius: number or array of numbers
+// returns { layer, update }; update(nextPoints, { color }) rebuilds the layer,
+// optionally replacing the color (otherwise the previous color is kept)
 function createLayer(points, { color = [1, 0, 0], radius = 0.01 } = {}, vector) {
+    points = points?.toArray?.() ?? points;
+    color = color?.toArray?.() ?? color;
+    radius = radius?.toArray?.() ?? radius;
     const layer = { points: [], radiuses: [], colors: [] };
-    const update = nextPoints => {
+    const update = (nextPoints, options = {}) => {
+        if (options.color !== undefined) color = options.color?.toArray?.() ?? options.color;
         const pointArray = nextPoints?.toArray?.() ?? nextPoints;
-        layer.points = pointArray.map(point => vector(...point));
-        layer.radiuses = pointArray.map(() => radius);
-        layer.colors = pointArray.map(() => Color.ofRGB(...color));
+        layer.points = pointArray.map(point => vector(...(point?.toArray?.() ?? point)));
+        const radiusAt = Array.isArray(radius) ? i => radius[i % radius.length] : () => radius;
+        // color is either a single [r, g, b] or an array of colors, one per point
+        const perPoint = Array.isArray(color) && typeof color[0] !== "number";
+        const toColor = c => (Array.isArray(c) ? Color.ofRGB(...c) : c);
+        layer.radiuses = pointArray.map((_, i) => radiusAt(i));
+        layer.colors = pointArray.map((_, i) => toColor(perPoint ? color[i % color.length] : color));
     };
     update(points);
     return { layer, update };
@@ -1006,8 +1020,8 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         radiuses: scene.radiuses || [],
         colors: scene.colors || [],
     };
-    const baseLayer = createLayer(points, { color, radius }, Vec2).layer;
-    const layers = [baseLayer];
+    const base = createLayer(points, { color, radius }, Vec2);
+    const layers = [base.layer];
 
     let canvas = Canvas.ofSize(width, height);
     let cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1));
@@ -1064,6 +1078,7 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             .paint();
     }
     return {
+        update: base.update,
         add: (layerPoints, options) => {
             const layer = createLayer(layerPoints, options, Vec2);
             layers.push(layer.layer);
@@ -1085,8 +1100,8 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         radiuses: scene.radiuses || [],
         colors: scene.colors || [],
     };
-    const baseLayer = createLayer(points, { color, radius }, Vec3).layer;
-    const layers = [baseLayer];
+    const base = createLayer(points, { color, radius }, Vec3);
+    const layers = [base.layer];
     let canvas = Canvas.ofSize(width, height);
     const camera = new Camera().orbit(5, 0, 0);
     let mousedown = false;
@@ -1146,6 +1161,7 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             .paint();
     }
     return {
+        update: base.update,
         add: (layerPoints, options) => {
             const layer = createLayer(layerPoints, options, Vec3);
             layers.push(layer.layer);
