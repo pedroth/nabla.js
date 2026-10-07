@@ -4,6 +4,7 @@ import {
     Camera2D,
     Canvas,
     Color,
+    Line,
     NaiveScene,
     Sphere,
     Triangle,
@@ -417,25 +418,33 @@ IO.plotPointCloud = function (points, options = {}) {
     return plot3d(points, options);
 };
 
-// lines: array of [[p1, p2], ...] where each pi is [x, y] | vec2 or [x, y, z] | vec3
 /**
- * Plots a collection of 2D or 3D line endpoints.
- * @param {Array|NArray} lines - Line endpoint coordinates or vectors.
- * @param {object} options - Plot dimensions, colors, radii, and optional scene.
- * @returns {object} Interactive plot with rendering and layer-update methods.
+ * Plots line segments in 2D or 3D.
+ * @param {Array|NArray} lines - Segments as `[[start, end], ...]`; endpoints are coordinate arrays or vectors.
+ * @param {object} options - Canvas and line appearance settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {Array|Color} [options.color=[1, 0, 0]] - Shared RGB color or one color per line.
+ * @param {number} [options.radius=0.01] - Line radius for 3D rendering.
+ * @returns {object} Interactive plot with update, add, render, and toVisual methods.
  */
 IO.plotLineCloud = function (lines, options = {}) {
-    if (lines instanceof NArray) {
-        lines = lines.toArray();
-    }
-    const dimensions = lines[0]?.dim ?? lines[0].length;
-    if (dimensions < 2 || dimensions > 3) {
-        throw new Error("Lines must be 2D or 3D");
-    }
-    if (dimensions === 2) {
-        return plot2d(lines, options);
-    }
-    return plot3d(lines, options);
+    const { segments, dimensions } = normalizeLineSegments(lines);
+    return plotLines(segments, dimensions, options);
+};
+
+/**
+ * Plots triangles in 2D or 3D.
+ * @param {Array|NArray} triangles - Triangles as `[[p0, p1, p2], ...]`; vertices are coordinate arrays or vectors.
+ * @param {object} options - Canvas and triangle appearance settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {Color|number[]|Array} [options.color=[1, 0, 0]] - One color for all triangles, one color per triangle, or three vertex colors per triangle. Colors may be tela.js `Color` instances or RGB triplets.
+ * @returns {object} Interactive plot with update, add, render, and toVisual methods.
+ */
+IO.plotTriangleCloud = function (triangles, options = {}) {
+    const { faces, dimensions } = normalizeTriangles(triangles);
+    return plotTriangles(faces, dimensions, options);
 };
 
 /**
@@ -1493,6 +1502,468 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             return { type: "canvas", value: () => paint() };
         },
         scene: scene
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Line-cloud plotting helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts line endpoints to coordinate arrays and validates their dimensions.
+ * @param {Array|NArray} lines - Segments represented by pairs of endpoints.
+ * @param {number} [expectedDimensions] - Required coordinate dimension for layer updates.
+ * @returns {{segments: number[][][], dimensions: number}} Normalized segments and their dimension.
+ */
+function normalizeLineSegments(lines, expectedDimensions) {
+    const input = lines?.toArray?.() ?? lines;
+    if (!Array.isArray(input)) {
+        throw new Error("Lines must be an array of endpoint pairs");
+    }
+    if (input.length === 0 && expectedDimensions === undefined) {
+        throw new Error("At least one line is required to determine whether the plot is 2D or 3D");
+    }
+
+    let dimensions = expectedDimensions;
+    const segments = input.map((line, lineIndex) => {
+        const endpoints = line?.toArray?.() ?? line;
+        if (!Array.isArray(endpoints) || endpoints.length !== 2) {
+            throw new Error(`Line ${lineIndex} must contain exactly two endpoints`);
+        }
+
+        const coordinates = endpoints.map(endpoint => endpoint?.toArray?.() ?? endpoint);
+        for (const point of coordinates) {
+            if (!Array.isArray(point)) {
+                throw new Error(`Endpoints in line ${lineIndex} must be coordinate arrays or vectors`);
+            }
+            if (dimensions === undefined) {
+                dimensions = point.length;
+                if (dimensions !== 2 && dimensions !== 3) {
+                    throw new Error("Line endpoints must be 2D or 3D");
+                }
+            }
+            if (point.length !== dimensions) {
+                throw new Error(`Every line endpoint must have ${dimensions} coordinates`);
+            }
+        }
+        return coordinates;
+    });
+
+    return { segments, dimensions };
+}
+
+/**
+ * Resolves one shared line color or a color for each segment.
+ * @param {Array|Color} color - RGB array, tela.js Color, or array of per-line colors.
+ * @param {number} count - Number of line segments to color.
+ * @returns {Color[]} Colors assigned to each segment.
+ */
+function getLineColors(color, count) {
+    const normalizedColor = color?.toArray?.() ?? color;
+    const hasPerLineColors = Array.isArray(normalizedColor) && typeof normalizedColor[0] !== "number";
+    if (hasPerLineColors && normalizedColor.length === 0) {
+        throw new Error("The line color list must not be empty");
+    }
+
+    return Array.from({ length: count }, (_, index) => {
+        const lineColor = hasPerLineColors
+            ? normalizedColor[index % normalizedColor.length]
+            : normalizedColor;
+        const value = lineColor?.toArray?.() ?? lineColor;
+        return Array.isArray(value) ? Color.ofRGB(...value) : value;
+    });
+}
+
+/**
+ * Creates a mutable layer of line segments and their colors.
+ * @param {Array|NArray} lines - Segments represented by pairs of endpoints.
+ * @param {object} options - Layer appearance.
+ * @param {Array|Color} [options.color=[1, 0, 0]] - Shared color or per-line colors.
+ * @param {number} [options.radius=0.01] - Line radius for 3D rendering.
+ * @param {number} dimensions - Coordinate dimension, either 2 or 3.
+ * @returns {{layer: object, update: Function}} Layer data and its update method.
+ */
+function createLineLayer(lines, { color = [1, 0, 0], radius = 0.01 } = {}, dimensions) {
+    const vector = dimensions === 2 ? Vec2 : Vec3;
+    const layer = { lines: [], colors: [], radius };
+
+    /**
+     * Replaces the segments and optionally changes their colors.
+     * @param {Array|NArray} nextLines - Replacement segments.
+     * @param {object} options - Optional layer appearance updates.
+     * @param {Array|Color} [options.color] - Replacement shared color or per-line colors.
+     */
+    const update = (nextLines, options = {}) => {
+        const { segments } = normalizeLineSegments(nextLines, dimensions);
+        const nextColor = options.color ?? color;
+        const colors = getLineColors(nextColor, segments.length);
+        layer.lines = segments.map(segment =>
+            segment.map(point => vector(...point))
+        );
+        color = nextColor;
+        layer.colors = colors;
+    };
+
+    update(lines);
+    return { layer, update };
+}
+
+/**
+ * Creates an interactive 2D or 3D line plot.
+ * @param {Array|NArray} lines - Segments represented by pairs of endpoints.
+ * @param {number} dimensions - Coordinate dimension, either 2 or 3.
+ * @param {object} options - Canvas and line appearance settings.
+ * @returns {object} Interactive plot with update, add, render, and toVisual methods.
+ */
+function plotLines(lines, dimensions, options = {}) {
+    const {
+        width = 500,
+        height = 500,
+        color = [1, 0, 0],
+        radius = 0.01,
+    } = options;
+    const base = createLineLayer(lines, { color, radius }, dimensions);
+    const layers = [base.layer];
+    let canvas = Canvas.ofSize(width, height);
+    const is2d = dimensions === 2;
+    let cameraBox;
+    let camera;
+    if (is2d) {
+        cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1)).scale(1.2);
+        camera = new Camera2D(cameraBox);
+    } else {
+        camera = new Camera().orbit(5, 0, 0);
+    }
+
+    let mousedown = false;
+    let mouse = Vec2();
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        if (is2d) {
+            const movement = Vec2(dx, dy)
+                .scale(-1)
+                .div(Vec2(width, height))
+                .mul(cameraBox.diagonal);
+            cameraBox = cameraBox.move(movement);
+            camera.box = cameraBox;
+        } else {
+            camera.orbit(sphereCoords =>
+                sphereCoords.add(
+                    Vec3(
+                        0,
+                        -2 * Math.PI * (dx / canvas.width),
+                        -2 * Math.PI * (dy / canvas.height)
+                    )
+                )
+            );
+        }
+        mouse = newMouse;
+        paint();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        if (is2d) {
+            cameraBox = cameraBox.scale(1 + Math.sign(e.deltaY) * 1e-1);
+            camera.box = cameraBox;
+        } else {
+            camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        }
+        paint();
+    });
+
+    const paint = () => {
+        const allLines = layers.flatMap(layer => layer.lines);
+        canvas.fill(Color.BLACK);
+        if (allLines.length === 0) {
+            const emptyScene = new NaiveScene();
+            return camera.raster(emptyScene).to(canvas).paint();
+        }
+
+        let box = new Box();
+        for (const [start, end] of allLines) {
+            box = box.add(new Box(start, end));
+        }
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
+        const scale = 2 / maxExtent;
+        const scene = new NaiveScene();
+        for (const layer of layers) {
+            const elements = layer.lines.map(([start, end], index) =>
+                Line.builder()
+                    .positions(
+                        start.sub(center).scale(scale),
+                        end.sub(center).scale(scale)
+                    )
+                    .colors(layer.colors[index], layer.colors[index])
+                    .radius(layer.radius)
+                    .build()
+            );
+            scene.addList(elements);
+        }
+        return camera.raster(scene).to(canvas).paint();
+    };
+
+    return {
+        update: base.update,
+        add: (nextLines, layerOptions = {}) => {
+            const layer = createLineLayer(nextLines, layerOptions, dimensions);
+            layers.push(layer.layer);
+            return { update: layer.update };
+        },
+        canvas,
+        render: paint,
+        toVisual: () => ({
+            type: "canvas",
+            value: () => paint(),
+        }),
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Triangle-cloud plotting helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Converts triangle vertices to coordinate arrays and validates their dimensions.
+ * @param {Array|NArray} triangles - Triangles represented by three vertices each.
+ * @param {number} [expectedDimensions] - Required coordinate dimension for layer updates.
+ * @returns {{faces: number[][][], dimensions: number}} Normalized triangles and their dimension.
+ */
+function normalizeTriangles(triangles, expectedDimensions) {
+    const input = triangles?.toArray?.() ?? triangles;
+    if (!Array.isArray(input)) {
+        throw new Error("Triangles must be an array of vertex triples");
+    }
+    if (input.length === 0 && expectedDimensions === undefined) {
+        throw new Error("At least one triangle is required to determine whether the plot is 2D or 3D");
+    }
+
+    let dimensions = expectedDimensions;
+    const faces = input.map((triangle, triangleIndex) => {
+        const vertices = triangle?.toArray?.() ?? triangle;
+        if (!Array.isArray(vertices) || vertices.length !== 3) {
+            throw new Error(`Triangle ${triangleIndex} must contain exactly three vertices`);
+        }
+
+        const coordinates = vertices.map(vertex => vertex?.toArray?.() ?? vertex);
+        for (const point of coordinates) {
+            if (!Array.isArray(point) || point.some(value => !Number.isFinite(value))) {
+                throw new Error(`Vertices in triangle ${triangleIndex} must be finite coordinate arrays or vectors`);
+            }
+            if (dimensions === undefined) {
+                dimensions = point.length;
+                if (dimensions !== 2 && dimensions !== 3) {
+                    throw new Error("Triangle vertices must be 2D or 3D");
+                }
+            }
+            if (point.length !== dimensions) {
+                throw new Error(`Every triangle vertex must have ${dimensions} coordinates`);
+            }
+        }
+        return coordinates;
+    });
+
+    return { faces, dimensions };
+}
+
+/**
+ * Converts an RGB triplet or tela.js color to a Color instance.
+ * @param {Color|number[]} color - Color instance or RGB channel values.
+ * @returns {Color} Normalized color.
+ */
+function normalizeTriangleColor(color) {
+    if (color instanceof Color) return color;
+    if (!Array.isArray(color) || color.length !== 3 || color.some(value => !Number.isFinite(value))) {
+        throw new Error("Triangle colors must be tela.js Color instances or RGB triplets");
+    }
+    return Color.ofRGB(...color);
+}
+
+/**
+ * Resolves a shared color, one color per triangle, or three vertex colors per triangle.
+ * @param {Color|number[]|Color[]|Color[][]} color - Color configuration.
+ * @param {number} count - Number of triangles to color.
+ * @returns {Color[][]} Three colors for each triangle.
+ */
+function getTriangleColors(color, count) {
+    if (color instanceof Color || (Array.isArray(color) && color.length === 3 && color.every(Number.isFinite))) {
+        const sharedColor = normalizeTriangleColor(color);
+        return Array.from({ length: count }, () => [sharedColor, sharedColor, sharedColor]);
+    }
+    if (!Array.isArray(color) || color.length === 0) {
+        throw new Error("Triangle color must be a color, a per-triangle color array, or per-vertex colors");
+    }
+    if (color.length !== count) {
+        throw new Error(`Expected ${count} triangle colors, received ${color.length}`);
+    }
+
+    return color.map((triangleColor, triangleIndex) => {
+        if (triangleColor instanceof Color ||
+            (Array.isArray(triangleColor) && triangleColor.length === 3 && triangleColor.every(Number.isFinite))) {
+            const solidColor = normalizeTriangleColor(triangleColor);
+            return [solidColor, solidColor, solidColor];
+        }
+        if (!Array.isArray(triangleColor) || triangleColor.length !== 3) {
+            throw new Error(`Color for triangle ${triangleIndex} must be one color or three vertex colors`);
+        }
+        return triangleColor.map(normalizeTriangleColor);
+    });
+}
+
+/**
+ * Creates a mutable layer of triangles and their vertex colors.
+ * @param {Array|NArray} triangles - Triangles represented by three vertices each.
+ * @param {object} options - Layer appearance.
+ * @param {Color|number[]|Color[]|Color[][]} [options.color=[1, 0, 0]] - Shared, per-triangle, or per-vertex colors.
+ * @param {number} dimensions - Coordinate dimension, either 2 or 3.
+ * @returns {{layer: object, update: Function}} Layer data and its update method.
+ */
+function createTriangleLayer(triangles, { color = [1, 0, 0] } = {}, dimensions) {
+    const vector = dimensions === 2 ? Vec2 : Vec3;
+    const layer = { triangles: [], colors: [] };
+
+    /**
+     * Replaces the triangles and optionally changes their colors.
+     * @param {Array|NArray} nextTriangles - Replacement triangles.
+     * @param {object} options - Optional layer appearance updates.
+     * @param {Color|number[]|Color[]|Color[][]} [options.color] - Replacement shared, per-triangle, or per-vertex colors.
+     */
+    const update = (nextTriangles, options = {}) => {
+        const { faces } = normalizeTriangles(nextTriangles, dimensions);
+        const nextColor = options.color ?? color;
+        const colors = getTriangleColors(nextColor, faces.length);
+        layer.triangles = faces.map(face => face.map(point => vector(...point)));
+        layer.colors = colors;
+        color = nextColor;
+    };
+
+    update(triangles);
+    return { layer, update };
+}
+
+/**
+ * Creates an interactive 2D or 3D triangle plot.
+ * @param {Array|NArray} triangles - Triangles represented by three vertices each.
+ * @param {number} dimensions - Coordinate dimension, either 2 or 3.
+ * @param {object} options - Canvas and triangle appearance settings.
+ * @returns {object} Interactive plot with update, add, render, and toVisual methods.
+ */
+function plotTriangles(triangles, dimensions, options = {}) {
+    const { width = 500, height = 500, color = [1, 0, 0] } = options;
+    const base = createTriangleLayer(triangles, { color }, dimensions);
+    const layers = [base.layer];
+    const canvas = Canvas.ofSize(width, height);
+    const is2d = dimensions === 2;
+    let cameraBox;
+    let camera;
+    if (is2d) {
+        cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1)).scale(1.2);
+        camera = new Camera2D(cameraBox);
+    } else {
+        camera = new Camera().orbit(5, 0, 0);
+    }
+
+    let mousedown = false;
+    let mouse = Vec2();
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        if (is2d) {
+            const movement = Vec2(dx, dy)
+                .scale(-1)
+                .div(Vec2(width, height))
+                .mul(cameraBox.diagonal);
+            cameraBox = cameraBox.move(movement);
+            camera.box = cameraBox;
+        } else {
+            camera.orbit(sphereCoords =>
+                sphereCoords.add(
+                    Vec3(
+                        0,
+                        -2 * Math.PI * (dx / canvas.width),
+                        -2 * Math.PI * (dy / canvas.height)
+                    )
+                )
+            );
+        }
+        mouse = newMouse;
+        paint();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        if (is2d) {
+            cameraBox = cameraBox.scale(1 + Math.sign(e.deltaY) * 1e-1);
+            camera.box = cameraBox;
+        } else {
+            camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        }
+        paint();
+    });
+
+    const paint = () => {
+        const allTriangles = layers.flatMap(layer => layer.triangles);
+        canvas.fill(Color.BLACK);
+        if (allTriangles.length === 0) {
+            return camera.raster(new NaiveScene(), { cullBackFaces: false }).to(canvas).paint();
+        }
+
+        let box = new Box();
+        for (const triangle of allTriangles) {
+            for (const point of triangle) {
+                box = box.add(new Box(point, point));
+            }
+        }
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
+        const scale = 2 / maxExtent;
+        const scene = new NaiveScene();
+        for (const layer of layers) {
+            const elements = layer.triangles.map((triangle, index) =>
+                Triangle.builder()
+                    .positions(...triangle.map(point => point.sub(center).scale(scale)))
+                    .colors(...layer.colors[index])
+                    .radius(0)
+                    .build()
+            );
+            scene.addList(elements);
+        }
+        return camera.raster(scene, { cullBackFaces: false }).to(canvas).paint();
+    };
+
+    return {
+        update: base.update,
+        add: (nextTriangles, layerOptions = {}) => {
+            const layer = createTriangleLayer(nextTriangles, layerOptions, dimensions);
+            layers.push(layer.layer);
+            return { update: layer.update };
+        },
+        canvas,
+        render: paint,
+        toVisual: () => ({
+            type: "canvas",
+            value: () => paint(),
+        }),
     };
 }
 
