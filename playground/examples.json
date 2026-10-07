@@ -40,6 +40,10 @@
         "path": "/playground/tests/point_cloud_sdfs.json"
     },
     {
+        "title": "Point cloud knn graph",
+        "path": "/playground/tests/point_cloud_knn_graph.json"
+    },
+    {
         "title": "Point cloud laplacian eigen functions",
         "path": "/playground/tests/point_cloud_laplacian_eigen.json"
     },

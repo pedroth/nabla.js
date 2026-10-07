@@ -1,29 +1,65 @@
-import { Canvas, Color, Vec2, Vec3, Box, NaiveScene, Sphere, Triangle, Camera, Camera2D } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js"
+import {
+    Box,
+    Camera,
+    Camera2D,
+    Canvas,
+    Color,
+    NaiveScene,
+    Sphere,
+    Triangle,
+    Vec2,
+    Vec3,
+} from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js";
 import { NArray } from "../src/NArray/index.js";
 import { Symbolic } from "../src/Symbolic/index.js";
 import { SOURCE } from "./utils.js";
 
-const IO = {}
-IO._cache = {}
-IO._store = {}
+const IO = {};
+IO._cache = {};
+IO._store = {};
 
 // Persists a value across cells/re-evaluations (the io.js module instance is shared for the whole session)
+/**
+ * Stores a value for later retrieval.
+ * @param {string} key - Name used to retrieve the stored value.
+ * @param {*} value - Value to store.
+ * @returns {*} The stored value.
+ */
 IO.store = function (key, value) {
     IO._store[key] = value;
     return value;
-}
+};
 
+/**
+ * Retrieves a value stored with {@link IO.store}.
+ * @param {string} key - Name of the stored value.
+ * @returns {*} The stored value, or `undefined` if the key is absent.
+ */
 IO.recall = function (key) {
     return IO._store[key];
-}
+};
 
+/**
+ * Measures the duration of an asynchronous or synchronous operation.
+ * @param {Function} fn - Operation to execute and time.
+ * @returns {Promise<number>} Elapsed time in milliseconds.
+ */
 IO.measureTime = async function (fn) {
     const start = performance.now();
     await fn();
     const end = performance.now();
     return end - start;
-}
+};
 
+// ---------------------------------------------------------------------------
+// MNIST data and drawing
+// ---------------------------------------------------------------------------
+
+/**
+ * Loads MNIST image rows from the bundled sprite sheet.
+ * @param {number} samples - Maximum number of image rows to load.
+ * @returns {Promise<Float32Array[]>} Image rows as grayscale pixel arrays.
+ */
 IO.loadMNIST = async function (samples = 1000) {
     const key = `loadMNIST_${samples}`;
     if (IO._cache[key]) return IO._cache[key];
@@ -41,13 +77,23 @@ IO.loadMNIST = async function (samples = 1000) {
     }
     IO._cache[key] = data;
     return data;
-}
+};
 
+/**
+ * Creates a visualizer for one or more MNIST samples.
+ * @param {Float32Array|Float32Array[]} mnistSamples - One image or an array of images.
+ * @param {number} scale - Display size multiplier for each image pixel.
+ * @returns {{update: Function, toVisual: Function}} Updatable canvas visualization.
+ */
 IO.paintMNIST = function (mnistSamples, scale = 10) {
     const initialSamples = Array.isArray(mnistSamples) ? mnistSamples : [mnistSamples];
     const width = Math.sqrt(initialSamples[0].length);
     const height = width;
     const canvases = initialSamples.map(() => Canvas.ofSize(width, height));
+    /**
+     * Repaints the canvases with replacement samples.
+     * @param {Float32Array|Float32Array[]} nextSamples - Image data to display.
+     */
     const update = nextSamples => {
         const samples = Array.isArray(nextSamples) ? nextSamples : [nextSamples];
         samples.forEach((sample, sampleIndex) => {
@@ -79,8 +125,18 @@ IO.paintMNIST = function (mnistSamples, scale = 10) {
             };
         }
     };
-}
+};
 
+/**
+ * Creates an interactive MNIST drawing surface.
+ * @param {object} options - Drawing configuration.
+ * @param {number} [options.width=28] - Image width in pixels.
+ * @param {number} [options.height=28] - Image height in pixels.
+ * @param {number} [options.scale=10] - Display size multiplier for each pixel.
+ * @param {number} [options.brushRadius=1.2] - Brush radius in image pixels.
+ * @param {Function|null} [options.onSubmit=null] - Callback receiving the image data.
+ * @returns {{clear: Function, submit: Function, getData: Function, toVisual: Function}} Drawing controls and visual.
+ */
 IO.drawMNIST = function (options = {}) {
     const {
         width = 28,
@@ -94,12 +150,23 @@ IO.drawMNIST = function (options = {}) {
     const canvas = Canvas.ofSize(width, height);
     let drawing = false;
 
+    /**
+     * Adds brush density to an image pixel, clamping it to the unit interval.
+     * @param {number} row - Pixel row, with zero at the top.
+     * @param {number} col - Pixel column.
+     * @param {number} value - Density contribution to apply.
+     */
     const setDensity = (row, col, value) => {
         if (row < 0 || row >= height || col < 0 || col >= width) return;
         const index = row * width + col;
         density[index] = Math.min(1, Math.max(density[index], value));
     };
 
+    /**
+     * Applies the brush centered at a canvas coordinate.
+     * @param {number} x - Horizontal canvas coordinate.
+     * @param {number} y - Vertical canvas coordinate.
+     */
     const paintBrush = (x, y) => {
         const row = height - 1 - y;
         const col = x;
@@ -121,7 +188,9 @@ IO.drawMNIST = function (options = {}) {
         canvas.paint();
     };
 
-    const stopDrawing = () => { drawing = false; };
+    const stopDrawing = () => {
+        drawing = false;
+    };
     canvas.onMouseDown((x, y) => {
         drawing = true;
         paintBrush(x, y);
@@ -174,11 +243,23 @@ IO.drawMNIST = function (options = {}) {
             };
         }
     };
-}
+};
 
 // samples: array of MNIST images
 // projections: array of vecs (each vec corresponds to a projection of an MNIST image into 3d)
 // samples and projections should have the same length
+/**
+ * Projects MNIST samples into a rotatable 3D image cloud.
+ * @param {Array<Float32Array>} samples - Grayscale image data, one sample per projection.
+ * @param {Array<Vec3|number[]>} projections - 3D position for each sample.
+ * @param {object} options - Canvas and rendering options.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {number} [options.quadSize=0.06] - Half-size of each image quad in normalized space.
+ * @param {number} [options.scale=1] - Display size multiplier for the canvas.
+ * @param {number} [options.lowResFactor=2] - Downsampling factor while interacting.
+ * @returns {object} Canvas visualization with `render` and `toVisual` methods.
+ */
 IO.projectMNIST = function (samples, projections, options = {}) {
     const { width = 500, height = 500, quadSize = 0.06, scale = 1, lowResFactor = 2 } = options;
     if (samples.length !== projections.length) {
@@ -238,6 +319,11 @@ IO.projectMNIST = function (samples, projections, options = {}) {
 
     // 0.999 keeps texture lookups inside the image
     const uvs = [Vec2(0, 0), Vec2(0.999, 0), Vec2(0.999, 0.999), Vec2(0, 0.999)];
+    /**
+     * Renders the projected image quads into a target canvas.
+     * @param {Canvas} target - Canvas to render into.
+     * @returns {Canvas} Painted target canvas.
+     */
     const paintTo = target => {
         const right = camera.basis[0].scale(quadSize);
         const up = camera.basis[1].scale(quadSize);
@@ -292,6 +378,15 @@ IO.projectMNIST = function (samples, projections, options = {}) {
     };
 };
 
+// ---------------------------------------------------------------------------
+// UI and visualization
+// ---------------------------------------------------------------------------
+
+/**
+ * Wraps child visuals in a UI container.
+ * @param {...object} children - Visual elements to place in the UI.
+ * @returns {{toVisual: Function}} UI visual descriptor.
+ */
 IO.UI = function (...children) {
     return {
         toVisual: () => ({
@@ -299,9 +394,15 @@ IO.UI = function (...children) {
             value: () => children,
         }),
     };
-}
+};
 
 // points: array of [x, y] or [x, y, z]
+/**
+ * Plots a cloud of 2D or 3D points.
+ * @param {Array|NArray} points - Point coordinates or vectors.
+ * @param {object} options - Plot dimensions, colors, radii, and optional scene.
+ * @returns {object} Interactive plot with rendering and layer-update methods.
+ */
 IO.plotPointCloud = function (points, options = {}) {
     if (points instanceof NArray) {
         points = points.toArray();
@@ -314,8 +415,34 @@ IO.plotPointCloud = function (points, options = {}) {
         return plot2d(points, options);
     }
     return plot3d(points, options);
-}
+};
 
+// lines: array of [[p1, p2], ...] where each pi is [x, y] | vec2 or [x, y, z] | vec3
+/**
+ * Plots a collection of 2D or 3D line endpoints.
+ * @param {Array|NArray} lines - Line endpoint coordinates or vectors.
+ * @param {object} options - Plot dimensions, colors, radii, and optional scene.
+ * @returns {object} Interactive plot with rendering and layer-update methods.
+ */
+IO.plotLineCloud = function (lines, options = {}) {
+    if (lines instanceof NArray) {
+        lines = lines.toArray();
+    }
+    const dimensions = lines[0]?.dim ?? lines[0].length;
+    if (dimensions < 2 || dimensions > 3) {
+        throw new Error("Lines must be 2D or 3D");
+    }
+    if (dimensions === 2) {
+        return plot2d(lines, options);
+    }
+    return plot3d(lines, options);
+};
+
+/**
+ * Loads vertices, normals, texture coordinates, and faces from an OBJ file.
+ * @param {string} objPath - Path to the OBJ asset relative to the configured source.
+ * @returns {Promise<object>} Parsed mesh data.
+ */
 IO.loadMesh = async function (objPath) {
     const objFile = await fetch(SOURCE + objPath)
         .then(res => res.text());
@@ -364,6 +491,17 @@ IO.loadMesh = async function (objPath) {
 };
 
 
+// ---------------------------------------------------------------------------
+// Signed-distance-field views
+// ---------------------------------------------------------------------------
+
+
+/**
+ * Calculates the signed distance from a point to an axis-aligned bounding box.
+ * @param {number[]} point - Point coordinates in 3D.
+ * @param {{min: number[], max: number[]}} aabbClip - Box minimum and maximum corners.
+ * @returns {number} Negative inside the box, zero on its surface, positive outside.
+ */
 function signedDistanceToAabb(point, aabbClip) {
     const q = point.map((value, axis) =>
         Math.abs(value - (aabbClip.min[axis] + aabbClip.max[axis]) / 2) -
@@ -373,6 +511,15 @@ function signedDistanceToAabb(point, aabbClip) {
         Math.min(Math.max(...q), 0);
 }
 
+/**
+ * Advances a ray until it enters the clipping box or exceeds the tracing limits.
+ * @param {object} ray - Ray exposing `trace(distance)`.
+ * @param {{min: number[], max: number[]}} aabbClip - Box used to clip the ray.
+ * @param {number} maxIterations - Maximum number of tracing steps.
+ * @param {number} epsilon - Tolerance used near the box surface.
+ * @param {number} maxDistance - Maximum distance to trace.
+ * @returns {number|null} Distance to the box entry, or `null` if there is no entry.
+ */
 function traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance) {
     let t = 0;
     let nearAabb = false;
@@ -388,6 +535,11 @@ function traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance) {
     return null;
 }
 
+/**
+ * Validates optional 3D clipping bounds.
+ * @param {{min: number[], max: number[]}|null} aabbClip - Bounds to validate.
+ * @throws {Error} If bounds are not finite 3D corners or are inverted.
+ */
 function validateAabbClip(aabbClip) {
     if (aabbClip == null) return;
     for (const bounds of [aabbClip.min, aabbClip.max]) {
@@ -400,6 +552,19 @@ function validateAabbClip(aabbClip) {
     }
 }
 
+/**
+ * Visualizes a signed-distance function using CPU ray marching.
+ * @param {Function} sdfFn - Function mapping `[x, y, z]` to a signed distance.
+ * @param {object} options - Camera, canvas, and ray-marching configuration.
+ * @param {number} [options.width=50] - Canvas width in pixels.
+ * @param {number} [options.height=50] - Canvas height in pixels.
+ * @param {number} [options.maxIterations=100] - Maximum ray-marching steps.
+ * @param {number} [options.epsilon=1e-3] - Surface and normal-estimation tolerance.
+ * @param {number} [options.maxDistance=10] - Maximum ray distance.
+ * @param {number} [options.scale=10] - Display size multiplier for the canvas.
+ * @param {{min: number[], max: number[]}|null} [options.aabbClip=null] - Optional 3D clipping bounds.
+ * @returns {object} Interactive canvas visualization.
+ */
 IO.sdfView = function (sdfFn, options = {}) {
     const {
         width = 50,
@@ -450,6 +615,11 @@ IO.sdfView = function (sdfFn, options = {}) {
         paint();
     });
 
+    /**
+     * Estimates the normalized SDF gradient at a point.
+     * @param {Vec3} p - Position where the surface normal is estimated.
+     * @returns {Vec3} Normalized gradient, or the zero vector.
+     */
     const gradient = (p) => {
         const h = epsilon;
         const dx = sdfFn([p.x + h, p.y, p.z]) - sdfFn([p.x - h, p.y, p.z]);
@@ -460,6 +630,11 @@ IO.sdfView = function (sdfFn, options = {}) {
         return Vec3(dx / length, dy / length, dz / length);
     };
 
+    /**
+     * Ray-marches the SDF along one camera ray and returns the hit color.
+     * @param {object} ray - Ray exposing `trace(distance)`.
+     * @returns {Color} Surface normal color or the background color.
+     */
     const renderSDF = (ray) => {
         let t = aabbClip
             ? traceToAabb(ray, aabbClip, maxIterations, epsilon, maxDistance)
@@ -526,6 +701,19 @@ IO.sdfView = function (sdfFn, options = {}) {
     };
 }
 
+/**
+ * Visualizes a symbolic SDF or a neural network's symbolic expression.
+ * @param {Symbolic|object} expressionOrNN - Symbolic expression or object with `symbolicNN` and `weightsMap`.
+ * @param {object} options - Camera, canvas, and ray-marching configuration.
+ * @param {number} [options.width=50] - Canvas width in pixels.
+ * @param {number} [options.height=50] - Canvas height in pixels.
+ * @param {number} [options.maxIterations=100] - Maximum ray-marching steps.
+ * @param {number} [options.epsilon=1e-3] - Surface and normal-estimation tolerance.
+ * @param {number} [options.maxDistance=10] - Maximum ray distance.
+ * @param {number} [options.scale=10] - Display size multiplier for the canvas.
+ * @param {{min: number[], max: number[]}|null} [options.aabbClip=null] - Optional 3D clipping bounds.
+ * @returns {object} Interactive canvas visualization.
+ */
 IO.sdfViewSym = function (expressionOrNN, options = {}) {
     const {
         width = 50,
@@ -560,6 +748,12 @@ IO.sdfViewSym = function (expressionOrNN, options = {}) {
     let mousedown = false;
     let mouse = Vec2();
 
+    /**
+     * Ray-marches the compiled symbolic SDF along one camera ray.
+     * @param {object} ray - Ray exposing `trace(distance)`.
+     * @param {object} options - SDF weights, input mapping, and tracing limits.
+     * @returns {Color} Surface normal color or the background color.
+     */
     const renderSDF = (ray, { sdfWeights, sdfInputVariables, maxIterations, epsilon, maxDistance, aabbClip }) => {
         const evaluate = point => {
             const coordinates = [point.x, point.y, point.z];
@@ -676,6 +870,19 @@ IO.sdfViewSym = function (expressionOrNN, options = {}) {
 }
 
 // Compiles a Symbolic expression (or a NeuralNet's symbolicNN) to GLSL and raymarches it in a WebGL fragment shader.
+/**
+ * Visualizes a symbolic SDF in a WebGL fragment shader using ray marching.
+ * @param {Symbolic|object} expressionOrNN - Symbolic expression or object with `symbolicNN` and `weightsMap`.
+ * @param {object} options - Camera, canvas, and ray-marching configuration.
+ * @param {number} [options.width=200] - Canvas width in pixels.
+ * @param {number} [options.height=200] - Canvas height in pixels.
+ * @param {number} [options.maxIterations=300] - Maximum ray-marching steps.
+ * @param {number} [options.epsilon=1e-3] - Surface and normal-estimation tolerance.
+ * @param {number} [options.maxDistance=10] - Maximum ray distance.
+ * @param {number} [options.scale=3] - Display size multiplier for the canvas.
+ * @param {{min: number[], max: number[]}|null} [options.aabbClip=null] - Optional 3D clipping bounds.
+ * @returns {object} Interactive WebGL canvas visualization.
+ */
 IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     const {
         width = 200,
@@ -789,11 +996,9 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     };
 }
 
-//========================================================================================
-/*                                                                                      *
- *                                         UTILS                                        *
- *                                                                                      */
-//========================================================================================
+// ---------------------------------------------------------------------------
+// Shader compilation and rendering helpers
+// ---------------------------------------------------------------------------
 
 const SDF_VERTEX_SHADER = `
 attribute vec2 aPosition;
@@ -802,13 +1007,33 @@ void main() {
 }
 `;
 
+/**
+ * Formats a JavaScript number as a GLSL floating-point literal.
+ * @param {number} value - Number to format.
+ * @returns {string} GLSL-compatible float literal.
+ */
 function glslFloat(value) {
     const number = Number.isFinite(value) ? value : 0;
     const str = number.toString();
     return /[.eE]/.test(str) ? str : `${str}.0`;
 }
 
+/**
+ * Compiles and links a WebGL shader program.
+ * @param {WebGLRenderingContext} gl - WebGL context used for compilation.
+ * @param {string} vertexSource - Vertex shader source.
+ * @param {string} fragmentSource - Fragment shader source.
+ * @returns {WebGLProgram} Linked shader program.
+ * @throws {Error} If either shader fails to compile or the program fails to link.
+ */
 function createShaderProgram(gl, vertexSource, fragmentSource) {
+    /**
+     * Compiles a single WebGL shader.
+     * @param {number} type - WebGL shader type.
+     * @param {string} source - Shader source code.
+     * @returns {WebGLShader} Compiled shader.
+     * @throws {Error} If shader compilation fails.
+     */
     const compile = (type, source) => {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
@@ -831,13 +1056,23 @@ function createShaderProgram(gl, vertexSource, fragmentSource) {
     return program;
 }
 
-// Compiles a Symbolic scalar expression (a NeuralNet's symbolicNN) into a GLSL `sdfEval(vec3 p)` function body.
-// Non-param (weight) variables are baked in as float literals from weightsMap, input variables ("x_0", "x_1", "x_2") map to p.x/p.y/p.z.
+/**
+ * Converts a symbolic scalar expression to a GLSL SDF evaluator.
+ * @param {object} expression - Symbolic expression tree to compile.
+ * @param {object} weightsMap - Numeric values keyed by symbolic variable name.
+ * @remarks Non-parameter variables are emitted as literals; `x_0`, `x_1`, and `x_2` map to `p.x`, `p.y`, and `p.z`.
+ * @returns {string} GLSL function source for `sdfEval`.
+ */
 function compileSymbolicToGLSL(expression, weightsMap) {
     const { TYPES } = Symbolic;
     const expressionsToNames = new Map();
     const statements = [];
 
+    /**
+     * Resolves a symbolic variable to a GLSL input or literal.
+     * @param {object} expr - Symbolic variable expression.
+     * @returns {string} GLSL value expression.
+     */
     const emitVar = (expr) => {
         if (expr.isParam) {
             const match = /^x_(\d+)$/.exec(expr.name);
@@ -849,6 +1084,11 @@ function compileSymbolicToGLSL(expression, weightsMap) {
         return glslFloat(weightsMap[expr.name]);
     };
 
+    /**
+     * Emits GLSL for a symbolic operation node.
+     * @param {object} expr - Symbolic operation expression.
+     * @returns {string} GLSL expression source.
+     */
     const emitExpression = (expr) => {
         switch (expr.type) {
             case TYPES.add: return `(${emit(expr.left)} + ${emit(expr.right)})`;
@@ -864,6 +1104,11 @@ function compileSymbolicToGLSL(expression, weightsMap) {
         }
     };
 
+    /**
+     * Emits an expression, reusing a temporary for repeated nodes.
+     * @param {object} expr - Symbolic expression to emit.
+     * @returns {string} GLSL variable or literal name.
+     */
     function emit(expr) {
         if (expr.type === TYPES.real) return glslFloat(expr.value);
         if (expr.type === TYPES.realVar) return emitVar(expr);
@@ -878,6 +1123,16 @@ function compileSymbolicToGLSL(expression, weightsMap) {
     return `float sdfEval(vec3 p) {\n    ${statements.join("\n    ")}\n    return ${resultName};\n}`;
 }
 
+/**
+ * Builds a fragment shader that ray-marches a symbolic SDF.
+ * @param {object} expression - Symbolic expression tree to compile.
+ * @param {object} weightsMap - Numeric values keyed by symbolic variable name.
+ * @param {object} options - Shader ray-marching configuration.
+ * @param {number} options.maxIterations - Maximum tracing steps.
+ * @param {number} options.epsilon - Surface and normal-estimation tolerance.
+ * @param {number} options.maxDistance - Maximum ray distance.
+ * @returns {string} Complete GLSL fragment shader source.
+ */
 function buildSdfFragmentShader(expression, weightsMap, { maxIterations, epsilon, maxDistance }) {
     const sdfFunction = compileSymbolicToGLSL(expression, weightsMap);
     return `
@@ -969,9 +1224,16 @@ void main() {
 }
 
 // Mirrors tela.js Camera.orbit/orient basis computation.
+/**
+ * Computes camera basis vectors and position from spherical orbit coordinates.
+ * @param {{radius: number, theta: number, phi: number}} orbit - Camera orbit state in radians.
+ * @returns {{basis0: number[], basis1: number[], basis2: number[], position: number[]}} Camera basis and position.
+ */
 function orbitBasis({ radius, theta, phi }) {
-    const cosT = Math.cos(theta), sinT = Math.sin(theta);
-    const cosP = Math.cos(phi), sinP = Math.sin(phi);
+    const cosT = Math.cos(theta);
+    const sinT = Math.sin(theta);
+    const cosP = Math.cos(phi);
+    const sinP = Math.sin(phi);
     const basis0 = [-sinT, cosT, 0];
     const basis1 = [-sinP * cosT, -sinP * sinT, cosP];
     const basis2 = [-cosP * cosT, -cosP * sinT, -sinP];
@@ -979,17 +1241,30 @@ function orbitBasis({ radius, theta, phi }) {
     return { basis0, basis1, basis2, position };
 }
 
-// Creates a layer of points with associated colors and radiuses.
-// points: array of points, each an array [x, y, z] or a vec (or an NArray of them)
-// color: [r, g, b] or array of such colors, one per point
-// radius: number or array of numbers
-// returns { layer, update }; update(nextPoints, { color }) rebuilds the layer,
-// optionally replacing the color (otherwise the previous color is kept)
+/**
+ * Creates a layer of points with associated colors and radii.
+ * @param {Array|NArray} points - Coordinates as arrays, vectors, or an NArray.
+ * @param {object} options - Layer appearance.
+ * @param {Array|Color} [options.color=[1, 0, 0]] - Shared color or one color per point.
+ * @param {number|number[]} [options.radius=0.01] - Shared radius or radii cycled across points.
+ * @param {Function} vector - Vector constructor used to create point vectors.
+ * @returns {{layer: object, update: Function}} Layer data and its update method.
+ */
+// ---------------------------------------------------------------------------
+// Point-cloud plotting helpers
+// ---------------------------------------------------------------------------
+
 function createLayer(points, { color = [1, 0, 0], radius = 0.01 } = {}, vector) {
     points = points?.toArray?.() ?? points;
     color = color?.toArray?.() ?? color;
     radius = radius?.toArray?.() ?? radius;
     const layer = { points: [], radiuses: [], colors: [] };
+    /**
+     * Replaces the layer points and optionally changes their color.
+     * @param {Array|NArray} nextPoints - Replacement point coordinates.
+     * @param {object} options - Optional appearance updates.
+     * @param {Array|Color} [options.color] - Replacement shared or per-point color.
+     */
     const update = (nextPoints, options = {}) => {
         if (options.color !== undefined) color = options.color?.toArray?.() ?? options.color;
         const pointArray = nextPoints?.toArray?.() ?? nextPoints;
@@ -1005,6 +1280,11 @@ function createLayer(points, { color = [1, 0, 0], radius = 0.01 } = {}, vector) 
     return { layer, update };
 }
 
+/**
+ * Concatenates points and appearance data from multiple scenes.
+ * @param {object[]} scenes - Scene records containing `points`, `radiuses`, and `colors`.
+ * @returns {object} Combined scene record.
+ */
 function combineScenes(scenes) {
     return scenes.reduce((combined, scene) => ({
         points: combined.points.concat(scene.points),
@@ -1013,6 +1293,17 @@ function combineScenes(scenes) {
     }), { points: [], radiuses: [], colors: [] });
 }
 
+/**
+ * Creates an interactive 2D point-cloud plot.
+ * @param {Array|NArray} points - 2D point coordinates.
+ * @param {object} options - Canvas and point appearance settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {object} [options.scene={}] - Additional scene points, radii, and colors.
+ * @param {Array|Color} [options.color=[1, 0, 0]] - Point color or per-point colors.
+ * @param {number|number[]} [options.radius=0.01] - Point radius or per-point radii.
+ * @returns {object} Interactive plot with update and layer-addition methods.
+ */
 function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
     scene = {
@@ -1064,8 +1355,11 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec2(radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
+        // uniform scale keeps the proportions; per-axis division would deform the shape
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
         const normalizedSceneVecs = renderedScene.points.map(v =>
-            v.sub(box.min).div(box.diagonal).scale(2).map(x => x - 1)
+            v.sub(center).scale(2 / maxExtent)
         );
         const sceneObj = new NaiveScene();
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
@@ -1079,6 +1373,12 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     }
     return {
         update: base.update,
+        /**
+         * Adds a point layer to the plot.
+         * @param {Array|NArray} layerPoints - Point coordinates for the new layer.
+         * @param {object} options - Layer color and radius settings.
+         * @returns {{update: Function}} Update method for the added layer.
+         */
         add: (layerPoints, options) => {
             const layer = createLayer(layerPoints, options, Vec2);
             layers.push(layer.layer);
@@ -1093,6 +1393,17 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     };
 }
 
+/**
+ * Creates an interactive 3D point-cloud plot.
+ * @param {Array|NArray} points - 3D point coordinates.
+ * @param {object} options - Canvas and point appearance settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {object} [options.scene={}] - Additional scene points, radii, and colors.
+ * @param {Array|Color} [options.color=[1, 0, 0]] - Point color or per-point colors.
+ * @param {number|number[]} [options.radius=0.01] - Point radius or per-point radii.
+ * @returns {object} Interactive plot with update and layer-addition methods.
+ */
 function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
     // Normalize points to fit in the canvas
     scene = {
@@ -1147,8 +1458,11 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec3(radius_i, radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
+        // uniform scale keeps the proportions; per-axis division would deform the shape
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
         const normalizedSceneVecs = renderedScene.points.map(v =>
-            v.sub(box.min).div(box.diagonal).scale(2).map(x => x - 1)
+            v.sub(center).scale(2 / maxExtent)
         );
         const sceneObj = new NaiveScene();
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
@@ -1162,6 +1476,12 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     }
     return {
         update: base.update,
+        /**
+         * Adds a point layer to the plot.
+         * @param {Array|NArray} layerPoints - Point coordinates for the new layer.
+         * @param {object} options - Layer color and radius settings.
+         * @returns {{update: Function}} Update method for the added layer.
+         */
         add: (layerPoints, options) => {
             const layer = createLayer(layerPoints, options, Vec3);
             layers.push(layer.layer);
@@ -1176,6 +1496,15 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     };
 }
 
+// ---------------------------------------------------------------------------
+// OBJ parsing helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Triangulates a triangular or quadrilateral polygon.
+ * @param {Array} polygon - Polygon vertex references in winding order.
+ * @returns {Array[]|undefined} Triangles, or `undefined` for unsupported vertex counts.
+ */
 function triangulate(polygon) {
     if (polygon.length === 3) {
         return [polygon];
@@ -1188,6 +1517,11 @@ function triangulate(polygon) {
     }
 }
 
+/**
+ * Parses OBJ face vertex descriptors into zero-based index lists.
+ * @param {string[]} vertexInfo - Face tokens in `vertex/texture/normal` form.
+ * @returns {{vertices: number[], textures: number[], normals: number[]}} Face indices.
+ */
 function parseFace(vertexInfo) {
     const facesInfo = vertexInfo
         .flatMap(x => x.split("/"))
@@ -1207,6 +1541,12 @@ function parseFace(vertexInfo) {
     return face;
 }
 
+/**
+ * Groups array entries by a key returned from a callback.
+ * @param {Array} array - Values to group.
+ * @param {Function} groupFunction - Receives each value and index and returns its group key.
+ * @returns {object} Groups keyed by the callback's return value.
+ */
 function groupBy(array, groupFunction) {
     const ans = {};
     array.forEach((x, i) => {
