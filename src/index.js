@@ -19,4 +19,6 @@ export * from "./NeuralNet/index.js";
 export * from "./DataScience/index.js";
 export * from "./Pca/index.js";
 export * from "./Graph/index.js";
+export * from "./Kmeans/index.js";
+
 

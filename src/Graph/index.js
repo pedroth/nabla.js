@@ -80,6 +80,7 @@ export class Graph {
         return this;
     }
 
+
     // Graph Laplacian L = D - W, rows/columns follow the order of getVertices().
     // weightFn: (vertexI, vertexJ) => edge weight, defaults to 1
     laplacian(weightFn = () => 1) {

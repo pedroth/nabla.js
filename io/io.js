@@ -4,6 +4,7 @@ import {
     Camera2D,
     Canvas,
     Color,
+    KScene,
     Line,
     NaiveScene,
     Sphere,
@@ -445,6 +446,326 @@ IO.plotLineCloud = function (lines, options = {}) {
 IO.plotTriangleCloud = function (triangles, options = {}) {
     const { faces, dimensions } = normalizeTriangles(triangles);
     return plotTriangles(faces, dimensions, options);
+};
+
+
+/**
+ * Ray traces a triangle mesh with tela.js, using an orbit camera controlled by the mouse.
+ * Frames are accumulated progressively (the image refines over time) until the canvas leaves the page;
+ * moving the camera or calling `update` restarts the accumulation.
+ * @param {Array|NArray} points - Vertex coordinates as `[[x, y, z], ...]`.
+ * @param {Array} faces - Triangles as vertex-index triples `[[i, j, k], ...]` or OBJ faces `{vertices: [i, j, k]}`.
+ * @param {object} options - Canvas, color and ray tracing settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {Color|number[]|Array} [options.color=[0.5, 0.5, 0.5]] - One color for all triangles or one color per triangle.
+ * @param {number} [options.bounces=5] - Maximum number of ray bounces.
+ * @param {number} [options.samplesPerPxl=1] - Samples per pixel.
+ * @returns {object} Plot with update, render, and toVisual methods.
+ */
+IO.raytrace = function (points, faces, options = {}) {
+    const {
+        width = 500,
+        height = 500,
+        color = [0.5, 0.5, 0.5],
+        bounces = 5,
+        samplesPerPxl = 1,
+    } = options;
+    const state = { triangles: [], colors: [], color };
+    // tela.js only re-sends a scene to its workers when the scene hash changes, and the hash
+    // depends on element names, so every update needs fresh names
+    let version = 0;
+    const canvas = Canvas.ofSize(width, height);
+    const camera = new Camera().orbit(5, 0, 0);
+    let exposed;
+    let scene;
+
+    /**
+     * Replaces the mesh and optionally its colors.
+     * @param {Array|NArray} nextPoints - Vertex coordinates.
+     * @param {Array} [nextFaces] - Replacement faces; keeps the previous faces if omitted.
+     * @param {object} [nextOptions] - Optional replacement `color`.
+     */
+    const update = (nextPoints, nextFaces = state.faces, nextOptions = {}) => {
+        const vertices = (nextPoints?.toArray?.() ?? nextPoints)
+            .map(p => Vec3(...(p?.toArray?.() ?? p)));
+        const indices = (nextFaces?.toArray?.() ?? nextFaces)
+            .map(face => face?.vertices ?? face?.toArray?.() ?? face);
+        for (const face of indices) {
+            if (face.length !== 3 || face.some(i => !vertices[i])) {
+                throw new Error("Faces must be triples of valid vertex indices");
+            }
+        }
+        const nextColor = nextOptions.color ?? state.color;
+        state.triangles = indices.map(face => face.map(i => vertices[i]));
+        state.colors = getTriangleColors(nextColor, indices.length);
+        state.color = nextColor;
+        state.faces = nextFaces;
+        version++;
+        scene = undefined;
+        exposed = canvas.exposure();
+    };
+    update(points, faces);
+
+    let mousedown = false;
+    let mouse = Vec2();
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(
+            0,
+            -2 * Math.PI * (dx / canvas.width),
+            -2 * Math.PI * (dy / canvas.height)
+        )));
+        mouse = newMouse;
+        exposed = canvas.exposure();
+        render();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        exposed = canvas.exposure();
+        render();
+    });
+
+    // serialized into the ray tracing workers, so it must be self-contained
+    const renderSkyBox = ray => {
+        const dir = ray.dir;
+        const horizon = Color.ofRGB(0.5, 0.7, 1.0);
+        const zenith = Color.ofRGB(0.1, 0.2, 0.4);
+        const blend = Math.pow(Math.max(0, dir.z), 0.5);
+        const sky = horizon.scale(1 - blend).add(zenith.scale(blend));
+        const sunDot = dir.dot(Vec3(0.7, 0.3, 0.5).normalize());
+        const sunColor = Color.ofRGB(1.0, 0.8, 0.5);
+        const sun = sunColor
+            .scale(Math.pow(Math.max(0, sunDot), 200) * 2)
+            .add(sunColor.scale(Math.pow(Math.max(0, sunDot), 5) * 0.5));
+        return sky.add(sun);
+    };
+    const lightDir = Vec3(0.7, 0.3, 0.5).normalize();
+
+    const buildScene = () => {
+        let box = new Box();
+        for (const triangle of state.triangles) {
+            for (const point of triangle) box = box.add(new Box(point, point));
+        }
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
+        const scale = 2 / maxExtent;
+        const scene = new KScene();
+        scene.addList(state.triangles.map((triangle, index) =>
+            Triangle.builder()
+                .name(`mesh-${version}-${index}`)
+                .positions(...triangle.map(point => point.sub(center).scale(scale)))
+                .colors(...state.colors[index])
+                .build()
+        ));
+        return scene;
+    };
+
+    // each frame is averaged into the exposed canvas; replacing it restarts the accumulation
+    exposed = canvas.exposure();
+    let running = false;
+    let attached = false;
+
+    const frame = async () => {
+        if (state.triangles.length === 0) {
+            canvas.fill(Color.BLACK);
+            canvas.paint();
+            return;
+        }
+        scene ??= buildScene();
+        const target = exposed;
+        const image = await camera
+            .parallelShot(scene, {
+                bounces,
+                samplesPerPxl,
+                gamma: 0.5,
+                isBiased: false,
+                renderSkyBox,
+                lightDir,
+                lightSharpness: 200,
+            })
+            .to(target);
+        image.paint();
+    };
+
+    // keeps accumulating radiance until the canvas is removed from the page
+    const loop = async () => {
+        try {
+            while (running) {
+                await frame();
+                await new Promise(resolve => setTimeout(resolve, 0));
+                if (canvas.DOM?.isConnected) attached = true;
+                else if (attached) running = false;
+            }
+        } catch (error) {
+            running = false;
+            console.error(error);
+        }
+    };
+
+    const render = () => {
+        if (!running) {
+            running = true;
+            attached = false;
+            loop();
+        }
+        return canvas;
+    };
+
+    return {
+        update,
+        canvas,
+        render,
+        toVisual: () => ({
+            type: "canvas",
+            value: () => {
+                render();
+                return canvas.paint();
+            },
+        }),
+    };
+};
+
+/**
+ * Rasterizes a triangle mesh with tela.js over a sky background, shading each face by its normal and the light direction.
+ * @param {Array|NArray} points - Vertex coordinates as `[[x, y, z], ...]`.
+ * @param {Array} faces - Triangles as vertex-index triples `[[i, j, k], ...]` or OBJ faces `{vertices: [i, j, k]}`.
+ * @param {object} options - Canvas, color and lighting settings.
+ * @param {number} [options.width=500] - Canvas width in pixels.
+ * @param {number} [options.height=500] - Canvas height in pixels.
+ * @param {Color|number[]|Array} [options.color=[0.5, 0.5, 0.5]] - One color for all triangles, one per triangle, or three per triangle.
+ * @param {number[]} [options.lightDir=[0.7, 0.3, 0.5]] - Direction towards the light.
+ * @param {number} [options.ambient=0.15] - Minimum light intensity.
+ * @returns {object} Plot with update, render, and toVisual methods.
+ */
+IO.raster = function (points, faces, options = {}) {
+    const {
+        width = 500,
+        height = 500,
+        color = [0.5, 0.5, 0.5],
+        lightDir: lightDirOption = [0.7, 0.3, 0.5],
+        ambient = 0.15,
+    } = options;
+    const lightDir = Vec3(...(lightDirOption?.toArray?.() ?? lightDirOption)).normalize();
+    const state = { triangles: [], colors: [], color };
+    const canvas = Canvas.ofSize(width, height);
+    const camera = new Camera().orbit(5, 0, 0);
+
+    /**
+     * Replaces the mesh and optionally its colors.
+     * @param {Array|NArray} nextPoints - Vertex coordinates.
+     * @param {Array} [nextFaces] - Replacement faces; keeps the previous faces if omitted.
+     * @param {object} [nextOptions] - Optional replacement `color`.
+     */
+    const update = (nextPoints, nextFaces = state.faces, nextOptions = {}) => {
+        const vertices = (nextPoints?.toArray?.() ?? nextPoints)
+            .map(p => Vec3(...(p?.toArray?.() ?? p)));
+        const indices = (nextFaces?.toArray?.() ?? nextFaces)
+            .map(face => face?.vertices ?? face?.toArray?.() ?? face);
+        for (const face of indices) {
+            if (face.length !== 3 || face.some(i => !vertices[i])) {
+                throw new Error("Faces must be triples of valid vertex indices");
+            }
+        }
+        const nextColor = nextOptions.color ?? state.color;
+        state.triangles = indices.map(face => face.map(i => vertices[i]));
+        state.colors = getTriangleColors(nextColor, indices.length);
+        state.color = nextColor;
+        state.faces = nextFaces;
+    };
+    update(points, faces);
+
+    const renderSkyBox = ray => {
+        const dir = ray.dir;
+        const horizon = Color.ofRGB(0.5, 0.7, 1.0);
+        const zenith = Color.ofRGB(0.1, 0.2, 0.4);
+        const blend = Math.pow(Math.max(0, dir.z), 0.5);
+        const sky = horizon.scale(1 - blend).add(zenith.scale(blend));
+        const sunDot = dir.dot(lightDir);
+        const sunColor = Color.ofRGB(1.0, 0.8, 0.5);
+        const sun = sunColor
+            .scale(Math.pow(Math.max(0, sunDot), 200) * 2)
+            .add(sunColor.scale(Math.pow(Math.max(0, sunDot), 5) * 0.5));
+        return sky.add(sun);
+    };
+
+    const paint = () => {
+        let box = new Box();
+        for (const triangle of state.triangles) {
+            for (const point of triangle) box = box.add(new Box(point, point));
+        }
+        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+        const center = box.center;
+        const scale = 2 / maxExtent;
+        const scene = new NaiveScene();
+        scene.addList(state.triangles.map((triangle, index) => {
+            const [p0, p1, p2] = triangle.map(point => point.sub(center).scale(scale));
+            const normal = p1.sub(p0).cross(p2.sub(p0));
+            const length = normal.length();
+            const light = length === 0
+                ? ambient
+                : Math.min(1, ambient + (1 - ambient) * Math.abs(normal.dot(lightDir)) / length);
+            const [c0, c1, c2] = state.colors[index].map(c => {
+                const [r, g, b] = c.toArray();
+                return Color.ofRGB(r * light, g * light, b * light);
+            });
+            return Triangle.builder()
+                .positions(p0, p1, p2)
+                .colors(c0, c1, c2)
+                .build();
+        }));
+        camera.rayMap(renderSkyBox).to(canvas);
+        return camera
+            .raster(scene, { cullBackFaces: true, clearScreen: false })
+            .to(canvas)
+            .paint();
+    };
+
+    let mousedown = false;
+    let mouse = Vec2();
+    canvas.onMouseDown((x, y) => {
+        mousedown = true;
+        mouse = Vec2(x, y);
+    });
+    canvas.onMouseUp(() => {
+        mousedown = false;
+        mouse = Vec2();
+    });
+    canvas.onMouseMove((x, y) => {
+        const newMouse = Vec2(x, y);
+        if (!mousedown || newMouse.equals(mouse)) return;
+        const [dx, dy] = newMouse.sub(mouse).toArray();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(
+            0,
+            -2 * Math.PI * (dx / canvas.width),
+            -2 * Math.PI * (dy / canvas.height)
+        )));
+        mouse = newMouse;
+        paint();
+    });
+    canvas.onMouseWheel(e => {
+        e.preventDefault();
+        camera.orbit(sphereCoords => sphereCoords.add(Vec3(e.deltaY * 0.001, 0, 0)));
+        paint();
+    });
+
+    return {
+        update,
+        canvas,
+        render: paint,
+        toVisual: () => ({ type: "canvas", value: () => paint() }),
+    };
 };
 
 /**

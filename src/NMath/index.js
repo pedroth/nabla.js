@@ -129,6 +129,17 @@ function vec(...components) {
         }
         return vec(...newVec);
     };
+
+    ans.op = (other, fn) => {
+        if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
+        if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for operation");
+        const newVec = [];
+        for (let i = 0; i < ans.components.length; i++) {
+            newVec.push(fn(ans.components[i], other.components[i]));
+        }
+        return vec(...newVec);
+    };
+
     ans.scale = (field) => {
         if (typeof field !== "number") throw Error("Scaling requires a field element");
         let newVec = [];
@@ -160,10 +171,14 @@ function vec(...components) {
         return mat(data, [ans.components.length, other.components.length]);
     }
 
-
     ans.length = () => {
         return Math.sqrt(ans.dot(ans));
     };
+
+    ans.squareLength = () => {
+        return ans.dot(ans);
+    };
+
     ans.normalize = () => {
         const length = ans.dot(ans);
         if (length === 0) {
@@ -187,11 +202,16 @@ function vec(...components) {
         }
         return vec(...result);
     };
+    ans.forEach = (fn) => {
+        for (let i = 0; i < ans.components.length; i++) {
+            fn(ans.components[i], i);
+        }
+    };
 
     ans.equals = (other) => {
         if (!other || other.type !== TYPES.vector) return false;
         for (let i = 0; i < ans.components.length; i++) {
-            if (!ans.components[i].equals(other.components[i])) return false;
+            if (ans.components[i] !== other.components[i]) return false;
         }
         return true;
     };
@@ -211,6 +231,14 @@ vec.random = (dim) => {
     const components = [];
     for (let i = 0; i < dim; i++) {
         components.push(Math.random());
+    }
+    return vec(...components);
+};
+
+vec.e = (n, index) => {
+    const components = [];
+    for (let i = 0; i < n; i++) {
+        components.push(i === index ? 1 : 0);
     }
     return vec(...components);
 };
@@ -323,6 +351,16 @@ function mat(data, shape) {
             resultData[i] = sum;
         }
         return vec(...resultData);
+    };
+
+    ans.map = (fn) => {
+        const resultData = [];
+        for (let n = 0; n < ans.data.length; n++) {
+            const j = n % ans.cols;
+            const i = Math.floor(n / ans.cols);
+            resultData.push(fn(ans.data[n], i, j));
+        }
+        return mat(resultData, [ans.rows, ans.cols]);
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
@@ -547,6 +585,16 @@ function smat(nzvalues, indices, shape) {
             resultData[i] += ans.nzvalues[k] * vector.components[j];
         }
         return vec(...resultData);
+    };
+
+    ans.map = (fn) => {
+        const builder = smat.builder(ans.rows, ans.cols);
+        for (let n = 0; n < ans.indices.length; n++) {
+            const j = ans.indices[n] % ans.cols;
+            const i = Math.floor(ans.indices[n] / ans.cols);
+            builder.set(i, j, fn(ans.get(i, j), i, j));
+        }
+        return builder.build();
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)

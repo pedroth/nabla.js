@@ -94,7 +94,7 @@ The focus is on clarity, correctness, and educational value rather than performa
     - Harmonic vector fields (?)
         - Global surface space parameterization
     - Curvature flow
-- Discrete exterior calculus
+- Discrete exterior calculus(?)
     - Laplacian eigen functions on meshes
     - Mesh compression
     - Mesh resampling
