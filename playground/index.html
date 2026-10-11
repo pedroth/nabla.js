@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>∇.js playground</title>
     <link rel="stylesheet" href="../index.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <style>
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -31,8 +30,8 @@
         <!-- Elements to be injected here -->
     </div>
 </body>
+<script src="./vs-monaco/package/min/vs/loader.js"></script>
 <script type="module">
-    import hljs from "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/es/highlight.min.js"
     const isGithub = window.location.host === "pedroth.github.io";
     const SOURCE = isGithub ? "/nabla.js" : "";
 
@@ -49,56 +48,10 @@
         NablaStorage.setItem("AppState", AppState.cells.map(x => x.serialize()))
     }
 
-    function highlightCode(code) {
-        return hljs.highlight(
-            code,
-            { language: "javascript" }
-        ).value;
-    }
-
-    // ChatGPT
-    function saveCursorPosition(editableDiv) {
-        let cursorOffset = 0;
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(editableDiv);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            cursorOffset = preCaretRange.toString().length; // Save the character offset
-        }
-        return cursorOffset;
-    }
-
-    // ChatGPT with some changes
-    function restoreCursorPosition(cursorOffset, editableDiv) {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        let currentOffset = 0;
-
-        function traverseNodes(node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                const nodeLength = node.textContent.length;
-                if (currentOffset + nodeLength >= cursorOffset) {
-                    range.setStart(node, cursorOffset - currentOffset);
-                    range.setEnd(node, cursorOffset - currentOffset);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                    return true;
-                } else {
-                    currentOffset += nodeLength;
-                }
-            } else {
-                for (let i = 0; i < node.childNodes.length; i++) {
-                    if (traverseNodes(node.childNodes[i])) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-        traverseNodes(editableDiv);
-    }
+    const monacoReady = new Promise(resolve => {
+        require.config({ paths: { vs: `${SOURCE}/playground/vs-monaco/package/min/vs` } });
+        require(["vs/editor/editor.main"], () => resolve(window.monaco));
+    });
 
 
     //========================================================================================
@@ -123,6 +76,7 @@
     function delCell(cell) {
         const { getCellState, setCellState } = cell;
         const { id, input } = getCellState();
+        cell.editor?.dispose();
         AppState.cellsContainer.element.removeChild(document.getElementById(id));
         AppState.cells = AppState.cells.filter(p => p.id !== id);
         refreshCellNumbers();
@@ -147,48 +101,61 @@
 
     function cellInput(cell) {
         const { getCellState, setCellState, onCellStateChange } = cell;
-        const { input } = getCellState();
-        const codeDOM = DOM.of("code")
-            .addClass("grow")
-            .attr("contenteditable", true)
-            .attr("spellcheck", false)
-            .inner(highlightCode(input))
-            .event("input",
-                debounce(
-                    e => {
-                        setCellState(() => ({ input: e.target.textContent }))
-                        saveToLocalStorage();
-                    }
-                )
-            )
-            .event("keydown", (e) => {
-                if (e.key === 'Enter' && e.shiftKey) {
-                    e.preventDefault();
+        const inputDOM = DOM.of("div").addClass("cell-input");
+        const save = debounce(value => {
+            setCellState(() => ({ input: value }));
+            saveToLocalStorage();
+        });
+        monacoReady.then(monaco => {
+            const editor = monaco.editor.create(inputDOM.element, {
+                value: getCellState().input,
+                language: "javascript",
+                theme: "vs-dark",
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                lineNumbers: "off",
+                folding: false,
+                tabSize: 2,
+                fontSize: 16,
+                padding: { top: 12, bottom: 12 },
+                overviewRulerLanes: 0,
+                scrollbar: { alwaysConsumeMouseWheel: false, vertical: "hidden", horizontal: "auto" },
+            });
+            cell.editor = editor;
+            const updateHeight = () => {
+                const height = Math.max(editor.getContentHeight(), 48);
+                inputDOM.element.style.height = `${height}px`;
+                editor.layout();
+            };
+            editor.onDidContentSizeChange(updateHeight);
+            updateHeight();
+            editor.onDidChangeModelContent(() => save(editor.getValue()));
+            editor.addAction({
+                id: "nabla.run-cell",
+                label: "Run cell",
+                keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.Enter],
+                run: () => {
+                    setCellState(() => ({ input: editor.getValue() }));
                     evalCell(cell);
                     saveToLocalStorage();
                 }
-                if (e.key === 'Tab') {
-                    e.preventDefault();
-                    document.execCommand('insertText', false, '  ');
+            });
+            editor.addAction({
+                id: "nabla.add-cell",
+                label: "Add cell",
+                keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+                run: () => {
+                    addCell();
+                    saveToLocalStorage();
                 }
             });
-
+        });
         onCellStateChange(({ input }) => {
-            codeDOM.map(raw => {
-                // If the element is focused and has newer content than state (debounce pending),
-                // skip re-render to avoid reverting user's in-progress typing.
-                if (raw === document.activeElement && raw.textContent !== input) return;
-                const hlCode = highlightCode(input);
-                const cursorOffset = saveCursorPosition(raw);
-                codeDOM.inner(hlCode);
-                restoreCursorPosition(cursorOffset, raw);
-            })
-        })
-        const inputDOM = DOM.of("pre")
-            .addClass("cell-input")
-            .appendChild(
-                codeDOM
-            )
+            if (cell.editor && cell.editor.getValue() !== input && !cell.editor.hasTextFocus()) {
+                cell.editor.setValue(input);
+            }
+        });
         return inputDOM;
     }
 
@@ -257,24 +224,24 @@
         return cells.map(cell => renderCell(cell));
     }
 
-    function addCellBtn(cellsContainer) {
-        const addCellAction = () => {
-            const { cells } = AppState;
-            const newCell = cell(crypto.randomUUID());
-            cells.push(newCell);
-            cellsContainer.appendChild(renderCell(newCell));
-        }
+    function addCell() {
+        const newCell = cell(crypto.randomUUID());
+        AppState.cells.push(newCell);
+        AppState.cellsContainer.appendChild(renderCell(newCell));
+    }
+
+    function addCellBtn() {
         window.addEventListener("keydown", (e) => {
             if (e.key === 'Enter' && e.ctrlKey) {
                 e.preventDefault();
-                addCellAction();
+                addCell();
                 saveToLocalStorage();
             }
         })
         return DOM.of("button")
             .attr("title", "add new cell (ctrl+enter)")
             .addClass("add-cell-btn")
-            .event("click", () => { addCellAction(); saveToLocalStorage(); })
+            .event("click", () => { addCell(); saveToLocalStorage(); })
             .appendChild(
                 DOM.of("span").inner(svg(`${SOURCE}/assets/plus.svg`)),
                 DOM.of("span").inner(" Add cell")
@@ -293,7 +260,7 @@
                 DOM.of("div")
                     .style("padding-top: 0.75rem")
                     .appendChild(
-                        addCellBtn(cellsContainer)
+                        addCellBtn()
                     )
             )
     }
