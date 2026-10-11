@@ -403,6 +403,7 @@ IO.UI = function (...children) {
  * Plots a cloud of 2D or 3D points.
  * @param {Array|NArray} points - Point coordinates or vectors.
  * @param {object} options - Plot dimensions, colors, radii, and optional scene.
+ * @param {"fit"|"equal"} [options.aspect] - "fit" stretches each axis to fill the canvas, "equal" keeps proportions. Defaults to "fit" in 2D and "equal" in 3D.
  * @returns {object} Interactive plot with rendering and layer-update methods.
  */
 IO.plotPointCloud = function (points, options = {}) {
@@ -1624,6 +1625,23 @@ function combineScenes(scenes) {
 }
 
 /**
+ * Maps points into [-1, 1] around the bounding box center.
+ * @param {Array} points - Points to normalize.
+ * @param {Box} box - Bounding box of the points.
+ * @param {"fit"|"equal"} aspect - "fit" stretches each axis to fill [-1, 1]; "equal" uses one scale for all axes.
+ * @returns {Array} Normalized points.
+ */
+function normalizePoints(points, box, aspect) {
+    const center = box.center;
+    if (aspect === "fit") {
+        const extent = box.diagonal.map(x => x || 1);
+        return points.map(v => v.sub(center).div(extent).scale(2));
+    }
+    const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
+    return points.map(v => v.sub(center).scale(2 / maxExtent));
+}
+
+/**
  * Creates an interactive 2D point-cloud plot.
  * @param {Array|NArray} points - 2D point coordinates.
  * @param {object} options - Canvas and point appearance settings.
@@ -1632,9 +1650,10 @@ function combineScenes(scenes) {
  * @param {object} [options.scene={}] - Additional scene points, radii, and colors.
  * @param {Array|Color} [options.color=[1, 0, 0]] - Point color or per-point colors.
  * @param {number|number[]} [options.radius=0.01] - Point radius or per-point radii.
+ * @param {"fit"|"equal"} [options.aspect="fit"] - "fit" stretches each axis to fill the canvas; "equal" keeps proportions.
  * @returns {object} Interactive plot with update and layer-addition methods.
  */
-function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
+function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01, aspect = "fit" } = {}) {
     // Normalize points to fit in the canvas
     scene = {
         points: scene.points || [],
@@ -1685,12 +1704,7 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec2(radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
-        // uniform scale keeps the proportions; per-axis division would deform the shape
-        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
-        const center = box.center;
-        const normalizedSceneVecs = renderedScene.points.map(v =>
-            v.sub(center).scale(2 / maxExtent)
-        );
+        const normalizedSceneVecs = normalizePoints(renderedScene.points, box, aspect);
         const sceneObj = new NaiveScene();
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
             Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
@@ -1732,9 +1746,10 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
  * @param {object} [options.scene={}] - Additional scene points, radii, and colors.
  * @param {Array|Color} [options.color=[1, 0, 0]] - Point color or per-point colors.
  * @param {number|number[]} [options.radius=0.01] - Point radius or per-point radii.
+ * @param {"fit"|"equal"} [options.aspect="equal"] - "fit" stretches each axis to fill the canvas; "equal" keeps proportions.
  * @returns {object} Interactive plot with update and layer-addition methods.
  */
-function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01 } = {}) {
+function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01, aspect = "equal" } = {}) {
     // Normalize points to fit in the canvas
     scene = {
         points: scene.points || [],
@@ -1788,12 +1803,7 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec3(radius_i, radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
-        // uniform scale keeps the proportions; per-axis division would deform the shape
-        const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
-        const center = box.center;
-        const normalizedSceneVecs = renderedScene.points.map(v =>
-            v.sub(center).scale(2 / maxExtent)
-        );
+        const normalizedSceneVecs = normalizePoints(renderedScene.points, box, aspect);
         const sceneObj = new NaiveScene();
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
             Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
