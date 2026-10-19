@@ -60,12 +60,12 @@
         "path": "/playground/tests/point_cloud_clustering.json"
     },
     {
-        "title": "PDEs on point clouds",
-        "path": "/playground/tests/pdes_on_point_clouds.json"
+        "title": "Heat equation on point clouds",
+        "path": "/playground/tests/heat_on_point_clouds.json"
     },
     {
-        "title": "PDEs on meshes",
-        "path": "/playground/tests/pdes_on_meshes.json"
+        "title": "Wave equation on point clouds",
+        "path": "/playground/tests/wave_on_point_clouds.json"
     },
     {
         "title": "Soft body simulation",

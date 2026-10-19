@@ -90,6 +90,11 @@ dual.random = () => dual(Math.random(), Math.random());
 
 // Vectors
 function vec(...components) {
+    return vec.fromArray(components);
+}
+
+// Takes ownership of the array, avoiding the argument spread of vec(...components)
+vec.fromArray = (components) => {
     const ans = { type: TYPES.vector, components: components };
 
     ans.dim = ans.components.length;
@@ -219,7 +224,7 @@ function vec(...components) {
     ans.toVisual = () => ({ type: "latex", value: `(${ans.components.join(", ")})` });
     ans.toArray = () => ans.components;
     return ans;
-}
+};
 vec.zero = (dim) => {
     const components = [];
     for (let i = 0; i < dim; i++) {
@@ -364,7 +369,7 @@ function mat(data, shape) {
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
-    // options: maxIterations, tolerance, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
+    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
         const { maxFirst = true } = options;
         if (maxFirst) {
@@ -489,6 +494,21 @@ function smat(nzvalues, indices, shape) {
     ans.rows = shape[0];
     ans.cols = shape[1];
 
+    // Row and column of each nonzero, computed once on first use (the matrix is immutable)
+    let coords = null;
+    const coordinates = () => {
+        if (!coords) {
+            const rowOf = new Array(ans.indices.length);
+            const colOf = new Array(ans.indices.length);
+            for (let k = 0; k < ans.indices.length; k++) {
+                rowOf[k] = Math.floor(ans.indices[k] / ans.cols);
+                colOf[k] = ans.indices[k] % ans.cols;
+            }
+            coords = { rowOf, colOf };
+        }
+        return coords;
+    };
+
     ans.get = (i, j) => {
         if (i < 0 || i >= ans.shape[0] || j < 0 || j >= ans.shape[1]) return 0;
         const index = j + i * ans.shape[1];
@@ -591,14 +611,14 @@ function smat(nzvalues, indices, shape) {
         if (ans.cols !== vector.dim) {
             throw Error("Matrix and vector dimensions must match for matrix-vector product");
         }
+        const { rowOf, colOf } = coordinates();
+        const x = vector.components;
+        const values = ans.nzvalues;
         const resultData = new Array(ans.rows).fill(0);
-        for (let k = 0; k < ans.indices.length; k++) {
-            const index = ans.indices[k];
-            const i = Math.floor(index / ans.cols);
-            const j = index % ans.cols;
-            resultData[i] += ans.nzvalues[k] * vector.components[j];
+        for (let k = 0; k < values.length; k++) {
+            resultData[rowOf[k]] += values[k] * x[colOf[k]];
         }
-        return vec(...resultData);
+        return vec.fromArray(resultData);
     };
 
     ans.map = (fn) => {
@@ -612,9 +632,9 @@ function smat(nzvalues, indices, shape) {
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
-    // options: maxIterations, tolerance, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
+    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
-        const { maxFirst = true } = options;
+        const { maxFirst = true} = options;
         if (maxFirst) {
             return eigenMax(ans, options);
         }
@@ -704,46 +724,42 @@ function eigenMax(symMatrix, options = {}) {
     return { eigenvalues, eigenvectors };
 }
 
+// Residual of the eigenpair (lambda, v), where v is unit length and av = A v
+function eigenResidual(v, av) {
+    return av.sub(v.scale(v.dot(av))).length();
+}
+
 function powerMethod(symMatrix, options = {}, basis = []) {
-    const { maxIterations = 1000, tolerance = 1e-10 } = options;
+    const { maxIterations = 1000, tolerance = 1e-6 } = options;
     let v = gramSchmidt(vec.random(symMatrix.rows), basis);
     v = v.normalize();
-    let prevV = vec.zero(symMatrix.rows);
-    let i = maxIterations;
-    while (i > 0 && v.sub(prevV).length() > tolerance) {
-        prevV = v;
+    for (let i = 0; i < maxIterations; i++) {
         const w = symMatrix.prodVec(v);
-        v = w.normalize();
-        v = gramSchmidt(v, basis);
-        i--;
+        if (eigenResidual(v, w) <= tolerance) break;
+        v = gramSchmidt(w, basis).normalize();
     }
     return v;
 }
 
+// basis vectors must be unit length
 function gramSchmidt(v, basis) {
     let u = v;
     for (let i = 0; i < basis.length; i++) {
         const b = basis[i];
-        const proj = b.scale(u.dot(b) / b.dot(b));
-        u = u.sub(proj);
+        u = u.sub(b.scale(u.dot(b)));
     }
     return u;
 }
 
 function eigenGradientDescent(symMatrix, options = {}, basis = []) {
-    const { maxIterations = 1000, tolerance = 1e-10 } = options;
+    const { maxIterations = 1000, tolerance = 1e-6 } = options;
     let v = gramSchmidt(vec.random(symMatrix.rows), basis);
     v = v.normalize();
-    let prevV = vec.zero(symMatrix.rows);
-    let i = maxIterations;
-    while (i > 0 && v.sub(prevV).length() > tolerance) {
-        prevV = v;
+    for (let i = 0; i < maxIterations; i++) {
         const grad = symMatrix.prodVec(v); // gradient of 0.5 * v^T A v
+        if (eigenResidual(v, grad) <= tolerance) break;
         const alpha = grad.dot(grad) / grad.dot(symMatrix.prodVec(grad));
-        v = v.sub(grad.scale(alpha));
-        v = v.normalize();
-        v = gramSchmidt(v, basis);
-        i--;
+        v = gramSchmidt(v.sub(grad.scale(alpha)), basis).normalize();
     }
     return v;
 }
