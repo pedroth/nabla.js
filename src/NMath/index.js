@@ -410,41 +410,55 @@ function mat(data, shape) {
 }
 
 mat.ofVectors = (vectors) => {
-    const d = vectors[0].components.length;
-    const n = vectors.length;
+    const comps = vectors.map(v => v.components ?? v);
+    const d = comps[0].length;
+    const n = comps.length;
     const matrix = new Array(d * n);
     for (let i = 0; i < d; i++) {
         for (let j = 0; j < n; j++) {
-            matrix[i * d + j] = vectors[j].components[i];
+            matrix[i * n + j] = comps[j][i];
         }
     }
     return mat(matrix, [d, n]);
 };
 
-mat.id = (size, field = real) => {
+mat.id = (size) => {
     const vectors = [];
     for (let j = 0; j < size; j++) {
-        const v = vec.zero(size, field);
-        v.components[j] = field(1);
+        const v = vec.zero(size);
+        v.components[j] = 1;
         vectors.push(v);
     }
     return mat.ofVectors(vectors);
 }
 
-mat.zero = (rows, cols, field = real) => {
+mat.zero = (rows, cols) => {
     const vectors = [];
     for (let j = 0; j < cols; j++) {
-        vectors.push(vec.zero(rows, field));
+        vectors.push(vec.zero(rows));
     }
     return mat.ofVectors(vectors);
 };
 
-mat.random = (rows, cols, field = real) => {
-    const vectors = [];
-    for (let j = 0; j < cols; j++) {
-        vectors.push(vec.random(rows, field));
+const gaussian = () => {
+    const u = 1 - Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random());
+};
+
+const SAMPLERS = {
+    uniform: Math.random,
+    gaussian,
+};
+
+// options.distribution: "uniform" (default, [0,1)), "gaussian" (N(0,1)), "rademacher" (+-1)
+mat.random = (rows, cols, { distribution = SAMPLERS.uniform } = {}) => {
+    const sample = SAMPLERS[distribution];
+    if (!sample) throw Error(`Unknown distribution: ${distribution}`);
+    const data = new Array(rows * cols);
+    for (let i = 0; i < data.length; i++) {
+        data[i] = sample();
     }
-    return mat.ofVectors(vectors);
+    return mat(data, [rows, cols]);
 };
 
 mat.builder = (rows, cols) => {
@@ -455,7 +469,7 @@ mat.builder = (rows, cols) => {
         },
         set: (i, j, x) => {
             if (i >= 0 && i < rows && j >= 0 && j < cols) {
-                matrix[i + j * cols] = x;
+                matrix[i * cols + j] = x;
                 return builder;
             }
             return builder;

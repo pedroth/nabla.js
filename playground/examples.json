@@ -33,7 +33,11 @@
     },
     {
         "title": "MNIST PCA data projection",
-        "path": "/playground/tests/mnist_pca_data_projection.json"
+        "path": "/playground/tests/mnist_pca_data_proj.json"
+    },
+    {
+        "title": "MNIST Random PCA data projection",
+        "path": "/playground/tests/mnist_random_pca_data_proj.json"
     },
     {
         "title": "Neural Point cloud SDFs",
