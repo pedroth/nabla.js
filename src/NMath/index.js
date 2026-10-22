@@ -369,7 +369,7 @@ function mat(data, shape) {
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
-    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
+    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), momentum, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
         const { maxFirst = true } = options;
         if (maxFirst) {
@@ -632,7 +632,7 @@ function smat(nzvalues, indices, shape) {
     };
 
     // Eigen decomposition for symmetric matrices (max and min eigenvalues)
-    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
+    // options: maxIterations, tolerance (eigenpair residual ||Av - lambda v||), momentum, k (number of eigenvalues), maxFirst (whether to compute largest eigenvalues first)
     ans.eigen = (options = {}) => {
         const { maxFirst = true} = options;
         if (maxFirst) {
@@ -752,14 +752,20 @@ function gramSchmidt(v, basis) {
 }
 
 function eigenGradientDescent(symMatrix, options = {}, basis = []) {
-    const { maxIterations = 1000, tolerance = 1e-6 } = options;
+    const { maxIterations = 1000, tolerance = 1e-6, momentum = 0.9 } = options;
     let v = gramSchmidt(vec.random(symMatrix.rows), basis);
     v = v.normalize();
+    let velocity = vec.zero(symMatrix.rows);
     for (let i = 0; i < maxIterations; i++) {
-        const grad = symMatrix.prodVec(v); // gradient of 0.5 * v^T A v
-        if (eigenResidual(v, grad) <= tolerance) break;
+        const lookahead = gramSchmidt(v.sub(velocity.scale(momentum)), basis).normalize();
+        const grad = symMatrix.prodVec(lookahead); // gradient at the Nesterov look-ahead
+        if (eigenResidual(lookahead, grad) <= tolerance) {
+            v = lookahead;
+            break;
+        }
         const alpha = grad.dot(grad) / grad.dot(symMatrix.prodVec(grad));
-        v = gramSchmidt(v.sub(grad.scale(alpha)), basis).normalize();
+        velocity = gramSchmidt(velocity.scale(momentum).add(grad.scale(alpha)), basis);
+        v = gramSchmidt(v.sub(velocity), basis).normalize();
     }
     return v;
 }

@@ -11,6 +11,7 @@ import {
     Triangle,
     Vec2,
     Vec3,
+    loop
 } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js";
 import { NArray } from "../src/NArray/index.js";
 import { Symbolic } from "../src/Symbolic/index.js";
@@ -52,6 +53,10 @@ IO.measureTime = async function (fn) {
     const end = performance.now();
     return end - start;
 };
+
+IO.loop = async function (fn) {
+    return loop(fn);
+}
 
 // ---------------------------------------------------------------------------
 // MNIST data and drawing

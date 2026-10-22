@@ -68,6 +68,10 @@
         "path": "/playground/tests/wave_on_point_clouds.json"
     },
     {
+        "title": "Wave equation on point clouds II",
+        "path": "/playground/tests/wave_on_point_clouds_II.json"
+    },
+    {
         "title": "Soft body simulation",
         "path": "/playground/tests/soft_body_simulation.json"
     },

@@ -13,3 +13,19 @@ test("sparse matrix-vector product returns a vector", () => {
     expect(result.type).toBe(NMath.TYPES.vector);
     expect(result.toArray()).toEqual([10, 9]);
 });
+
+test("minimum eigenvalue descent converges with projected Adam", () => {
+    const matrix = NMath.smat.builder(2, 2)
+        .set(0, 0, 1)
+        .set(1, 1, 4)
+        .build();
+
+    const result = matrix.eigen({
+        maxFirst: false,
+        k: 1,
+        tolerance: 1e-8,
+    });
+
+    expect(result.eigenvalues[0]).toBeCloseTo(1, 6);
+    expect(result.eigenvectors[0].length()).toBeCloseTo(1, 12);
+});
