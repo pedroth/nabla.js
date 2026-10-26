@@ -72,6 +72,14 @@
         "path": "/playground/tests/wave_on_point_clouds_II.json"
     },
     {
+        "title": "Point cloud uniformization",
+        "path": "/playground/tests/point_cloud_uniformization.json"
+    },
+    {
+        "title": "Point cloud uniformization II",
+        "path": "/playground/tests/point_cloud_uniformization_II.json"
+    },
+    {
         "title": "Soft body simulation",
         "path": "/playground/tests/soft_body_simulation.json"
     },
