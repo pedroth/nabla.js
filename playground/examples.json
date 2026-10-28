@@ -72,6 +72,10 @@
         "path": "/playground/tests/wave_on_point_clouds_II.json"
     },
     {
+        "title": "Geodesic heat flow",
+        "path": "/playground/tests/geodesic_heat_flow.json"
+    },
+    {
         "title": "Point cloud uniformization",
         "path": "/playground/tests/point_cloud_uniformization.json"
     },

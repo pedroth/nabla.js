@@ -91,6 +91,44 @@ export class Graph {
         return D.sub(W);
     }
 
+    boundaryOperator(weightFn = () => 1) {
+        const ids = Object.keys(this.vertices);
+        const index = {};
+        for (let i = 0; i < ids.length; i++) index[ids[i]] = i;
+
+        const edges = [];
+        for (let i = 0; i < ids.length; i++) {
+            const source = ids[i];
+            for (const target of this.getNeighbors(source)) {
+                const j = index[target];
+                if (i >= j) continue;
+
+                const weight = weightFn(this.vertices[source], this.vertices[target]);
+                if (!Number.isFinite(weight) || weight < 0) {
+                    throw new RangeError("Boundary edge weights must be finite and non-negative");
+                }
+                if (!this.vertexNeigh[target]?.[source]) {
+                    throw new Error("Boundary operator requires an undirected graph");
+                }
+
+                const reverseWeight = weightFn(this.vertices[target], this.vertices[source]);
+                if (weight !== reverseWeight) {
+                    throw new Error("Boundary operator requires symmetric edge weights");
+                }
+                edges.push({ i, j, weight });
+            }
+        }
+
+        const B = matrix.builder(edges.length, ids.length);
+        for (let edge = 0; edge < edges.length; edge++) {
+            const { i, j, weight } = edges[edge];
+            const signedWeight = Math.sqrt(weight);
+            B.set(edge, i, -signedWeight);
+            B.set(edge, j, signedWeight);
+        }
+        return B.build();
+    }
+
     static edgeKey(i, j) {
         return `${i}_${j}`;
     }

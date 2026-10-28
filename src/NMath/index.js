@@ -358,6 +358,43 @@ function mat(data, shape) {
         return vec(...resultData);
     };
 
+    ans.dotVec = (vector) => {
+        if (!vector || vector.type !== TYPES.vector) throw Error("Invalid vector for transpose product");
+        if (ans.rows !== vector.dim) {
+            throw Error("Matrix and vector dimensions must match for transpose product");
+        }
+        const resultData = new Array(ans.cols).fill(0);
+        for (let i = 0; i < ans.rows; i++) {
+            for (let j = 0; j < ans.cols; j++) {
+                resultData[j] += ans.data[i * ans.cols + j] * vector.components[i];
+            }
+        }
+        return vec.fromArray(resultData);
+    };
+
+    ans.dot = (matrixOrVector) => {
+        if (matrixOrVector?.type === TYPES.vector) {
+            return ans.dotVec(matrixOrVector);
+        }
+        if (!matrixOrVector || matrixOrVector.type !== TYPES.matrix) {
+            throw Error("Invalid matrix or vector for transpose product");
+        }
+        if (ans.rows !== matrixOrVector.rows) {
+            throw Error("Matrix dimensions must match for transpose product");
+        }
+
+        const resultData = new Array(ans.cols * matrixOrVector.cols).fill(0);
+        for (let i = 0; i < ans.cols; i++) {
+            for (let j = 0; j < matrixOrVector.cols; j++) {
+                for (let k = 0; k < ans.rows; k++) {
+                    resultData[i * matrixOrVector.cols + j] +=
+                        ans.data[k * ans.cols + i] * matrixOrVector.data[k * matrixOrVector.cols + j];
+                }
+            }
+        }
+        return mat(resultData, [ans.cols, matrixOrVector.cols]);
+    };
+
     ans.map = (fn) => {
         const resultData = [];
         for (let n = 0; n < ans.data.length; n++) {
@@ -376,6 +413,37 @@ function mat(data, shape) {
             return eigenMax(ans, options);
         }
         return eigenMin(ans, options);
+    };
+
+    // Solve min_x 0.5 |Ax - b|^2 using Nesterov gradient descent.
+    ans.solve = (b, options = {}) => {
+        if (!b || b.type !== TYPES.vector) throw Error("Invalid vector for linear system");
+        if (ans.rows !== b.dim) throw Error("Matrix and vector dimensions must match for linear system");
+
+        const { maxIterations = 1000, tolerance = 1e-6, momentum = 0.9 } = options;
+        const square = ans.rows === ans.cols;
+        const gradient = residual => square ? residual : ans.dot(residual);
+        const hessianProdVec = vector => {
+            const product = ans.prodVec(vector);
+            return square ? product : ans.dot(product);
+        };
+
+        let x = vec.zero(ans.cols);
+        let velocity = vec.zero(ans.cols);
+        for (let i = 0; i < maxIterations; i++) {
+            const lookahead = x.sub(velocity.scale(momentum));
+            const residual = ans.prodVec(lookahead).sub(b);
+            const grad = gradient(residual);
+            if (grad.length() <= tolerance) return lookahead;
+
+            const hessianGrad = hessianProdVec(grad);
+            const denominator = grad.dot(hessianGrad);
+            if (denominator === 0) break;
+            const alpha = grad.dot(grad) / denominator;
+            velocity = velocity.scale(momentum).add(grad.scale(alpha));
+            x = x.sub(velocity);
+        }
+        return x;
     };
 
     ans.equals = (other) => {
@@ -619,6 +687,79 @@ function smat(nzvalues, indices, shape) {
             resultData[rowOf[k]] += values[k] * x[colOf[k]];
         }
         return vec.fromArray(resultData);
+    };
+
+    ans.dotVec = (vector) => {
+        if (!vector || vector.type !== TYPES.vector) throw Error("Invalid vector for transpose product");
+        if (ans.rows !== vector.dim) {
+            throw Error("Matrix and vector dimensions must match for transpose product");
+        }
+        const { rowOf, colOf } = coordinates();
+        const resultData = new Array(ans.cols).fill(0);
+        for (let k = 0; k < ans.nzvalues.length; k++) {
+            resultData[colOf[k]] += ans.nzvalues[k] * vector.components[rowOf[k]];
+        }
+        return vec.fromArray(resultData);
+    };
+
+    ans.dot = (matrixOrVector) => {
+        if (matrixOrVector?.type === TYPES.vector) {
+            return ans.dotVec(matrixOrVector);
+        }
+        if (!matrixOrVector || matrixOrVector.type !== TYPES.smatrix) {
+            throw Error("Invalid sparse matrix or vector for transpose product");
+        }
+        if (ans.rows !== matrixOrVector.rows) {
+            throw Error("Matrix dimensions must match for transpose product");
+        }
+
+        const resultData = new Array(ans.cols * matrixOrVector.cols).fill(0);
+        const { rowOf, colOf } = coordinates();
+        for (let k = 0; k < ans.nzvalues.length; k++) {
+            const row = rowOf[k];
+            const col = colOf[k];
+            for (let j = 0; j < matrixOrVector.cols; j++) {
+                resultData[col * matrixOrVector.cols + j] +=
+                    ans.nzvalues[k] * matrixOrVector.get(row, j);
+            }
+        }
+        const result = smat.builder(ans.cols, matrixOrVector.cols);
+        for (let i = 0; i < ans.cols; i++) {
+            for (let j = 0; j < matrixOrVector.cols; j++) {
+                result.set(i, j, resultData[i * matrixOrVector.cols + j]);
+            }
+        }
+        return result.build();
+    };
+
+    ans.solve = (b, options = {}) => {
+        if (!b || b.type !== TYPES.vector) throw Error("Invalid vector for linear system");
+        if (ans.rows !== b.dim) throw Error("Matrix and vector dimensions must match for linear system");
+
+        const { maxIterations = 1000, tolerance = 1e-6, momentum = 0.9 } = options;
+        const square = ans.rows === ans.cols;
+        const gradient = residual => square ? residual : ans.dot(residual);
+        const hessianProdVec = vector => {
+            const product = ans.prodVec(vector);
+            return square ? product : ans.dot(product);
+        };
+
+        let x = vec.zero(ans.cols);
+        let velocity = vec.zero(ans.cols);
+        for (let i = 0; i < maxIterations; i++) {
+            const lookahead = x.sub(velocity.scale(momentum));
+            const residual = ans.prodVec(lookahead).sub(b);
+            const grad = gradient(residual);
+            if (grad.length() <= tolerance) return lookahead;
+
+            const hessianGrad = hessianProdVec(grad);
+            const denominator = grad.dot(hessianGrad);
+            if (denominator === 0) break;
+            const alpha = grad.dot(grad) / denominator;
+            velocity = velocity.scale(momentum).add(grad.scale(alpha));
+            x = x.sub(velocity);
+        }
+        return x;
     };
 
     ans.map = (fn) => {

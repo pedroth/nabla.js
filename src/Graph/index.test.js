@@ -129,3 +129,37 @@ test("laplacian uses unit weights by default", () => {
 
     expect(graph.laplacian().data).toEqual([1, -1, -1, 1]);
 });
+
+test("boundary operator factors the weighted graph laplacian", () => {
+    const graph = new Graph();
+    graph
+        .addVertex("a", { value: 0 })
+        .addVertex("b", { value: 2 })
+        .addVertex("c", { value: 5 })
+        .addEdge("a", "b")
+        .addEdge("b", "a")
+        .addEdge("b", "c")
+        .addEdge("c", "b");
+
+    const weight = (u, v) => Math.abs(u.value - v.value);
+    const B = graph.boundaryOperator(weight);
+    const L = graph.laplacian(weight);
+
+    expect(B.shape).toEqual([2, 3]);
+    for (let i = 0; i < L.rows; i++) {
+        for (let j = 0; j < L.cols; j++) {
+            let product = 0;
+            for (let edge = 0; edge < B.rows; edge++) {
+                product += B.get(edge, i) * B.get(edge, j);
+            }
+            expect(product).toBeCloseTo(L.get(i, j));
+        }
+    }
+});
+
+test("boundary operator requires an undirected graph", () => {
+    const graph = new Graph();
+    graph.addVertex("a").addVertex("b").addEdge("a", "b");
+
+    expect(() => graph.boundaryOperator()).toThrow("undirected graph");
+});
