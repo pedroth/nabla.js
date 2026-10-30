@@ -91,7 +91,7 @@ export class Graph {
         return D.sub(W);
     }
 
-    boundaryOperator(weightFn = () => 1) {
+    gradient(weightFn = () => 1) {
         const ids = Object.keys(this.vertices);
         const index = {};
         for (let i = 0; i < ids.length; i++) index[ids[i]] = i;
@@ -105,15 +105,15 @@ export class Graph {
 
                 const weight = weightFn(this.vertices[source], this.vertices[target]);
                 if (!Number.isFinite(weight) || weight < 0) {
-                    throw new RangeError("Boundary edge weights must be finite and non-negative");
+                    throw new RangeError("Gradient edge weights must be finite and non-negative");
                 }
                 if (!this.vertexNeigh[target]?.[source]) {
-                    throw new Error("Boundary operator requires an undirected graph");
+                    throw new Error("Gradient requires an undirected graph");
                 }
 
                 const reverseWeight = weightFn(this.vertices[target], this.vertices[source]);
                 if (weight !== reverseWeight) {
-                    throw new Error("Boundary operator requires symmetric edge weights");
+                    throw new Error("Gradient requires symmetric edge weights");
                 }
                 edges.push({ i, j, weight });
             }

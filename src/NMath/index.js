@@ -921,7 +921,9 @@ function eigenMin(symMatrix, options = {}) {
         const lambda = v.dot(symMatrix.prodVec(v)); // v is normalized, no need to divide by v.dot(v)
         eigenvalues.push(lambda);
     }
-    return { eigenvalues, eigenvectors };
+    // Deflation does not guarantee ascending order
+    const order = eigenvalues.map((_, i) => i).sort((i, j) => eigenvalues[i] - eigenvalues[j]);
+    return { eigenvalues: order.map(i => eigenvalues[i]), eigenvectors: order.map(i => eigenvectors[i]) };
 }
 
 
