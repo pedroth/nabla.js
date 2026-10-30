@@ -889,6 +889,8 @@ function gramSchmidt(v, basis) {
     const n = v.dim;
     const u = Float64Array.from(v.components);
     for (let k = 0; k < basis.length; k++) {
+        //b = basis[k];
+        //u = u.sub(b.scale(u.dot(b)));
         const b = basis[k].components;
         let c = 0;
         for (let i = 0; i < n; i++) c += u[i] * b[i];
