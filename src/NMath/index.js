@@ -885,21 +885,27 @@ function powerMethod(symMatrix, options = {}, basis = []) {
 
 // basis vectors must be unit length
 function gramSchmidt(v, basis) {
-    let u = v;
-    for (let i = 0; i < basis.length; i++) {
-        const b = basis[i];
-        u = u.sub(b.scale(u.dot(b)));
+    if (basis.length === 0) return v;
+    const n = v.dim;
+    const u = Float64Array.from(v.components);
+    for (let k = 0; k < basis.length; k++) {
+        const b = basis[k].components;
+        let c = 0;
+        for (let i = 0; i < n; i++) c += u[i] * b[i];
+        for (let i = 0; i < n; i++) u[i] -= c * b[i];
     }
-    return u;
+    return vec.fromArray(Array.from(u));
 }
 
 function eigenGradientDescent(symMatrix, options = {}, basis = []) {
-    const { maxIterations = 1000, tolerance = 1e-6, momentum = 0.9 } = options;
+    const { maxIterations = 1000, tolerance = 1e-6, momentum = 0.9, reorthogonalizeEvery = 10 } = options;
     let v = gramSchmidt(vec.random(symMatrix.rows), basis);
     v = v.normalize();
     let velocity = vec.zero(symMatrix.rows);
     for (let i = 0; i < maxIterations; i++) {
-        const lookahead = gramSchmidt(v.sub(velocity.scale(momentum)), basis).normalize();
+        // v and velocity are orthogonal to the basis, so only the gradient step needs projecting;
+        // v is re-projected periodically to cancel rounding drift
+        const lookahead = v.sub(velocity.scale(momentum)).normalize();
         const grad = symMatrix.prodVec(lookahead); // gradient at the Nesterov look-ahead
         if (eigenResidual(lookahead, grad) <= tolerance) {
             v = lookahead;
@@ -907,9 +913,11 @@ function eigenGradientDescent(symMatrix, options = {}, basis = []) {
         }
         const alpha = grad.dot(grad) / grad.dot(symMatrix.prodVec(grad));
         velocity = gramSchmidt(velocity.scale(momentum).add(grad.scale(alpha)), basis);
-        v = gramSchmidt(v.sub(velocity), basis).normalize();
+        v = v.sub(velocity);
+        if ((i + 1) % reorthogonalizeEvery === 0) v = gramSchmidt(v, basis);
+        v = v.normalize();
     }
-    return v;
+    return gramSchmidt(v, basis).normalize();
 }
 
 function eigenMin(symMatrix, options = {}) {
