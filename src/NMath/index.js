@@ -101,57 +101,63 @@ vec.fromArray = (components) => {
     ans.add = (other) => {
         if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
         if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for addition");
-        const newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i] + other.components[i]);
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = ans.components[i] + other.components[i];
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
     ans.sub = (other) => {
         if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
         if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for subtraction");
-        const newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i] - other.components[i]);
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = ans.components[i] - other.components[i];
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
     ans.mul = (other) => {
         if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
         if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for multiplication");
-        const newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i] * other.components[i]);
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = ans.components[i] * other.components[i];
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
     ans.div = (other) => {
         if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
         if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for division");
-        const newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i] / other.components[i]);
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = ans.components[i] / other.components[i];
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
 
     ans.op = (other, fn) => {
         if (!other || other.type !== TYPES.vector) throw Error("Operand must be a vector");
         if (ans.components.length !== other.components.length) throw Error("Vector dimensions must match for operation");
-        const newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(fn(ans.components[i], other.components[i]));
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = fn(ans.components[i], other.components[i]);
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
 
     ans.scale = (field) => {
         if (typeof field !== "number") throw Error("Scaling requires a field element");
-        let newVec = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            newVec.push(ans.components[i] * field);
+        const n = ans.components.length;
+        const newVec = new Array(n);
+        for (let i = 0; i < n; i++) {
+            newVec[i] = ans.components[i] * field;
         }
-        return vec(...newVec);
+        return vec.fromArray(newVec);
     };
 
     // Dot product of two vectors, returns a field element
@@ -201,11 +207,12 @@ vec.fromArray = (components) => {
         return result;
     };
     ans.map = (fn) => {
-        let result = [];
-        for (let i = 0; i < ans.components.length; i++) {
-            result.push(fn(ans.components[i], i));
+        const n = ans.components.length;
+        const result = new Array(n);
+        for (let i = 0; i < n; i++) {
+            result[i] = fn(ans.components[i], i);
         }
-        return vec(...result);
+        return vec.fromArray(result);
     };
     ans.forEach = (fn) => {
         for (let i = 0; i < ans.components.length; i++) {
@@ -226,26 +233,20 @@ vec.fromArray = (components) => {
     return ans;
 };
 vec.zero = (dim) => {
-    const components = [];
-    for (let i = 0; i < dim; i++) {
-        components.push(0);
-    }
-    return vec(...components);
+    return vec.fromArray(new Array(dim).fill(0));
 };
 vec.random = (dim) => {
-    const components = [];
+    const components = new Array(dim);
     for (let i = 0; i < dim; i++) {
-        components.push(Math.random());
+        components[i] = Math.random();
     }
-    return vec(...components);
+    return vec.fromArray(components);
 };
 
 vec.e = (n, index) => {
-    const components = [];
-    for (let i = 0; i < n; i++) {
-        components.push(i === index ? 1 : 0);
-    }
-    return vec(...components);
+    const components = new Array(n).fill(0);
+    if (index >= 0 && index < n) components[index] = 1;
+    return vec.fromArray(components);
 };
 
 
@@ -355,7 +356,7 @@ function mat(data, shape) {
             }
             resultData[i] = sum;
         }
-        return vec(...resultData);
+        return vec.fromArray(resultData);
     };
 
     ans.dotVec = (vector) => {
