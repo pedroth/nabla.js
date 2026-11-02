@@ -80,6 +80,14 @@
         "path": "/playground/tests/geodesic_heat_flow_II.json"
     },
     {
+        "title": "Point cloud normals",
+        "path": "/playground/tests/point_cloud_normals.json"
+    },
+    {
+        "title": "Point cloud cut locus",
+        "path": "/playground/tests/point_cloud_cut_locus.json"
+    },
+    {
         "title": "Point cloud uniformization",
         "path": "/playground/tests/point_cloud_uniformization.json"
     },
