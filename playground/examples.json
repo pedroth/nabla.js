@@ -96,6 +96,10 @@
         "path": "/playground/tests/point_cloud_uniformization_II.json"
     },
     {
+        "title": "Point cloud tangent-point repulsion",
+        "path": "/playground/tests/point_cloud_tangent_point_repulsion.json"
+    },
+    {
         "title": "Soft body simulation",
         "path": "/playground/tests/soft_body_simulation.json"
     },
