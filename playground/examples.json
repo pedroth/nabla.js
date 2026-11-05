@@ -76,6 +76,10 @@
         "path": "/playground/tests/geodesic_heat_flow.json"
     },
     {
+        "title": "Poisson equation on point clouds",
+        "path": "/playground/tests/poisson_equation.json"
+    },
+    {
         "title": "Geodesic heat flow II",
         "path": "/playground/tests/geodesic_heat_flow_II.json"
     },
