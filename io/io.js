@@ -14,6 +14,7 @@ import {
     loop
 } from "https://cdn.jsdelivr.net/npm/tela.js/src/index.js";
 import { NArray } from "../src/NArray/index.js";
+import { NMath } from "../src/NMath/index.js";
 import { Symbolic } from "../src/Symbolic/index.js";
 import { SOURCE } from "./utils.js";
 
@@ -57,6 +58,41 @@ IO.measureTime = async function (fn) {
 IO.loop = async function (fn) {
     return loop(fn);
 }
+
+/**
+ * Generates two balanced, interleaved spirals.
+ * @param {object} options - Dataset parameters.
+ * @param {number} [options.samplesPerClass=200] - Number of points in each spiral.
+ * @param {number} [options.turns=1.5] - Number of turns in each spiral.
+ * @param {number} [options.noise=0.02] - Maximum coordinate perturbation.
+ * @returns {{x: object[], y: number[]}} Two-dimensional vectors and their labels.
+ */
+IO.loadSpiralData = function ({ samplesPerClass = 200, turns = 1.5, noise = 0.02 } = {}) {
+    if (!Number.isInteger(samplesPerClass) || samplesPerClass < 1) {
+        throw new Error("samplesPerClass must be a positive integer");
+    }
+    if (!Number.isFinite(turns) || turns <= 0) {
+        throw new Error("turns must be a positive finite number");
+    }
+    if (!Number.isFinite(noise) || noise < 0) {
+        throw new Error("noise must be a non-negative finite number");
+    }
+
+    const x = [];
+    const y = [];
+    for (let i = 0; i < samplesPerClass; i++) {
+        const radius = (i + 0.5) / samplesPerClass;
+        const angle = 2 * Math.PI * turns * radius;
+        for (const label of [-1, 1]) {
+            x.push(NMath.vec(
+                label * radius * Math.cos(angle) + noise * (2 * Math.random() - 1),
+                label * radius * Math.sin(angle) + noise * (2 * Math.random() - 1),
+            ));
+            y.push(label);
+        }
+    }
+    return { x, y };
+};
 
 // ---------------------------------------------------------------------------
 // MNIST data and drawing
@@ -409,6 +445,8 @@ IO.UI = function (...children) {
  * @param {Array|NArray} points - Point coordinates or vectors.
  * @param {object} options - Plot dimensions, colors, radii, and optional scene.
  * @param {"fit"|"equal"} [options.aspect] - "fit" stretches each axis to fill the canvas, "equal" keeps proportions. Defaults to "fit" in 2D and "equal" in 3D.
+ * @param {Function} [options.background] - For 2D plots, maps an original-coordinate `[x, y]` to an RGB triplet or Color.
+ * @param {number} [options.backgroundSampleSize=1] - Side length in pixels of each 2D background sample block.
  * @returns {object} Interactive plot with rendering and layer-update methods.
  */
 IO.plotPointCloud = function (points, options = {}) {
@@ -1638,12 +1676,17 @@ function combineScenes(scenes) {
  */
 function normalizePoints(points, box, aspect) {
     const center = box.center;
+    const extent = normalizationExtent(box, aspect);
     if (aspect === "fit") {
-        const extent = box.diagonal.map(x => x || 1);
         return points.map(v => v.sub(center).div(extent).scale(2));
     }
+    return points.map(v => v.sub(center).scale(2 / extent.toArray()[0]));
+}
+
+function normalizationExtent(box, aspect) {
+    if (aspect === "fit") return box.diagonal.map(x => x || 1);
     const maxExtent = Math.max(...box.diagonal.toArray()) || 1;
-    return points.map(v => v.sub(center).scale(2 / maxExtent));
+    return box.diagonal.map(() => maxExtent);
 }
 
 /**
@@ -1656,9 +1699,14 @@ function normalizePoints(points, box, aspect) {
  * @param {Array|Color} [options.color=[1, 0, 0]] - Point color or per-point colors.
  * @param {number|number[]} [options.radius=0.01] - Point radius or per-point radii.
  * @param {"fit"|"equal"} [options.aspect="fit"] - "fit" stretches each axis to fill the canvas; "equal" keeps proportions.
+ * @param {Function} [options.background] - Maps an original-coordinate `[x, y]` to an RGB triplet or Color.
+ * @param {number} [options.backgroundSampleSize=1] - Side length in pixels of each background sample block.
  * @returns {object} Interactive plot with update and layer-addition methods.
  */
-function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01, aspect = "fit" } = {}) {
+function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 0], radius = 0.01, aspect = "fit", background, backgroundSampleSize = 1 } = {}) {
+    if (!Number.isInteger(backgroundSampleSize) || backgroundSampleSize < 1) {
+        throw new Error("backgroundSampleSize must be a positive integer");
+    }
     // Normalize points to fit in the canvas
     scene = {
         points: scene.points || [],
@@ -1714,7 +1762,32 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
             Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
         ));
-        canvas.fill(Color.BLACK)
+        if (background) {
+            const extent = normalizationExtent(box, aspect);
+            let currentRow = -1;
+            let colors = [];
+            canvas.map((x, y) => {
+                const row = Math.floor(y / backgroundSampleSize);
+                const column = Math.floor(x / backgroundSampleSize);
+                if (row !== currentRow) {
+                    currentRow = row;
+                    colors = [];
+                }
+                if (!(column in colors)) {
+                    const left = column * backgroundSampleSize;
+                    const bottom = row * backgroundSampleSize;
+                    const sampleX = left + (Math.min(backgroundSampleSize, width - left) - 1) / 2;
+                    const sampleY = bottom + (Math.min(backgroundSampleSize, height - bottom) - 1) / 2;
+                    const normalized = camera.toWorldCoord(Vec2(sampleX, sampleY), canvas);
+                    const point = box.center.add(normalized.mul(extent).scale(0.5));
+                    const value = background(point.toArray());
+                    colors[column] = Array.isArray(value) ? Color.ofRGB(...value) : value;
+                }
+                return colors[column];
+            });
+        } else {
+            canvas.fill(Color.BLACK);
+        }
         return camera
             .raster(sceneObj)
             .to(canvas)
