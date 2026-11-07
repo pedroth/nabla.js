@@ -24,6 +24,18 @@
         "path": "/playground/tests/two_spirals_kernel_ridge.json"
     },
     {
+        "title": "MNIST Autoencoder Data Exploration",
+        "path": "/playground/tests/mnist_autoencoder_data_exploration.json"
+    },
+    {
+        "title": "MNIST Autoencoder Data Projection",
+        "path": "/playground/tests/mnist_autoencoder_data_projection.json"
+    },
+    {
+        "title": "MNIST Autoencoder Data Compression",
+        "path": "/playground/tests/mnist_autoencoder_data_compression.json"
+    },
+    {
         "title": "MNIST Neural Generator",
         "path": "/playground/tests/mnist_neural_generator.json"
     },

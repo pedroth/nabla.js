@@ -91,7 +91,28 @@ const TYPES = {
 // Helpers
 // =============================================================================
 
+const variableMergeCache = new WeakMap();
+
+// Variable lists are writable, so invalidate cached unions if their contents change.
+function variableListState(vars) {
+    let state = variableMergeCache.get(vars);
+    if (!state || state.snapshot.length !== vars.length ||
+        state.snapshot.some((v, i) => v !== vars[i] || state.names[i] !== vars[i].name)) {
+        state = { snapshot: vars.slice(), names: vars.map(v => v.name), merges: new WeakMap() };
+        variableMergeCache.set(vars, state);
+    }
+    return state;
+}
+
 function mergeSortedVars(leftVars, rightVars) {
+    if (leftVars === rightVars || rightVars.length === 0) return leftVars;
+    if (leftVars.length === 0) return rightVars;
+    const leftState = variableListState(leftVars);
+    const rightState = variableListState(rightVars);
+    const cached = leftState.merges.get(rightVars);
+    if (cached && cached.rightState === rightState && variableListState(cached.result) === cached.resultState) {
+        return cached.result;
+    }
     const merged = [];
     let leftIndex = 0;
     let rightIndex = 0;
@@ -110,7 +131,11 @@ function mergeSortedVars(leftVars, rightVars) {
             rightIndex++;
         }
     }
-    return merged;
+    let result = merged;
+    if (merged.length === leftVars.length && merged.every((v, i) => v === leftVars[i])) result = leftVars;
+    else if (merged.length === rightVars.length && merged.every((v, i) => v === rightVars[i])) result = rightVars;
+    leftState.merges.set(rightVars, { rightState, result, resultState: variableListState(result) });
+    return result;
 }
 
 function mergeVars(...expressions) {
@@ -961,12 +986,16 @@ function _tensor_mul(a, b) {
 }
 
 function _tensor_contraction(a, b) {
-    // Recursively multiply and accumulate across the matching dimensions
-    let acc = _tensor_mul(a.components[0], b.components[0]);
-    for (let i = 1; i < a.components.length; i++) {
-        acc = acc.add(_tensor_mul(a.components[i], b.components[i]));
+    // Balance the sum to keep large contractions shallow for differentiation.
+    let terms = a.components.map((component, i) => _tensor_mul(component, b.components[i]));
+    while (terms.length > 1) {
+        const next = [];
+        for (let i = 0; i < terms.length; i += 2) {
+            next.push(i + 1 < terms.length ? terms[i].add(terms[i + 1]) : terms[i]);
+        }
+        terms = next;
     }
-    return acc;
+    return terms[0];
 }
 
 function _tensor_outer(a, b) {
@@ -975,12 +1004,16 @@ function _tensor_outer(a, b) {
 }
 
 function covec(...components) {
+    return createCovec(components);
+}
+
+function createCovec(components, vars) {
     components = components.map(c => typeof c === "number" ? real(c) : c);
 
     const ans = { type: TYPES.covector, components };
     ans.dim = components.length;
     ans.children = components;
-    ans.vars = mergeVars(...components);
+    ans.vars = vars ?? mergeVars(...components);
     components.forEach(c => c.vars = ans.vars);
 
     ans.shape = () => {
@@ -1425,6 +1458,11 @@ function backward(expression) {
 
     buildTopo(expression);
 
+    if (nodes.some(node => node.type === TYPES.poly || node.type === TYPES.ratioPoly ||
+        node.type === TYPES.complex || node.type === TYPES.vector || node.type === TYPES.covector)) {
+        return derivative(expression);
+    }
+
     // Initialize dE/dE = 1.
     // derivatives maps each node to its reverse-mode derivative dE/dNode.
     const derivatives = new Map([[expression, real(1)]]);
@@ -1459,10 +1497,17 @@ function backward(expression) {
     }
 
     const variables = expression.vars.filter(variable => !variable.isParam);
-    const partials = variables.map(variable => derivatives.get(variable) ?? real(0));
+    const derivativesByName = new Map();
+    nodes.forEach(node => {
+        if (node.type !== TYPES.realVar || node.isParam || !derivatives.has(node)) return;
+        const previous = derivativesByName.get(node.name);
+        const contribution = derivatives.get(node);
+        derivativesByName.set(node.name, previous ? previous.add(contribution) : contribution);
+    });
+    const partials = variables.map(variable => derivativesByName.get(variable.name) ?? real(0));
     const result = partials.length === 1
         ? partials[0]
-        : covec(...partials);
+        : createCovec(partials, expression.vars);
     result.vars = expression.vars;
     return result;
 }

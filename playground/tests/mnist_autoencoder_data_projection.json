@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const samples = await IO.loadMNIST();\nconst nn = NeuralNet.builder()\n    .input(28 * 28)\n    .layer(3, NeuralNet.ACTIVATIONS.linear)\n    .layer(28 * 28, NeuralNet.ACTIVATIONS.sigmoid)\n    .build();\n\nconst {theta} = await DataScience.fitDataAsync(samples, samples, nn.model, {\n    initialTheta: nn.weightsMap,\n    epochs: 1500,\n    batch: 8,\n    optimizer: DataScience.OPTIMIZERS.ADAMW({learningRate: 0.01}),\n    continuationEvery: 100,\n    continuationFn: ({epoch, loss}) => console.log(`Batch ${epoch + 1}, reconstruction MSE: ${loss.toFixed(5)}`),\n});\n\nconst encoder = NeuralNet.builder().input(28 * 28).layer(3, NeuralNet.ACTIVATIONS.linear).build();\nencoder.setWeights(theta);\nconst embeddings = samples.map(sample => encoder.eval(sample));\nIO.projectMNIST(samples, embeddings);"
+    }
+]

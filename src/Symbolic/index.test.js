@@ -1,6 +1,37 @@
 import { expect, test } from "bun:test";
 import { Symbolic } from "./index.js";
 
+test("tensor contractions preserve numeric results for odd and even dimensions", () => {
+	for (const n of [3, 4, 17]) {
+		const a = Symbolic.vec(...Array.from({ length: n }, (_, i) => Symbolic.realVar(`x_${i}`)));
+		const b = Symbolic.vec(...Array.from({ length: n }, (_, i) => Symbolic.real(i + 1)));
+		const values = Object.fromEntries(Array.from({ length: n }, (_, i) => [`x_${i}`, i + 2]));
+		const expected = Array.from({ length: n }, (_, i) => (i + 1) * (i + 2)).reduce((x, y) => x + y, 0);
+		expect(Symbolic.compile(a.dot(b))(values)).toBe(expected);
+	}
+});
+
+test("cached variable unions account for writable variable lists", () => {
+	const x = Symbolic.realVar("x");
+	const y = Symbolic.realVar("y");
+	const z = Symbolic.realVar("z");
+	const first = x.add(y);
+	first.vars.push(z);
+	expect(x.add(y).vars.map(v => v.name)).toEqual(["x", "y"]);
+	x.vars = [x, z];
+	expect(x.add(y).vars.map(v => v.name)).toEqual(["x", "y", "z"]);
+	x.vars.pop();
+	expect(x.add(y).vars.map(v => v.name)).toEqual(["x", "y"]);
+	x.name = "z";
+	expect(x.add(y).vars.map(v => v.name)).toEqual(["y", "z"]);
+});
+
+test("backward sums contributions from separate variables with the same name", () => {
+	const x = Symbolic.realVar("x");
+	const otherX = Symbolic.realVar("x");
+	expect(Symbolic.compile(Symbolic.backward(x.mul(otherX)))({ x: 3 })).toBe(6);
+});
+
 test("pullbacks are memoized per expression node", () => {
 	const x = Symbolic.realVar("x");
 	const y = Symbolic.realVar("y");
