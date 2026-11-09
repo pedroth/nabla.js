@@ -1255,7 +1255,7 @@ IO.sdfViewSym = function (expressionOrNN, options = {}) {
  * @param {number} [options.maxDistance=10] - Maximum ray distance.
  * @param {number} [options.scale=3] - Display size multiplier for the canvas.
  * @param {{min: number[], max: number[]}|null} [options.aabbClip=null] - Optional 3D clipping bounds.
- * @returns {object} Interactive WebGL canvas visualization.
+ * @returns {object} Interactive WebGL canvas visualization; `setExpression` replaces its SDF and redraws.
  */
 IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     const {
@@ -1268,8 +1268,8 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
         aabbClip = null,
     } = options;
     validateAabbClip(aabbClip);
-    const expression = expressionOrNN?.symbolicNN ?? expressionOrNN;
-    const weightsMap = expressionOrNN?.symbolicNN
+    let expression = expressionOrNN?.symbolicNN ?? expressionOrNN;
+    let weightsMap = expressionOrNN?.symbolicNN
         ? expressionOrNN.weightsMap
         : {};
 
@@ -1287,13 +1287,14 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
-    const buildProgram = () => {
-        const fragmentSource = buildSdfFragmentShader(expression, weightsMap, { maxIterations, epsilon, maxDistance });
+    const buildProgram = (nextExpression = expression, nextWeights = weightsMap) => {
+        const fragmentSource = buildSdfFragmentShader(nextExpression, nextWeights, { maxIterations, epsilon, maxDistance });
         const program = createShaderProgram(gl, SDF_VERTEX_SHADER, fragmentSource);
         const aPosition = gl.getAttribLocation(program, "aPosition");
         gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
         gl.enableVertexAttribArray(aPosition);
         gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+        const previousProgram = glProgram.current;
         glProgram.current = program;
         glProgram.uniforms = {
             resolution: gl.getUniformLocation(program, "uResolution"),
@@ -1305,6 +1306,7 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
             aabbMax: gl.getUniformLocation(program, "uAabbMax"),
             useAabbClip: gl.getUniformLocation(program, "uUseAabbClip"),
         };
+        if (previousProgram) gl.deleteProgram(previousProgram);
     };
     buildProgram();
 
@@ -1354,6 +1356,14 @@ IO.sdfViewSymGL = function (expressionOrNN, options = {}) {
     return {
         render: () => {
             buildProgram();
+            return paint();
+        },
+        setExpression: (next) => {
+            const nextExpression = next?.symbolicNN ?? next;
+            const nextWeights = next?.symbolicNN ? next.weightsMap : {};
+            buildProgram(nextExpression, nextWeights);
+            expression = nextExpression;
+            weightsMap = nextWeights;
             return paint();
         },
         toVisual: () => {
@@ -1420,14 +1430,25 @@ function createShaderProgram(gl, vertexSource, fragmentSource) {
         return shader;
     };
     const program = gl.createProgram();
-    gl.attachShader(program, compile(gl.VERTEX_SHADER, vertexSource));
-    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fragmentSource));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        const log = gl.getProgramInfoLog(program);
-        throw new Error(`Program link error: ${log}`);
+    let vertexShader;
+    let fragmentShader;
+    let linked = false;
+    try {
+        vertexShader = compile(gl.VERTEX_SHADER, vertexSource);
+        fragmentShader = compile(gl.FRAGMENT_SHADER, fragmentSource);
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            throw new Error(`Program link error: ${gl.getProgramInfoLog(program)}`);
+        }
+        linked = true;
+        return program;
+    } finally {
+        if (vertexShader) gl.deleteShader(vertexShader);
+        if (fragmentShader) gl.deleteShader(fragmentShader);
+        if (!linked) gl.deleteProgram(program);
     }
-    return program;
 }
 
 /**

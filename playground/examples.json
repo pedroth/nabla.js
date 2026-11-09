@@ -28,8 +28,16 @@
         "path": "/playground/tests/mnist_neural_generator.json"
     },
     {
+        "title": "MNIST Kernel Generator",
+        "path": "/playground/tests/mnist_kernel_generator.json"
+    },
+    {
         "title": "MNIST Neural Interpolation",
         "path": "/playground/tests/mnist_neural_interpolation.json"
+    },
+    {
+        "title": "MNIST Kernel Interpolation",
+        "path": "/playground/tests/mnist_kernel_interpolation.json"
     },
     {
         "title": "MNIST PCA data exploration",
@@ -50,6 +58,10 @@
     {
         "title": "Neural Point cloud SDFs",
         "path": "/playground/tests/point_cloud_sdfs.json"
+    },
+    {
+        "title": "Kernel Point cloud SDFs",
+        "path": "/playground/tests/point_cloud_kernel_sdfs.json"
     },
     {
         "title": "Point cloud knn graph",

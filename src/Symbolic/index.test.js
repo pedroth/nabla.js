@@ -1,6 +1,25 @@
 import { expect, test } from "bun:test";
 import { Symbolic } from "./index.js";
 
+test("backward accumulates distinct variable nodes with the same name", () => {
+	const x = Symbolic.realVar("x");
+	const otherX = Symbolic.realVar("x");
+	const expression = x.mul(otherX).add(x);
+	const gradient = Symbolic.compile(Symbolic.backward(expression));
+
+	expect(gradient({ x: 3 })).toBe(7);
+});
+
+test("backward differentiates nested simplified expressions", () => {
+	const x = Symbolic.realVar("x");
+	const polynomial = x.mul(x).simplify();
+	const ratio = x.div(x.add(Symbolic.real(1))).simplify();
+	const expression = Symbolic.exp(polynomial).add(Symbolic.sin(ratio));
+	const gradient = Symbolic.compile(Symbolic.backward(expression));
+
+	expect(gradient({ x: 1 })).toBeCloseTo(2 * Math.E + Math.cos(0.5) / 4);
+});
+
 test("pullbacks are memoized per expression node", () => {
 	const x = Symbolic.realVar("x");
 	const y = Symbolic.realVar("y");

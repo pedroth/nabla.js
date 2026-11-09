@@ -1424,6 +1424,10 @@ function backward(expression) {
     }
 
     buildTopo(expression);
+    // Flattened expressions hide their variable nodes from the reverse-mode graph.
+    if (nodes.some(node => node.type === TYPES.poly || node.type === TYPES.ratioPoly)) {
+        return derivative(expression);
+    }
 
     // Initialize dE/dE = 1.
     // derivatives maps each node to its reverse-mode derivative dE/dNode.
@@ -1459,7 +1463,14 @@ function backward(expression) {
     }
 
     const variables = expression.vars.filter(variable => !variable.isParam);
-    const partials = variables.map(variable => derivatives.get(variable) ?? real(0));
+    const derivativesByName = new Map();
+    nodes.forEach(node => {
+        if (node.type !== TYPES.realVar || !derivatives.has(node)) return;
+        const contribution = derivatives.get(node);
+        const current = derivativesByName.get(node.name);
+        derivativesByName.set(node.name, current ? current.add(contribution) : contribution);
+    });
+    const partials = variables.map(variable => derivativesByName.get(variable.name) ?? real(0));
     const result = partials.length === 1
         ? partials[0]
         : covec(...partials);
