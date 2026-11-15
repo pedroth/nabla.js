@@ -182,5 +182,17 @@
     {
         "title": "Math test",
         "path": "/playground/tests/math_test.json"
+    },
+    {
+        "title": "Spiral Flow Matching",
+        "path": "/playground/tests/spiral_flow_matching.json"
+    },
+    {
+        "title": "Bunny Flow Matching",
+        "path": "/playground/tests/bunny_flow_matching.json"
+    },
+    {
+        "title": "MNIST PCA Flow Matching",
+        "path": "/playground/tests/mnist_pca_flow_matching.json"
     }
 ]

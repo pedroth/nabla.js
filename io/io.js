@@ -177,8 +177,9 @@ IO.paintMNIST = function (mnistSamples, scale = 10) {
  * @param {number} [options.height=28] - Image height in pixels.
  * @param {number} [options.scale=10] - Display size multiplier for each pixel.
  * @param {number} [options.brushRadius=1.2] - Brush radius in image pixels.
+ * @param {boolean} [options.randomButton=false] - Show a button that randomizes every pixel.
  * @param {Function|null} [options.onSubmit=null] - Callback receiving the image data.
- * @returns {{clear: Function, submit: Function, getData: Function, toVisual: Function}} Drawing controls and visual.
+ * @returns {{clear: Function, randomize: Function, submit: Function, getData: Function, toVisual: Function}} Drawing controls and visual.
  */
 IO.drawMNIST = function (options = {}) {
     const {
@@ -186,6 +187,7 @@ IO.drawMNIST = function (options = {}) {
         height = 28,
         scale = 10,
         brushRadius = 1.2,
+        randomButton = false,
         onSubmit = null,
     } = options;
     // row-major, row 0 = top, matching paintMNIST/loadMNIST sample layout
@@ -251,6 +253,11 @@ IO.drawMNIST = function (options = {}) {
         render();
     };
 
+    const randomize = () => {
+        for (let i = 0; i < density.length; i++) density[i] = Math.random();
+        render();
+    };
+
     const submit = () => {
         onSubmit?.(density);
     };
@@ -259,6 +266,7 @@ IO.drawMNIST = function (options = {}) {
 
     return {
         clear,
+        randomize,
         submit,
         getData: () => Float32Array.from(density),
         toVisual: () => {
@@ -279,6 +287,7 @@ IO.drawMNIST = function (options = {}) {
                         type: "group",
                         value: () => [
                             { type: "button", value: () => ({ title: "Clear", onClick: clear }) },
+                            ...(randomButton ? [{ type: "button", value: () => ({ title: "Random image", onClick: randomize }) }] : []),
                             { type: "button", value: () => ({ title: "Submit", onClick: submit }) },
                         ]
                     },
@@ -447,7 +456,7 @@ IO.UI = function (...children) {
  * @param {"fit"|"equal"} [options.aspect] - "fit" stretches each axis to fill the canvas, "equal" keeps proportions. Defaults to "fit" in 2D and "equal" in 3D.
  * @param {Function} [options.background] - For 2D plots, maps an original-coordinate `[x, y]` to an RGB triplet or Color.
  * @param {number} [options.backgroundSampleSize=1] - Side length in pixels of each 2D background sample block.
- * @returns {object} Interactive plot with rendering and layer-update methods.
+ * @returns {object} Interactive plot with point and line layer-update methods.
  */
 IO.plotPointCloud = function (points, options = {}) {
     if (points instanceof NArray) {
@@ -1710,6 +1719,24 @@ function normalizationExtent(box, aspect) {
     return box.diagonal.map(() => maxExtent);
 }
 
+function addLineBounds(box, layers) {
+    for (const layer of layers) {
+        for (const [start, end] of layer.lines) box = box.add(new Box(start, end));
+    }
+    return box;
+}
+
+function renderLineLayers(scene, layers, box, aspect) {
+    for (const layer of layers) {
+        scene.addList(layer.lines.map(([start, end], index) => {
+            const [a, b] = normalizePoints([start, end], box, aspect);
+            return Line.builder().positions(a, b)
+                .colors(layer.colors[index], layer.colors[index])
+                .radius(layer.radius).build();
+        }));
+    }
+}
+
 /**
  * Creates an interactive 2D point-cloud plot.
  * @param {Array|NArray} points - 2D point coordinates.
@@ -1736,6 +1763,7 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     };
     const base = createLayer(points, { color, radius }, Vec2);
     const layers = [base.layer];
+    const lineLayers = [];
 
     let canvas = Canvas.ofSize(width, height);
     let cameraBox = new Box(Vec2(-1, -1), Vec2(1, 1));
@@ -1778,8 +1806,10 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec2(radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
+        box = addLineBounds(box, lineLayers);
         const normalizedSceneVecs = normalizePoints(renderedScene.points, box, aspect);
         const sceneObj = new NaiveScene();
+        renderLineLayers(sceneObj, lineLayers, box, aspect);
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
             Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
         ));
@@ -1827,6 +1857,17 @@ function plot2d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             layers.push(layer.layer);
             return { update: layer.update };
         },
+        /**
+         * Adds a 2D line layer using the same camera and bounds as the points.
+         * @param {Array|NArray} lines - Pairs of endpoint arrays or vectors.
+         * @param {object} options - Line color and radius settings.
+         * @returns {{update: Function}} Update method for the added layer.
+         */
+        addLines: (lines, options) => {
+            const layer = createLineLayer(lines, options, 2);
+            lineLayers.push(layer.layer);
+            return { update: layer.update };
+        },
         canvas,
         render: paint,
         toVisual: () => {
@@ -1857,6 +1898,7 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
     };
     const base = createLayer(points, { color, radius }, Vec3);
     const layers = [base.layer];
+    const lineLayers = [];
     let canvas = Canvas.ofSize(width, height);
     const camera = new Camera().orbit(5, 0, 0);
     let mousedown = false;
@@ -1902,8 +1944,10 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
             const vec_radius = Vec3(radius_i, radius_i, radius_i);
             box = box.add(new Box(renderedScene.points[i].sub(vec_radius), renderedScene.points[i].add(vec_radius)));
         }
+        box = addLineBounds(box, lineLayers);
         const normalizedSceneVecs = normalizePoints(renderedScene.points, box, aspect);
         const sceneObj = new NaiveScene();
+        renderLineLayers(sceneObj, lineLayers, box, aspect);
         sceneObj.addList(normalizedSceneVecs.map((v, i) =>
             Sphere.builder().position(v).radius(renderedScene.radiuses[i]).color(renderedScene.colors[i]).build()
         ));
@@ -1924,6 +1968,17 @@ function plot3d(points, { width = 500, height = 500, scene = {}, color = [1, 0, 
         add: (layerPoints, options) => {
             const layer = createLayer(layerPoints, options, Vec3);
             layers.push(layer.layer);
+            return { update: layer.update };
+        },
+        /**
+         * Adds a 3D line layer using the same camera and bounds as the points.
+         * @param {Array|NArray} lines - Pairs of endpoint arrays or vectors.
+         * @param {object} options - Line color and radius settings.
+         * @returns {{update: Function}} Update method for the added layer.
+         */
+        addLines: (lines, options) => {
+            const layer = createLineLayer(lines, options, 3);
+            lineLayers.push(layer.layer);
             return { update: layer.update };
         },
         canvas,

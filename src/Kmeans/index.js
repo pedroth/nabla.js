@@ -78,6 +78,20 @@ export class Kmeans {
     return this;
   }
 
+  loss(data) {
+    const dataByClusters = this._clusterData(data);
+    let totalLoss = 0;
+    for (let i = 0; i < this.k; i++) {
+      const clusterDataIndex = dataByClusters[i];
+      const n = clusterDataIndex.length;
+      for (let j = 0; j < n; j++) {
+        const x = data[clusterDataIndex[j]];
+        totalLoss += x.sub(this.clusters[i]).squareLength();
+      }
+    }
+    return totalLoss;
+  }
+
   /** @param {vec} x @returns {number} index of the nearest cluster */
   predictIndex(x) {
     let kIndex = 0;
