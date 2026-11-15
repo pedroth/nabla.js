@@ -1,15 +1,40 @@
 import { Symbolic } from "../Symbolic/index.js";
 
-function createThetaMapIndex(model) {
-    const ans = {};
-    let index = 0;
-    model.vars.forEach((v) => {
-        if (!v.isParam) {
-            ans[v.name] = index;
-            index++;
-        }
-    });
-    return ans;
+function squaredError(prediction, target) {
+    const difference = prediction.sub(target);
+    return difference.type === Symbolic.TYPES.vector
+        ? difference.dot(difference)
+        : difference.mul(difference);
+}
+
+function createTarget(model) {
+    console.log("Creating target for model:", model);
+    const names = new Set(model.vars.map(variable => variable.name));
+    const dimension = model.type === Symbolic.TYPES.vector ? model.dim : 1;
+    const components = [];
+    for (let index = 0; index < dimension; index++) {
+        let name = `__nabla_target_${index}`;
+        while (names.has(name)) name += "_";
+        names.add(name);
+        components.push(Symbolic.realVar(name, true));
+    }
+    return model.type === Symbolic.TYPES.vector ? Symbolic.vec(...components) : components[0];
+}
+
+function buildTarget(output, target) {
+    if (target.type !== Symbolic.TYPES.vector) {
+        if (typeof output !== "number") throw new Error("Expected a numeric scalar target");
+        return { [target.name]: output };
+    }
+    const values = output?.components ?? output?.toArray?.() ?? output;
+    if (!Array.isArray(values) || values.length !== target.dim) {
+        throw new Error(`Expected a target vector of dimension ${target.dim}`);
+    }
+    return Object.fromEntries(target.components.map((component, index) => {
+        const value = values[index]?.value ?? values[index];
+        if (typeof value !== "number") throw new Error("Expected numeric target vector components");
+        return [component.name, value];
+    }));
 }
 
 // X: array of input vectors, Y: array of output vectors
@@ -17,26 +42,42 @@ function createFitState(X, Y, model, params = {}) {
     const {
         batch = 10,
         optimizer = OPTIMIZERS.ADAMW(),
+        lossFn = squaredError,
     } = params;
     const Xarr = X?.toArray?.() ?? X;
     const Yarr = Y?.toArray?.() ?? Y;
     const finalBatch = Math.min(batch || 1, Xarr.length);
-    const thetaByIndex = createThetaMapIndex(model);
-    const thetaKeys = Object.keys(thetaByIndex);
+    const thetaKeys = model.vars.filter(v => !v.isParam).map(v => v.name);
     const thetaValues = optimizer.initTheta(thetaKeys);
     const compiledModel = Symbolic.compile(model);
+    const target = createTarget(model);
+    if (typeof lossFn !== "function") throw new Error("lossFn must be a function");
+    const loss = lossFn(model, target);
+    if (!loss || !Array.isArray(loss.vars) || !Array.isArray(loss.children) ||
+        [Symbolic.TYPES.vector, Symbolic.TYPES.covector, Symbolic.TYPES.complex].includes(loss.type)) {
+        throw new Error("lossFn must return a scalar symbolic expression");
+    }
+    const allowedNames = new Set([...model.vars, ...target.vars].map(variable => variable.name));
+    if (loss.vars.some(variable => !allowedNames.has(variable.name))) {
+        throw new Error("lossFn contains variables outside the model and target");
+    }
+    const gradientKeys = loss.vars.filter(v => !v.isParam).map(v => v.name);
+    const gradientIndex = new Map(gradientKeys.map((key, index) => [key, index]));
 
     optimizer.initOptimizer(thetaKeys);
 
     return {
         Xarr,
         Yarr,
-        compiledGrad: Symbolic.compile(Symbolic.backward(model)),
+        compiledGrad: Symbolic.compile(Symbolic.backward(loss)),
+        compiledLoss: Symbolic.compile(loss),
         compiledModel,
         finalBatch,
+        gradientIndex,
+        gradientSize: gradientKeys.length,
         model,
         optimizer,
-        thetaByIndex,
+        target,
         thetaKeys,
         thetaValues,
     };
@@ -47,11 +88,14 @@ function runFitEpoch(state, epoch) {
         Xarr,
         Yarr,
         compiledGrad,
+        compiledLoss,
         compiledModel,
         finalBatch,
+        gradientIndex,
+        gradientSize,
         model,
         optimizer,
-        thetaByIndex,
+        target,
         thetaKeys,
         thetaValues,
     } = state;
@@ -64,18 +108,17 @@ function runFitEpoch(state, epoch) {
         const index = Math.floor(Math.random() * Xarr.length);
         const input = buildInput(Xarr[index], model);
         const output = Yarr[index];
-        const inputPlusWeights = { ...input, ...thetaValues };
+        const args = { ...input, ...thetaValues, ...buildTarget(output, target) };
+        const loss = compiledLoss(args);
+        if (!Number.isFinite(loss)) throw new Error("Loss must be finite");
+        lossSum += loss;
 
-        const val = compiledModel(inputPlusWeights);
-        const diff = val - output;
-
-        if (!isFinite(diff)) continue;
-        lossSum += diff * diff;
-
-        const grad = compiledGrad(inputPlusWeights);
+        const grad = compiledGrad(args);
         thetaKeys.forEach((key) => {
-            const gradVal = grad[thetaByIndex[key]] * 2 * diff; // gradient of the loss (squared error) with respect to the parameter
-            if (isFinite(gradVal)) gradAccumulator[key] += gradVal;
+            const index = gradientIndex.get(key);
+            const gradVal = index === undefined ? 0 : gradientSize === 1 ? grad : grad[index];
+            if (!Number.isFinite(gradVal)) throw new Error(`Gradient for ${key} must be finite`);
+            gradAccumulator[key] += gradVal;
         });
     }
 
