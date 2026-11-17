@@ -1,113 +1,156 @@
 import { NMath } from "../NMath/index.js";
+
 const { vec } = NMath;
 
-export class Kmeans {
-  constructor(k, dim) {
-    if (k === undefined || dim === undefined) {
-      throw new Error("undefined constructor parameters");
-    }
-    this.k = k;
-    this.dim = dim;
-    this.clusters = [];
-    this._initialized = false;
-    for (let i = 0; i < k; i++) {
-      this.clusters[i] = vec.random(dim);
-    }
+const Kmeans = {};
+
+Kmeans.new = function (data, k, options = {}) {
+  const { maxIterations = 100, initIterations = 0 } = options;
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error("data must be a non-empty array");
+  }
+  if (!Number.isInteger(k) || k <= 0) {
+    throw new Error("k must be a positive integer");
+  }
+  if (!Number.isInteger(maxIterations) || maxIterations < 0) {
+    throw new Error("maxIterations must be a non-negative integer");
+  }
+  if (!Number.isInteger(initIterations) || initIterations < 0) {
+    throw new Error("initIterations must be a non-negative integer");
   }
 
-  _takeRandomDataPointFromCluster(clustersIndexes) {
-    const k = Math.floor(Math.random() * this.k);
-    if (clustersIndexes[k].length > 0) {
-      const sampleIndex = Math.floor(Math.random() * clustersIndexes[k].length);
-      return clustersIndexes[k][sampleIndex];
-    }
-    return this._takeRandomDataPointFromCluster(clustersIndexes);
+  const points = data.map(toVector);
+  const dim = points[0].dim;
+  if (dim === 0 || points.some(point => point.dim !== dim)) {
+    throw new Error("data vectors must have the same non-zero dimension");
   }
 
-  /** @param {Array<vec>} data @returns {Array<int>} */
-  _clusterData(data) {
-    const clusterIndex = [];
-    for (let i = 0; i < this.k; i++) {
-      clusterIndex[i] = [];
-    }
-    for (let i = 0; i < data.length; i++) {
-      const kIndex = this.predictIndex(data[i]);
-      const j = clusterIndex[kIndex].length;
-      clusterIndex[kIndex][j] = i;
-    }
-    // force clusters to have at least one data point
-    for (let i = 0; i < this.k; i++) {
-      if (clusterIndex[i].length === 0) {
-        clusterIndex[i][0] = this._takeRandomDataPointFromCluster(clusterIndex);
-      }
-    }
-    return clusterIndex;
-  }
+  let clusters;
+  const ans = {};
 
-  _updateParameters(dataByClusters, data) {
-    for (let i = 0; i < this.k; i++) {
-      const clusterDataIndex = dataByClusters[i];
-      const n = clusterDataIndex.length;
-      let mu = vec.zero(this.dim);
-      for (let j = 0; j < n; j++) {
-        const rgb = data[clusterDataIndex[j]];
-        mu = mu.add(rgb);
-      }
-      this.clusters[i] = mu.scale(1.0 / n);
+  ans.init = () => {
+    clusters = init(points, k, Math.random);
+    return ans;
+  };
+
+  ans.update = () => {
+    if (clusters === undefined || clusters === null) {
+      clusters = init(points, k, Math.random);
     }
-  }
+    clusters = update(points, clusters, dim, Math.random);
+    return ans;
+  };
 
-  // Public API
-
-  /** Seeds the centroids with k random data points. @param {Array<vec>} data @returns {Kmeans} */
-  init(data) {
-    for (let i = 0; i < this.k; i++) {
-      this.clusters[i] = data[Math.floor(Math.random() * data.length)];
+  ans.loss = () => {
+    if (clusters === undefined || clusters === null) {
+      clusters = init(points, k, Math.random);
     }
-    this._initialized = true;
-    return this;
-  }
+    return loss(points, clusters);
+  };
 
-  /** @param {Array<vec>} data @returns {Kmeans} */
-  update(data) {
-    if (!this._initialized) {
-      this.init(data);
+  ans.fit = () => {
+    clusters = fit(points, k, dim, maxIterations, initIterations, Math.random);
+    return ans;
+  };
+
+  // vec -> index of the nearest cluster
+  ans.predictIndex = x => {
+    const point = toVector(x);
+    if (point.dim !== dim) {
+      throw new Error(`expected a vector of dimension ${dim}`);
     }
-    const dataByClusters = this._clusterData(data);
-    this._updateParameters(dataByClusters, data);
-    return this;
-  }
-
-  loss(data) {
-    const dataByClusters = this._clusterData(data);
-    let totalLoss = 0;
-    for (let i = 0; i < this.k; i++) {
-      const clusterDataIndex = dataByClusters[i];
-      const n = clusterDataIndex.length;
-      for (let j = 0; j < n; j++) {
-        const x = data[clusterDataIndex[j]];
-        totalLoss += x.sub(this.clusters[i]).squareLength();
-      }
+    if (clusters === undefined || clusters === null) {
+      clusters = init(points, k, Math.random);
     }
-    return totalLoss;
-  }
+    return predictIndex(point, clusters);
+  };
 
-  /** @param {vec} x @returns {number} index of the nearest cluster */
-  predictIndex(x) {
-    let kIndex = 0;
-    let minDistance = Number.MAX_VALUE;
-    for (let i = 0; i < this.k; i++) {
-      let dist = x.sub(this.clusters[i]).squareLength();
-      if (minDistance > dist) {
-        minDistance = dist;
-        kIndex = i;
-      }
-    }
-    return kIndex;
-  }
+  // vec -> one-hot vector of the nearest cluster
+  ans.predict = x => vec.e(k, ans.predictIndex(x));
 
-  /** @param {vec} x @returns {vec} one-hot vector of the nearest cluster */
-  predict(x) {
-    return vec.e(this.k, this.predictIndex(x));
+  return ans;
+};
+
+function toVector(value) {
+  if (value && value.type === "vector") {
+    return value;
   }
+  if (Array.isArray(value) || ArrayBuffer.isView(value)) {
+    return vec.fromArray(Array.from(value));
+  }
+  throw new Error("data points must be arrays or NMath vectors");
 }
+
+function init(data, k, random) {
+  const clusters = [];
+  for (let i = 0; i < k; i++) {
+    clusters[i] = data[Math.floor(random() * data.length)];
+  }
+  return clusters;
+}
+
+function clusterData(data, clusters) {
+  const clusterIndices = Array.from({ length: clusters.length }, () => []);
+  for (let i = 0; i < data.length; i++) {
+    clusterIndices[predictIndex(data[i], clusters)].push(i);
+  }
+  return clusterIndices;
+}
+
+function updateParameters(clusterIndices, data, dim, random) {
+  return clusterIndices.map(indices => {
+    if (indices.length === 0) {
+      return data[Math.floor(random() * data.length)];
+    }
+
+    let mean = vec.zero(dim);
+    for (const index of indices) {
+      mean = mean.add(data[index]);
+    }
+    return mean.scale(1 / indices.length);
+  });
+}
+
+function update(data, clusters, dim, random) {
+  return updateParameters(clusterData(data, clusters), data, dim, random);
+}
+
+function loss(data, clusters) {
+  let totalLoss = 0;
+  for (const point of data) {
+    totalLoss += point.sub(clusters[predictIndex(point, clusters)]).squareLength();
+  }
+  return totalLoss;
+}
+
+function fit(data, k, dim, maxIterations, initIterations, random) {
+  let bestClusters = init(data, k, random);
+  let minLoss = loss(data, bestClusters);
+  for (let i = 1; i < initIterations; i++) {
+    const clusters = init(data, k, random);
+    const actualLoss = loss(data, clusters);
+    if (actualLoss < minLoss) {
+      minLoss = actualLoss;
+      bestClusters = clusters;
+    }
+  }
+  for (let i = 0; i < maxIterations; i++) {
+    bestClusters = update(data, bestClusters, dim, random);
+  }
+  return bestClusters;
+}
+
+function predictIndex(point, clusters) {
+  let kIndex = 0;
+  let minDistance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < clusters.length; i++) {
+    const distance = point.sub(clusters[i]).squareLength();
+    if (distance < minDistance) {
+      minDistance = distance;
+      kIndex = i;
+    }
+  }
+  return kIndex;
+}
+
+export { Kmeans };
