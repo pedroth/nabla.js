@@ -64,6 +64,10 @@
         "path": "/playground/tests/point_cloud_kernel_sdfs.json"
     },
     {
+        "title": "Bunny hierarchical K-means UDF",
+        "path": "/playground/tests/bunny_hkmeans_udf.json"
+    },
+    {
         "title": "Point cloud knn graph",
         "path": "/playground/tests/point_cloud_knn_graph.json"
     },
@@ -186,6 +190,10 @@
     {
         "title": "Spiral Flow Matching",
         "path": "/playground/tests/spiral_flow_matching.json"
+    },
+    {
+        "title": "Spiral UDF Gradient Flow",
+        "path": "/playground/tests/spiral_udf_gradient_flow.json"
     },
     {
         "title": "Bunny Flow Matching",
