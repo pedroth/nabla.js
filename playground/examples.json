@@ -210,5 +210,17 @@
     {
         "title": "MNIST PCA UDF Gradient Flow",
         "path": "/playground/tests/mnist_pca_udf_gradient_flow.json"
+    },
+    {
+        "title": "MNIST PCA Nearest Neighbor",
+        "path": "/playground/tests/mnist_pca_nearest_neighbor.json"
+    },
+    {
+        "title": "MNIST Pixel Nearest Neighbor",
+        "path": "/playground/tests/mnist_pixel_nearest_neighbor.json"
+    },
+    {
+        "title": "MNIST Neural Weights Nearest Neighbor",
+        "path": "/playground/tests/mnist_neural_weights_nearest_neighbor.json"
     }
 ]

@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const {vec} = NMath;\nconst components = 50;\nconst samples = await IO.loadMNIST();\nif (samples.length < 2) throw new Error(\"At least two MNIST images are required\");\nconst pca = PCA.new(samples, components);\nconst targets = samples.map(sample => vec(...pca.proj(sample)));\nconst sampleForTarget = new Map(targets.map((target, index) => [target, samples[index]]));\nconst model = HKmeans.new(targets, {rho: 0.1, kmeansIter: 2}).fit();\n\nconst image = IO.paintMNIST(new Float32Array(28 * 28));\nconst drawing = IO.drawMNIST({\n    randomButton: true,\n    onSubmit: data => {\n        const point = vec(...pca.proj(data));\n        const nearest = model.findNN(point);\n        image.update(sampleForTarget.get(nearest));\n    },\n});\nconst ui = IO.UI(\n    {type: \"canvas\", value: () => drawing},\n    {type: \"canvas\", value: () => image},\n);\nui;\n"
+    }
+]
