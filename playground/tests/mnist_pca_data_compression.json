@@ -1,8 +1,5 @@
 [
     {
-        "input": "IO.drawMNIST({onSubmit: (data) => IO.store(\"digit\", data)})"
-    },
-    {
-        "input": "console.log(\"update this to run cell again\")\nconst samples = await IO.loadMNIST();\nconst pca = PCA.new(samples, 50)\nconst digit = IO.recall(\"digit\")\nlet pcaCoords = pca.proj(digit);\nIO.paintMNIST(new Float32Array(pca.gen(pcaCoords).toArray()))"
+        "input": "const samples = await IO.loadMNIST();\nconst pca = PCA.new(samples, 50);\nconst image = IO.paintMNIST(new Float32Array(28 * 28));\nconst drawing = IO.drawMNIST({\n    onSubmit: data => {\n        const pcaCoords = pca.proj(data);\n        image.update(new Float32Array(pca.gen(pcaCoords).toArray()));\n    },\n});\nconst ui = IO.UI(\n    {type: \"canvas\", value: () => drawing},\n    {type: \"canvas\", value: () => image},\n);\nui;"
     }
 ]
