@@ -222,5 +222,17 @@
     {
         "title": "MNIST Neural Weights Nearest Neighbor",
         "path": "/playground/tests/mnist_neural_weights_nearest_neighbor.json"
+    },
+    {
+        "title": "MNIST K-means clustering",
+        "path": "/playground/tests/mnist_kmeans_clustering.json"
+    },
+    {
+        "title": "MNIST Laplacian K-means clustering",
+        "path": "/playground/tests/mnist_laplacian_kmeans.json"
+    },
+    {
+        "title": "MNIST PCA spectral clustering",
+        "path": "/playground/tests/mnist_pca_spectral_clustering.json"
     }
 ]

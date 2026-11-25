@@ -1,0 +1,5 @@
+[
+    {
+        "input": "const samples = await IO.loadMNIST();\nconst K = 10;\nif (samples.length < K) throw new Error(\"At least 10 MNIST images are required\");\n\nconst kmeans = Kmeans.new(samples, K, {maxIterations: 20}).fit();\nconst means = Array.from({length: K}, () => new Float32Array(28 * 28));\nconst counts = new Array(K).fill(0);\nfor (const sample of samples) {\n    const cluster = kmeans.predictIndex(sample);\n    counts[cluster]++;\n    for (let i = 0; i < sample.length; i++) means[cluster][i] += sample[i];\n}\nfor (let cluster = 0; cluster < K; cluster++) {\n    if (counts[cluster] === 0) {\n        console.warn(`Cluster ${cluster} is empty`);\n        continue;\n    }\n    for (let i = 0; i < means[cluster].length; i++) means[cluster][i] /= counts[cluster];\n}\nIO.paintMNIST(means, 5);"
+    }
+]
