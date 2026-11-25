@@ -234,5 +234,13 @@
     {
         "title": "MNIST PCA spectral clustering",
         "path": "/playground/tests/mnist_pca_spectral_clustering.json"
+    },
+    {
+        "title": "MNIST PCA autoencoder compression",
+        "path": "/playground/tests/mnist_pca_autoencoder_compression.json"
+    },
+    {
+        "title": "MNIST autoencoder K-means clustering",
+        "path": "/playground/tests/mnist_autoencoder_kmeans_clustering.json"
     }
 ]
