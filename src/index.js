@@ -22,4 +22,5 @@ export * from "./Graph/index.js";
 export * from "./Kmeans/index.js";
 export * from "./HKmeans/index.js";
 export * from "./KernelRegression/index.js";
+export * from "./OptimalTransport/index.js";
 
