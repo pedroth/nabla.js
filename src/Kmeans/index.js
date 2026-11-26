@@ -4,8 +4,13 @@ const { vec } = NMath;
 
 const Kmeans = {};
 
+// options.distance: (vec, vec) -> number, the dissimilarity used to assign points and compute the loss.
+// Centers are always the arithmetic mean of their cluster, whatever the distance.
 Kmeans.new = function (data, k, options = {}) {
-  const { maxIterations = 100, initIterations = 0 } = options;
+  const { maxIterations = 100, initIterations = 0, distance = squaredDistance } = options;
+  if (typeof distance !== "function") {
+    throw new Error("distance must be a function");
+  }
   if (!Array.isArray(data) || data.length === 0) {
     throw new Error("data must be a non-empty array");
   }
@@ -37,7 +42,7 @@ Kmeans.new = function (data, k, options = {}) {
     if (clusters === undefined || clusters === null) {
       clusters = init(points, k, Math.random);
     }
-    clusters = update(points, clusters, dim, Math.random);
+    clusters = update(points, clusters, dim, Math.random, distance);
     return ans;
   };
 
@@ -45,11 +50,11 @@ Kmeans.new = function (data, k, options = {}) {
     if (clusters === undefined || clusters === null) {
       clusters = init(points, k, Math.random);
     }
-    return loss(points, clusters);
+    return loss(points, clusters, distance);
   };
 
   ans.fit = () => {
-    clusters = fit(points, k, dim, maxIterations, initIterations, Math.random);
+    clusters = fit(points, k, dim, maxIterations, initIterations, Math.random, distance);
     return ans;
   };
 
@@ -62,7 +67,7 @@ Kmeans.new = function (data, k, options = {}) {
     if (clusters === undefined || clusters === null) {
       clusters = init(points, k, Math.random);
     }
-    return predictIndex(point, clusters);
+    return predictIndex(point, clusters, distance);
   };
 
   // vec -> one-hot vector of the nearest cluster
@@ -70,6 +75,11 @@ Kmeans.new = function (data, k, options = {}) {
 
   return ans;
 };
+
+// Default cost: squared Euclidean distance.
+function squaredDistance(a, b) {
+  return a.sub(b).squareLength();
+}
 
 function toVector(value) {
   if (value && value.type === "vector") {
@@ -89,10 +99,10 @@ function init(data, k, random) {
   return clusters;
 }
 
-function clusterData(data, clusters) {
+function clusterData(data, clusters, distance) {
   const clusterIndices = Array.from({ length: clusters.length }, () => []);
   for (let i = 0; i < data.length; i++) {
-    clusterIndices[predictIndex(data[i], clusters)].push(i);
+    clusterIndices[predictIndex(data[i], clusters, distance)].push(i);
   }
   return clusterIndices;
 }
@@ -111,42 +121,42 @@ function updateParameters(clusterIndices, data, dim, random) {
   });
 }
 
-function update(data, clusters, dim, random) {
-  return updateParameters(clusterData(data, clusters), data, dim, random);
+function update(data, clusters, dim, random, distance) {
+  return updateParameters(clusterData(data, clusters, distance), data, dim, random);
 }
 
-function loss(data, clusters) {
+function loss(data, clusters, distance) {
   let totalLoss = 0;
   for (const point of data) {
-    totalLoss += point.sub(clusters[predictIndex(point, clusters)]).squareLength();
+    totalLoss += distance(point, clusters[predictIndex(point, clusters, distance)]);
   }
   return totalLoss;
 }
 
-function fit(data, k, dim, maxIterations, initIterations, random) {
+function fit(data, k, dim, maxIterations, initIterations, random, distance) {
   let bestClusters = init(data, k, random);
-  let minLoss = loss(data, bestClusters);
+  let minLoss = loss(data, bestClusters, distance);
   for (let i = 1; i < initIterations; i++) {
     const clusters = init(data, k, random);
-    const actualLoss = loss(data, clusters);
+    const actualLoss = loss(data, clusters, distance);
     if (actualLoss < minLoss) {
       minLoss = actualLoss;
       bestClusters = clusters;
     }
   }
   for (let i = 0; i < maxIterations; i++) {
-    bestClusters = update(data, bestClusters, dim, random);
+    bestClusters = update(data, bestClusters, dim, random, distance);
   }
   return bestClusters;
 }
 
-function predictIndex(point, clusters) {
+function predictIndex(point, clusters, distance) {
   let kIndex = 0;
   let minDistance = Number.POSITIVE_INFINITY;
   for (let i = 0; i < clusters.length; i++) {
-    const distance = point.sub(clusters[i]).squareLength();
-    if (distance < minDistance) {
-      minDistance = distance;
+    const d = distance(point, clusters[i]);
+    if (d < minDistance) {
+      minDistance = d;
       kIndex = i;
     }
   }

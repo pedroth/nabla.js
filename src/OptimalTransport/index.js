@@ -70,6 +70,9 @@ OptimalTransport.new = function (source, target, options = {}) {
         return ans;
     };
 
+    // 2-Wasserstein distance: square root of the transport cost (entropic, so slightly biased upwards).
+    ans.wasserstein = () => Math.sqrt(ans.cost());
+
     // Barycentric projection of source point i: sum_j P_ij y_j / a_i. Returns a vec.
     ans.map = (i, values = defaultValues) => {
         if (!ans.plan) throw new Error("OptimalTransport must be fitted first");
@@ -97,6 +100,11 @@ OptimalTransport.new = function (source, target, options = {}) {
     };
 
     return ans;
+};
+
+// 2-Wasserstein distance between two weighted point clouds; accepts the same arguments as `OptimalTransport.new`.
+OptimalTransport.wasserstein = function (source, target, options = {}) {
+    return OptimalTransport.new(source, target, options).fit().wasserstein();
 };
 
 function toPoints(points, name) {

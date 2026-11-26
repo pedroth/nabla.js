@@ -254,5 +254,13 @@
     {
         "title": "MNIST Pixel Optimal Transport",
         "path": "/playground/tests/mnist_pixel_optimal_transport.json"
+    },
+    {
+        "title": "MNIST Density Optimal Transport",
+        "path": "/playground/tests/mnist_density_optimal_transport.json"
+    },
+    {
+        "title": "MNIST Wasserstein K-means clustering",
+        "path": "/playground/tests/mnist_wasserstein_kmeans_clustering.json"
     }
 ]

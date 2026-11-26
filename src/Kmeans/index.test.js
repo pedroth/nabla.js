@@ -52,3 +52,12 @@ test("rejects empty or inconsistent input data", () => {
   expect(() => Kmeans.new([], 1)).toThrow("non-empty array");
   expect(() => Kmeans.new([[1], [1, 2]], 1)).toThrow("same non-zero dimension");
 });
+
+test("accepts a custom distance for assignment and loss", () => {
+  const distance = (a, b) => Math.abs(a.components[0] - b.components[0]);
+  const model = Kmeans.new([[0], [2], [4]], 1, { maxIterations: 1, distance });
+
+  model.fit();
+  expect(model.loss()).toBe(4);
+  expect(() => Kmeans.new([[0]], 1, { distance: 1 })).toThrow();
+});

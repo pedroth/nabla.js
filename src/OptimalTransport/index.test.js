@@ -43,3 +43,10 @@ test("interpolate can be restricted to some source indices", () => {
   const [moved] = ot.interpolate(1, { indices: [1] });
   expect(moved.toArray()[0]).toBeCloseTo(11, 3);
 });
+
+test("wasserstein distance between a point and a translated point is the translation", () => {
+  const d = OptimalTransport.wasserstein({ points: [[0, 0]] }, { points: [[3, 4]] });
+  expect(d).toBeCloseTo(5, 6);
+  const same = OptimalTransport.wasserstein({ points: [[0], [1]] }, { points: [[0], [1]] }, { entropy: 0.001 });
+  expect(same).toBeLessThan(0.05);
+});
