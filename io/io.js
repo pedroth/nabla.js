@@ -171,6 +171,80 @@ IO.paintMNIST = function (mnistSamples, scale = 10) {
 };
 
 /**
+ * Loads RGB faces stored as flattened 32x32 rows in the bundled image.
+ * @param {number} samples - Maximum number of faces to load.
+ * @returns {Promise<Float32Array[]>} Interleaved RGB values in [0, 1].
+ */
+IO.loadCelebrityFaces = async function (samples = 200) {
+    if (!Number.isInteger(samples) || samples < 1) {
+        throw new Error("samples must be a positive integer");
+    }
+    const key = `loadCelebrityFaces_${samples}`;
+    if (IO._cache[key]) return IO._cache[key];
+    let canvas;
+    try {
+        canvas = await Canvas.ofUrl(SOURCE + "/assets/celebrity_faces_images.png");
+    } catch (error) {
+        throw new Error(`Could not load celebrity faces: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const pixelsPerFace = 32 * 32;
+    if (canvas.width !== pixelsPerFace || canvas.height < 1) {
+        throw new Error("Unexpected celebrity faces image dimensions");
+    }
+    const count = Math.min(samples, canvas.height);
+    const faces = Array.from({length: count}, (_, row) => {
+        const face = new Float32Array(pixelsPerFace * 3);
+        for (let pixel = 0; pixel < pixelsPerFace; pixel++) {
+            const source = (row * pixelsPerFace + pixel) * 4;
+            for (let channel = 0; channel < 3; channel++) {
+                face[pixel * 3 + channel] = canvas.image[source + channel];
+            }
+        }
+        return face;
+    });
+    IO._cache[key] = faces;
+    return faces;
+};
+
+/**
+ * Creates an updatable visualization of a flattened square RGB face.
+ * @param {Float32Array|number[]} face - Interleaved normalized RGB values.
+ * @param {number} scale - Display size multiplier.
+ * @returns {{update: Function, toVisual: Function}} Updatable canvas visualization.
+ */
+IO.paintCelebrityFace = function (face, scale = 8) {
+    const size = Math.sqrt(face.length / 3);
+    if (!Number.isInteger(size) || size < 1) throw new Error("Face must have square RGB dimensions");
+    const canvas = Canvas.ofSize(size, size);
+    const update = pixels => {
+        if (pixels.length !== size * size * 3 || !pixels.every(Number.isFinite)) {
+            throw new Error("Face must contain finite RGB pixels of the original dimensions");
+        }
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const i = (y * size + x) * 3;
+                canvas.setPxl(x, size - 1 - y, Color.ofRGB(pixels[i], pixels[i + 1], pixels[i + 2]));
+            }
+        }
+        canvas.paint();
+    };
+    update(face);
+    return {
+        update,
+        toVisual: () => ({
+            type: "canvases",
+            value: () => {
+                const painted = canvas.paint();
+                painted.DOM.style.width = `${size * scale}px`;
+                painted.DOM.style.height = `${size * scale}px`;
+                painted.DOM.style.imageRendering = "pixelated";
+                return [painted];
+            },
+        }),
+    };
+};
+
+/**
  * Creates an interactive MNIST drawing surface.
  * @param {object} options - Drawing configuration.
  * @param {number} [options.width=28] - Image width in pixels.

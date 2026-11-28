@@ -266,5 +266,9 @@
     {
         "title": "MNIST Wasserstein K-means clustering",
         "path": "/playground/tests/mnist_wasserstein_kmeans_clustering.json"
+    },
+    {
+        "title": "Celebrity faces PCA data exploration",
+        "path": "/playground/tests/celebrity_faces_pca_data_exploration.json"
     }
 ]
