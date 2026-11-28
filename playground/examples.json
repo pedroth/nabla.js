@@ -244,6 +244,10 @@
         "path": "/playground/tests/mnist_autoencoder_kmeans_clustering.json"
     },
     {
+        "title": "MNIST autoencoder bottleneck exploration",
+        "path": "/playground/tests/mnist_autoencoder_bottleneck_exploration.json"
+    },
+    {
         "title": "Spiral Optimal Transport",
         "path": "/playground/tests/spiral_optimal_transport.json"
     },
