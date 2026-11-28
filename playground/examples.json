@@ -270,5 +270,9 @@
     {
         "title": "Celebrity faces PCA data exploration",
         "path": "/playground/tests/celebrity_faces_pca_data_exploration.json"
+    },
+    {
+        "title": "Celebrity faces autoencoder bottleneck exploration",
+        "path": "/playground/tests/celebrity_faces_autoencoder_bottleneck_exploration.json"
     }
 ]

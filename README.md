@@ -77,6 +77,7 @@ The focus is on clarity, correctness, and educational value rather than performa
 - Dimensionality reduction
     - MNIST PCA
     - Celebrity faces PCA exploration (32x32 RGB images)
+    - Celebrity faces autoencoder bottleneck exploration
     - Graph embedding
     - Kernel PCA
 - Spectral Point Clouds
